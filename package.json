@@ -1,5 +1,5 @@
 {
-  "name": "wanwu-code",
+  "name": "wanwu-monorepo",
   "private": true,
   "version": "0.1.0",
   "description": "Wanwu-Code — AI-native IDE (wanwu CLI + VS Code extension)",
@@ -10,9 +10,10 @@
   "scripts": {
     "lint": "pnpm -r --if-present run lint",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "test": "vitest run && pnpm --filter @wanwu/vscode run test",
+    "test": "vitest run && pnpm --filter wanwu-code run test",
     "build": "pnpm -r --if-present run build",
-    "build:extension": "pnpm --filter @wanwu/vscode run build",
+    "build:extension": "pnpm --filter wanwu-code run build",
+    "package:extension": "pnpm --filter wanwu-code run package",
     "wanwu": "tsx packages/wanwu-cli/src/index.ts"
   },
   "devDependencies": {

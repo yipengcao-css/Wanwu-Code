@@ -15,7 +15,7 @@ pnpm wanwu inspect | tee /tmp/wanwu-inspect.json | head -n 50
 grep -q 'WANWU.md' /tmp/wanwu-inspect.json
 
 echo "==> smoke-acp: mock ACP client integration"
-pnpm --filter @wanwu/vscode run test
+pnpm --filter wanwu-code run test
 
 if [[ -n "${WANWU_ACP_COMMAND:-}" ]]; then
   echo "==> smoke-acp: live backend via WANWU_ACP_COMMAND (timeout 2s)"

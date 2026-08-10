@@ -16,3 +16,4 @@ target/
 .pnpm-store/
 .wanwu/plans/
 .wanwu/settings.toml
+extensions/wanwu-vscode/*.vsix

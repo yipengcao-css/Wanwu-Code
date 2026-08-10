@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { loadExtensionConfig } from "./config/loadConfig";
 import { WanwuChatPanel } from "./ui/chatPanel";
 import { askToolPermission } from "./ui/permissionModal";
 import { reviewSingleFileDiff } from "./ui/diffReview";
@@ -23,6 +24,16 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand("wanwu.doctor", async () => {
       const root = findExtensionWorkspaceRoot();
+      try {
+        const cfg = loadExtensionConfig() as {
+          config?: { activeProvider?: string; acpBackend?: string; permissionMode?: string };
+        };
+        await vscode.window.showInformationMessage(
+          `Wanwu config: provider=${cfg.config?.activeProvider} acp=${cfg.config?.acpBackend} perm=${cfg.config?.permissionMode}`,
+        );
+      } catch {
+        // fall through to terminal doctor
+      }
       const term = vscode.window.createTerminal({
         name: "wanwu doctor",
         cwd: root,
@@ -37,9 +48,13 @@ export function activate(context: vscode.ExtensionContext): void {
       );
     }),
     vscode.commands.registerCommand("wanwu.runVerify", async () => {
+      const root = findExtensionWorkspaceRoot();
+      const term = vscode.window.createTerminal({ name: "wanwu verify", cwd: root });
+      term.show();
+      term.sendText("pnpm wanwu verify");
       WanwuChatPanel.show(context);
       await vscode.window.showInformationMessage(
-        "已打开 Wanwu Chat。请将 Mode 设为 Verify 后发送验证请求。",
+        "已启动 `wanwu verify`，并打开 Chat（可将 Mode 设为 Verify）。",
       );
     }),
   );

@@ -46,11 +46,13 @@ pnpm wanwu acp          # 默认桥接 grok ACP；可用 WANWU_ACP_COMMAND 覆�
 ./scripts/smoke-acp.sh
 ```
 
-扩展（Phase 3 完善 UI/ACP Client）：
+扩展：
 
 ```bash
-pnpm --filter @wanwu/vscode run typecheck
-# VS Code: 安装 extensions/wanwu-vscode 的 VSIX（待打包）
+pnpm --filter wanwu-code run typecheck
+pnpm package:extension
+# 安装 extensions/wanwu-vscode/wanwu-code-0.1.0.vsix
+# 手工清单：docs/manual-test-extension.md
 ```
 
 ## 文档

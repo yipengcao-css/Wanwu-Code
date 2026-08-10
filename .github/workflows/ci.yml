@@ -25,3 +25,16 @@ jobs:
         run: pnpm test
       - name: Lint
         run: pnpm lint
+      - name: Smoke ACP
+        run: ./scripts/smoke-acp.sh
+      - name: Permission probe
+        run: |
+          pnpm wanwu check-perm -p 'cat ~/.ssh/id_rsa' && exit 1 || true
+          pnpm wanwu check-perm -p 'pnpm test'
+      - name: Package VSIX
+        run: pnpm package:extension
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: wanwu-code-vsix
+          path: extensions/wanwu-vscode/*.vsix

@@ -40,13 +40,14 @@
 - [x] Plan artifact（`wanwu plan -p ...` → `.wanwu/plans/*.plan.md`）
 - [x] Verify 固定流水线（`wanwu verify`：typecheck/test/lint，状态机隔离）
 - [x] Hooks 示例目录（`.wanwu/hooks/`，运行时加载待续）
-- [ ] Memory writeback（用户确认后）
+- [x] Memory writeback（`wanwu memory-writeback -p ... [--yes]`）
+- [x] Hooks 可运行示例（`.wanwu/hooks.toml` + `wanwu hooks`）
 
 ## Phase 5 — 并行与云端
 
 - [x] 本地 worktree 辅助脚本（`scripts/parallel-worktree.sh`）
 - [x] cloud runner stub 包（`@wanwu/cloud` InMemory）
-- [ ] 统一配置贯通 CLI/IDE/Cloud（部分：同一 config loader；Cloud 未接）
+- [x] CLI/扩展共用配置源（扩展通过 `wanwu inspect`）
 - [ ] 真正多 session UI / 远程 runner（独立 epic）
 
 ## Phase 6 — Wanwu IDE Shell
@@ -59,9 +60,11 @@
 ## Phase 7 — 演示与发布
 
 - [x] `examples/failing-test-demo` + `scripts/demo-e2e.sh`
-- [x] smoke scripts（`scripts/smoke-acp.sh`）
-- [ ] VSIX / CLI 二进制发布物 + CHANGELOG（独立发布 epic）
+- [x] smoke scripts（`scripts/smoke-acp.sh`）+ CI 集成
+- [x] VSIX 打包（`pnpm package:extension`）+ `CHANGELOG.md`
+- [x] 手工测试清单（`docs/manual-test-extension.md`）
 - [ ] GUI 录屏（需本机 VS Code/Cursor 手工）
+- [ ] 独立 CLI 二进制发布（非 tsx 入口；后续）
 
 ## PR 拆分建议
 
