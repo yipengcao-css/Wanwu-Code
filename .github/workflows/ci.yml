@@ -29,6 +29,11 @@ jobs:
         run: ./scripts/smoke-acp.sh
       - name: Demo E2E
         run: ./scripts/demo-e2e.sh
+      - name: Parallel worktrees + cloud runner
+        run: |
+          pnpm wanwu parallel demo --cleanup
+          pnpm wanwu cloud submit -p "ci cloud review" --run
+          pnpm wanwu cloud cleanup --purge
       - name: Permission probe
         run: |
           pnpm wanwu check-perm -p 'cat ~/.ssh/id_rsa' && exit 1 || true

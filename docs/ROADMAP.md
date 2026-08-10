@@ -46,9 +46,10 @@
 ## Phase 5 — 并行与云端
 
 - [x] 本地 worktree 辅助脚本（`scripts/parallel-worktree.sh`）
-- [x] cloud runner stub 包（`@wanwu/cloud` InMemory）
+- [x] 并行隔离验证（`wanwu parallel demo` + 单测）
+- [x] 本地 headless cloud runner（`wanwu cloud submit --run`，review-first 不合并）
 - [x] CLI/扩展共用配置源（扩展通过 `wanwu inspect`）
-- [ ] 真正多 session UI / 远程 runner（独立 epic）
+- [ ] 扩展多 session UI / 远程 docker runner（后续增强）
 
 ## Phase 6 — Wanwu IDE Shell
 

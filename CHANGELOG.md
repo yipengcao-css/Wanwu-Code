@@ -13,6 +13,7 @@
 - `examples/failing-test-demo` + `scripts/demo-e2e.sh` / `scripts/smoke-acp.sh` / `scripts/acp-handshake.mts`
 - `docs/WORKFLOW.md`, `THIRD_PARTY_NOTICES`
 - Packaging: `pnpm package:extension` → VSIX；`pnpm build:cli` → `dist-bin/wanwu.mjs`
+- Phase 5: `wanwu parallel demo` worktree isolation；`wanwu cloud submit --run` local headless runner (review-first)
 
 ### Notes
 - Code-OSS IDE shell and cloud multi-agent runners remain deferred epics

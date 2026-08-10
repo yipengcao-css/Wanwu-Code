@@ -16,6 +16,7 @@
     "mock-acp": "tsx src/mockAcpServer.ts"
   },
   "dependencies": {
+    "@wanwu/cloud": "workspace:*",
     "@wanwu/config": "workspace:*",
     "@wanwu/workflow": "workspace:*",
     "smol-toml": "^1.3.1"

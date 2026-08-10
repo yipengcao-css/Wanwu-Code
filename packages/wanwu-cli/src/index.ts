@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 import { runAcpProxy } from "./acpBridge.js";
+import { runCloudCommand } from "./cloudCmd.js";
 import { printDoctor, runDoctor } from "./doctor.js";
 import { runExec } from "./exec.js";
 import { runHooks } from "./hooks.js";
 import { runInspect } from "./inspect.js";
 import { writebackMemory } from "./memoryWriteback.js";
+import { runParallelCommand } from "./parallelCmd.js";
 import { runPlan } from "./plan.js";
 import { assessBash } from "./permission.js";
 import { runVerify } from "./verify.js";
@@ -23,6 +25,8 @@ Usage:
   wanwu memory-writeback -p|--prompt <note> [--yes]
   wanwu check-perm -p|--prompt <bash>   Deny-first permission probe
   wanwu hooks <event>       Run hooks (PreToolUse|PostToolUse|Stop)
+  wanwu cloud ...           Local headless cloud runner (review-first)
+  wanwu parallel ...        Parallel worktree isolation demo
   wanwu help                Show this help
 
 Env:
@@ -117,6 +121,10 @@ async function main(argv: string[]): Promise<number> {
       for (const line of result.outputs) console.log(line);
       return result.ok ? 0 : 1;
     }
+    case "cloud":
+      return await runCloudCommand(rest);
+    case "parallel":
+      return runParallelCommand(rest);
     default:
       console.error(`Unknown command: ${cmd}`);
       usage();

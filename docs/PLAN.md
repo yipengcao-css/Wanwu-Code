@@ -295,8 +295,8 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 4. Review-first：完成后默认开 diff/PR 视图，而不是直接 merge
 
 **验收标准（阶段完成时）**
-- [ ] 同时跑 2 个本地 worktree agent 不互相踩文件
-- [ ] 云任务至少能在 headless runner 复现同一 workflow（可先单机 docker）
+- [x] 同时跑 2 个本地 worktree agent 不互相踩文件（`wanwu parallel demo`）
+- [x] 云任务至少能在 headless runner 复现同一 workflow（本地 worktree runner；docker 可后续）
 - [x] CLI 与扩展读取同一配置源
 
 ---

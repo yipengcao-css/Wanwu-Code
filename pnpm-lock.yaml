@@ -40,6 +40,9 @@ importers:
 
   packages/wanwu-cli:
     dependencies:
+      '@wanwu/cloud':
+        specifier: workspace:*
+        version: link:../wanwu-cloud
       '@wanwu/config':
         specifier: workspace:*
         version: link:../wanwu-config

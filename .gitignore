@@ -16,5 +16,7 @@ target/
 .pnpm-store/
 .wanwu/plans/
 .wanwu/settings.toml
+.wanwu/worktrees/
+.wanwu/cloud-tasks/
 extensions/wanwu-vscode/*.vsix
 dist-bin/

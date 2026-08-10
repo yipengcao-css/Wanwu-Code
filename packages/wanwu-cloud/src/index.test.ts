@@ -7,5 +7,6 @@ describe("wanwu-cloud stub", () => {
     const task = await client.submit("fix failing tests");
     expect(task.status).toBe("queued");
     expect((await client.get(task.id))?.prompt).toBe("fix failing tests");
+    expect(await client.list()).toHaveLength(1);
   });
 });

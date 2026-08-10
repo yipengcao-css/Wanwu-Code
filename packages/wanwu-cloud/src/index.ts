@@ -1,22 +1,54 @@
-/**
- * Cloud async agents (Codex-inspired) — Phase 5 stub.
- */
+export type { CloudClient, CloudTask, CloudTaskStatus } from "./types.js";
+export {
+  ensureTasksRoot,
+  listTasks,
+  loadTask,
+  saveTask,
+  tasksRoot,
+  updateTaskStatus,
+  type StoredTask,
+} from "./store.js";
+export { runCloudTaskLocally } from "./runner.js";
+export { cleanupParallel, runParallelMarkers, type ParallelAgentSpec } from "./parallel.js";
 
-export type CloudTaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
+import { randomBytes } from "node:crypto";
+import type { CloudClient, CloudTask } from "./types.js";
+import { listTasks, loadTask, saveTask, type StoredTask } from "./store.js";
+import { runCloudTaskLocally } from "./runner.js";
 
-export interface CloudTask {
-  id: string;
-  prompt: string;
-  status: CloudTaskStatus;
-  worktree?: string;
+export class FileCloudClient implements CloudClient {
+  constructor(private readonly repoRoot: string) {}
+
+  async submit(prompt: string): Promise<CloudTask> {
+    const id = `task_${Date.now().toString(36)}_${randomBytes(2).toString("hex")}`;
+    const now = new Date().toISOString();
+    const task: StoredTask = {
+      id,
+      prompt,
+      status: "queued",
+      createdAt: now,
+      updatedAt: now,
+    };
+    saveTask(this.repoRoot, task);
+    return task;
+  }
+
+  async get(id: string): Promise<CloudTask | undefined> {
+    return loadTask(this.repoRoot, id);
+  }
+
+  async list(): Promise<CloudTask[]> {
+    return listTasks(this.repoRoot);
+  }
+
+  /** Queue then immediately run on a local worktree runner (headless). */
+  async submitAndRun(prompt: string): Promise<StoredTask> {
+    const task = await this.submit(prompt);
+    return runCloudTaskLocally({ repoRoot: this.repoRoot, taskId: task.id });
+  }
 }
 
-export interface CloudClient {
-  submit(prompt: string): Promise<CloudTask>;
-  get(id: string): Promise<CloudTask | undefined>;
-}
-
-/** Local in-memory stub so the package is importable before real runners exist. */
+/** @deprecated use FileCloudClient — kept for unit tests of the original stub shape */
 export class InMemoryCloudClient implements CloudClient {
   private readonly tasks = new Map<string, CloudTask>();
 
@@ -32,5 +64,9 @@ export class InMemoryCloudClient implements CloudClient {
 
   async get(id: string): Promise<CloudTask | undefined> {
     return this.tasks.get(id);
+  }
+
+  async list(): Promise<CloudTask[]> {
+    return [...this.tasks.values()];
   }
 }
