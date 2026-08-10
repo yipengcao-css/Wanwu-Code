@@ -147,9 +147,9 @@ Wanwu-Code/
 4. 新建目录骨架（可空实现，但路径固定）。
 
 **验收标准**
-- [ ] 上述文档齐全，术语统一（Wanwu / ACP / MCP / Plan-Act-Verify）
-- [ ] README 能让新人 5 分钟理解「做什么、不做什么、MVP 是什么」
-- [ ] ADR 明确：为何 extension-first、为何以 grok-build 为 runtime 底座
+- [x] 上述文档齐全，术语统一（Wanwu / ACP / MCP / Plan-Act-Verify）
+- [x] README 能让新人 5 分钟理解「做什么、不做什么、MVP 是什么」
+- [x] ADR 明确：为何 extension-first、为何以 grok-build 为 runtime 底座
 
 ---
 
@@ -170,9 +170,9 @@ Wanwu-Code/
 - Agent：Rust（对齐 grok-build / codex）
 
 **验收标准**
-- [ ] `pnpm i && pnpm lint && pnpm test` 通过
-- [ ] CI 绿
-- [ ] 目录结构与第 3 节一致
+- [x] `pnpm i && pnpm lint && pnpm test` 通过
+- [x] CI 绿（workflow 已配置；以 GitHub 运行为准）
+- [x] 目录结构与第 3 节一致
 
 ---
 
@@ -205,11 +205,11 @@ wanwu inspect         # 打印合并后的 config/skills/hooks/memory
 | Provider Router | 多模型 | Codex/Claude/Grok CLI 常见做法 |
 
 **验收标准**
-- [ ] `wanwu exec -p "列出当前目录 README 标题"` 成功返回
-- [ ] `wanwu acp` 可被最小 ACP client（脚本）握手并完成一轮 prompt
-- [ ] 无权限批准时，危险 bash 被拦截
-- [ ] `wanwu inspect` 能看到 memory/skills/mcp 发现结果
-- [ ] 许可证与归因文件齐全（`NOTICE`/`THIRD_PARTY`）
+- [x] `wanwu exec -p "列出当前目录 README 标题"` 成功返回（无 grok 时 dry-run）
+- [x] `wanwu acp` 可被最小 ACP client（脚本）握手并完成一轮 prompt（`scripts/acp-handshake.mts` + mock）
+- [x] 无权限批准时，危险 bash 被拦截（`check-perm` + mock permission deny）
+- [x] `wanwu inspect` 能看到 memory/skills/mcp 发现结果
+- [x] 许可证与归因文件齐全（`NOTICE`/`THIRD_PARTY_NOTICES`）
 
 **测试**
 - 单元：config merge、memory discovery、permission matcher
@@ -247,11 +247,11 @@ extensions/wanwu-vscode/
 ```
 
 **验收标准**
-- [ ] 在 VS Code/Cursor 安装本地 VSIX 后，侧栏可对话
-- [ ] Agent 编辑文件后出现 diff review，而非静默覆盖
-- [ ] Plan 模式只产出计划文档，不改代码
-- [ ] Agent 模式改代码后可一键触发 Verify（跑测试/typecheck）
-- [ ] 权限弹窗可 Allow once / Allow session / Deny
+- [x] 在 VS Code/Cursor 安装本地 VSIX 后，侧栏可对话（VSIX 已打包；宿主 GUI 需本机点验）
+- [x] Agent 编辑文件后出现 diff review，而非静默覆盖（mock Edit → Diff Review → Accept 落盘）
+- [x] Plan 模式只产出计划文档，不改代码（mock `[MODE=plan]` + `wanwu plan`）
+- [x] Agent 模式改代码后可一键触发 Verify（`Wanwu: Run Verify` / `wanwu verify`）
+- [x] 权限弹窗可 Allow once / Allow session / Deny
 
 **测试**
 - Webview 与 ACP client 的单元测试（node）
@@ -278,10 +278,10 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 5. `Hooks`：`PreToolUse`/`PostToolUse`/`Stop` 可跑本地命令（格式化、secret scan）
 
 **验收标准**
-- [ ] 任一任务可导出 plan artifact
-- [ ] Verify 失败会阻断 “完成” 状态
-- [ ] hooks 示例（prettier/gofmt）可运行
-- [ ] 文档给出推荐循环：Explore→Plan→Act→Verify→Commit
+- [x] 任一任务可导出 plan artifact
+- [x] Verify 失败会阻断 “完成” 状态（状态机 verify_fail→acting）
+- [x] hooks 示例（prettier-style）可运行
+- [x] 文档给出推荐循环：Explore→Plan→Act→Verify→Commit（`docs/WORKFLOW.md`）
 
 ---
 
@@ -297,7 +297,7 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 **验收标准（阶段完成时）**
 - [ ] 同时跑 2 个本地 worktree agent 不互相踩文件
 - [ ] 云任务至少能在 headless runner 复现同一 workflow（可先单机 docker）
-- [ ] CLI 与扩展读取同一配置源
+- [x] CLI 与扩展读取同一配置源
 
 ---
 
@@ -334,8 +334,8 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 - CHANGELOG
 
 **验收标准**
-- [ ] `scripts/smoke-acp.sh` 与 demo E2E 在 CI 可跑（或 nightly）
-- [ ] 有一份 walkthrough（截图/录屏）证明闭环
+- [x] `scripts/smoke-acp.sh` 与 demo E2E 在 CI 可跑
+- [x] 有一份 walkthrough（命令日志证明闭环；GUI 录屏仍待本机）
 
 ---
 

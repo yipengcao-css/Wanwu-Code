@@ -66,7 +66,9 @@ pnpm package:extension
 - [ADR 0001 Runtime 底座](docs/ADRs/0001-agent-runtime-base.md)
 - [ADR 0002 扩展优先](docs/ADRs/0002-ide-strategy-extension-first.md)
 - [ADR 0003 多模型对等](docs/ADRs/0003-multi-model-provider.md)
+- [推荐工作流](docs/WORKFLOW.md)
 - [完整实施计划](docs/PLAN.md)
+- [第三方声明](THIRD_PARTY_NOTICES)
 
 ## 设计原则（摘要）
 

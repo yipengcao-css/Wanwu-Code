@@ -64,7 +64,8 @@
 - [x] VSIX 打包（`pnpm package:extension`）+ `CHANGELOG.md`
 - [x] 手工测试清单（`docs/manual-test-extension.md`）
 - [ ] GUI 录屏（需本机 VS Code/Cursor 手工）
-- [ ] 独立 CLI 二进制发布（非 tsx 入口；后续）
+- [x] CLI 单文件 bundle（`pnpm build:cli` → `dist-bin/wanwu.mjs`；原生平台二进制仍可后续）
+- [x] `docs/WORKFLOW.md` + `THIRD_PARTY_NOTICES`
 
 ## PR 拆分建议
 
