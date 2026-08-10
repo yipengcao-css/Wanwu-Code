@@ -20,3 +20,4 @@ target/
 .wanwu/cloud-tasks/
 extensions/wanwu-vscode/*.vsix
 dist-bin/
+apps/wanwu-ide/code-oss/
