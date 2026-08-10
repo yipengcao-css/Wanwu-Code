@@ -44,21 +44,24 @@
 
 ## Phase 5 — 并行与云端
 
-- [ ] 本地 worktree 多 session
-- [ ] cloud runner stub
-- [ ] 统一配置贯通 CLI/IDE/Cloud
+- [x] 本地 worktree 辅助脚本（`scripts/parallel-worktree.sh`）
+- [x] cloud runner stub 包（`@wanwu/cloud` InMemory）
+- [ ] 统一配置贯通 CLI/IDE/Cloud（部分：同一 config loader；Cloud 未接）
+- [ ] 真正多 session UI / 远程 runner（独立 epic）
 
 ## Phase 6 — Wanwu IDE Shell
 
-- [ ] Code-OSS 拉取 + patch
+- [x] 占位目录与说明（`apps/wanwu-ide`）
+- [ ] Code-OSS 拉取 + patch（独立 epic）
 - [ ] 预装 wanwu 扩展
 - [ ] 品牌与默认布局
 
 ## Phase 7 — 演示与发布
 
-- [ ] `examples/failing-test-demo`
-- [ ] smoke scripts + 录屏
-- [ ] VSIX / CLI 发布物 + CHANGELOG
+- [x] `examples/failing-test-demo` + `scripts/demo-e2e.sh`
+- [x] smoke scripts（`scripts/smoke-acp.sh`）
+- [ ] VSIX / CLI 二进制发布物 + CHANGELOG（独立发布 epic）
+- [ ] GUI 录屏（需本机 VS Code/Cursor 手工）
 
 ## PR 拆分建议
 
