@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import type { WanwuMode } from "../modes";
-import { AcpClient } from "../acp/client";
+import { AcpClient, type AcpPermissionRequest } from "../acp/client";
 import { startAcpProcess } from "../acp/process";
+import { askToolPermission } from "./permissionModal";
 import { findExtensionWorkspaceRoot } from "../workspaceRoot";
 
 export class WanwuChatPanel {
@@ -61,6 +62,24 @@ export class WanwuChatPanel {
     const client = new AcpClient(child);
     client.on("message", (text: string) => {
       void this.panel.webview.postMessage({ type: "assistant", text });
+    });
+    client.on("tool", (tool: { title: string; status: string; detail?: string }) => {
+      void this.panel.webview.postMessage({
+        type: "tool",
+        text: `${tool.status} ${tool.title}${tool.detail ? `: ${tool.detail}` : ""}`,
+      });
+    });
+    client.on("permission", (req: AcpPermissionRequest) => {
+      void (async () => {
+        const decision = await askToolPermission(req.toolName, `${req.summary} (risk=${req.risk ?? "?"})`);
+        const optionId =
+          decision === "allow-once" || decision === "allow-session" ? "allow_once" : "deny";
+        client.respond(req.id, { optionId });
+        void this.panel.webview.postMessage({
+          type: "status",
+          text: `permission ${decision} for ${req.toolName}`,
+        });
+      })();
     });
     client.on("error", (err: Error) => {
       void this.panel.webview.postMessage({ type: "error", text: err.message });
@@ -141,6 +160,7 @@ export class WanwuChatPanel {
     .user { color: var(--vscode-textLink-foreground); }
     .assistant { color: var(--vscode-foreground); }
     .error { color: var(--vscode-errorForeground); }
+    .tool { color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family); font-size: 12px; }
     .status { opacity: 0.7; font-size: 12px; }
   </style>
 </head>
@@ -186,6 +206,7 @@ export class WanwuChatPanel {
     window.addEventListener('message', (event) => {
       const msg = event.data;
       if (msg.type === 'assistant') append('assistant', 'Wanwu: ' + msg.text);
+      if (msg.type === 'tool') append('tool', '⚙ ' + msg.text);
       if (msg.type === 'error') append('error', 'Error: ' + msg.text);
       if (msg.type === 'status') status.textContent = msg.text;
     });

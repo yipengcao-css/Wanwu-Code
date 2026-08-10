@@ -28,3 +28,7 @@
 - 小步提交并推送
 - 危险操作默认 ask 权限
 - 纯文本 skills/hooks，不上复杂向量库（除非另有决策）
+
+## Learned
+
+- (2026-08-10) Verify must stay isolated from Act context

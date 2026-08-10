@@ -1,18 +1,111 @@
 #!/usr/bin/env node
 /**
  * Minimal newline-delimited JSON-RPC ACP stub for local extension/CLI smoke tests.
- * Not a full ACP implementation — enough to exercise handshake + one prompt turn.
+ * Supports handshake, prompt streaming, tool timeline, and permission requests.
  */
 import * as readline from "node:readline";
+import { assessBash } from "./permission.js";
 
-type JsonRpc =
-  | { jsonrpc: "2.0"; id: string | number; method: string; params?: unknown }
-  | { jsonrpc: "2.0"; id: string | number; result: unknown }
-  | { jsonrpc: "2.0"; id: string | number; error: { code: number; message: string } }
-  | { jsonrpc: "2.0"; method: string; params?: unknown };
+type JsonRpc = Record<string, unknown>;
 
 function send(msg: JsonRpc): void {
   process.stdout.write(`${JSON.stringify(msg)}\n`);
+}
+
+interface PendingPrompt {
+  requestId: string | number;
+  text: string;
+  permissionId: number;
+}
+
+let pending: PendingPrompt | undefined;
+let nextServerId = 9000;
+
+function finishPrompt(requestId: string | number, text: string, denied?: string): void {
+  if (denied) {
+    send({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "mock-session-1",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `Blocked by permission policy: ${denied}` },
+        },
+      },
+    });
+  } else {
+    send({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "mock-session-1",
+        update: {
+          sessionUpdate: "tool_call",
+          toolCallId: "tool-read-1",
+          title: "Read",
+          status: "completed",
+          content: { type: "text", text: "README.md" },
+        },
+      },
+    });
+    send({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "mock-session-1",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: `Wanwu mock reply: ${text.slice(0, 200)}` },
+        },
+      },
+    });
+  }
+  send({
+    jsonrpc: "2.0",
+    id: requestId,
+    result: { stopReason: "end_turn" },
+  });
+}
+
+function beginPrompt(requestId: string | number, text: string): void {
+  send({
+    jsonrpc: "2.0",
+    method: "session/update",
+    params: {
+      sessionId: "mock-session-1",
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "tool-bash-1",
+        title: "Bash",
+        status: "pending",
+        content: { type: "text", text: "echo hello" },
+      },
+    },
+  });
+
+  const dangerous =
+    /rm\s+-rf|SIMULATE_DANGEROUS|cat\s+~\/\.ssh/i.test(text) ||
+    text.includes("[SIMULATE_DANGEROUS]");
+  if (dangerous) {
+    const command = /cat\s+~\/\.ssh/.test(text) ? "cat ~/.ssh/id_rsa" : "rm -rf ./dist";
+    const verdict = assessBash(command, "ask");
+    const permissionId = nextServerId++;
+    pending = { requestId, text, permissionId };
+    send({
+      jsonrpc: "2.0",
+      id: permissionId,
+      method: "session/request_permission",
+      params: {
+        sessionId: "mock-session-1",
+        toolCall: { toolCallId: "tool-bash-1", title: "Bash", rawInput: command },
+        verdict,
+      },
+    });
+    return;
+  }
+
+  finishPrompt(requestId, text);
 }
 
 const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
@@ -25,11 +118,26 @@ rl.on("line", (line) => {
   } catch {
     return;
   }
-  if (!("method" in msg) || !("id" in msg)) {
+
+  // Client response to our permission request
+  if (pending && msg.id === pending.permissionId && !("method" in msg)) {
+    const result = msg.result as { optionId?: string } | undefined;
+    const option = result?.optionId ?? "deny";
+    const { requestId, text } = pending;
+    pending = undefined;
+    if (option === "deny" || option === "cancelled") {
+      finishPrompt(requestId, text, "user or policy denied dangerous bash");
+      return;
+    }
+    finishPrompt(requestId, text);
     return;
   }
 
-  const id = msg.id;
+  if (typeof msg.method !== "string" || msg.id === undefined) {
+    return;
+  }
+
+  const id = msg.id as string | number;
   const method = msg.method;
 
   if (method === "initialize") {
@@ -46,33 +154,14 @@ rl.on("line", (line) => {
   }
 
   if (method === "session/new" || method === "newSession") {
-    send({
-      jsonrpc: "2.0",
-      id,
-      result: { sessionId: "mock-session-1" },
-    });
+    send({ jsonrpc: "2.0", id, result: { sessionId: "mock-session-1" } });
     return;
   }
 
   if (method === "session/prompt" || method === "prompt") {
     const params = (msg.params ?? {}) as { prompt?: string; text?: string };
     const text = params.prompt ?? params.text ?? "";
-    send({
-      jsonrpc: "2.0",
-      method: "session/update",
-      params: {
-        sessionId: "mock-session-1",
-        update: {
-          sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: `Wanwu mock reply: ${text.slice(0, 200)}` },
-        },
-      },
-    });
-    send({
-      jsonrpc: "2.0",
-      id,
-      result: { stopReason: "end_turn" },
-    });
+    beginPrompt(id, text);
     return;
   }
 
