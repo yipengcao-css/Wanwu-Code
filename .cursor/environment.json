@@ -1,0 +1,4 @@
+{
+  "name": "Wanwu-Code",
+  "install": "corepack enable\npnpm install --frozen-lockfile"
+}
