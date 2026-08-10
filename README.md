@@ -44,6 +44,7 @@ pnpm wanwu inspect
 pnpm wanwu exec -p "列出 README 标题"
 pnpm wanwu acp          # 默认桥接 grok ACP；可用 WANWU_ACP_COMMAND 覆盖
 ./scripts/smoke-acp.sh
+pnpm build:cli          # 产出 dist-bin/wanwu.mjs
 ```
 
 扩展：

@@ -31,7 +31,7 @@
 ## Phase 3 — VS Code 扩展 MVP
 
 - [x] ACP Client 聊天面板（Webview）+ mock ACP 联调
-- [x] Diff Review + 权限弹窗（Demo 命令可用；待挂到真实 tool 事件）
+- [x] Diff Review + 权限弹窗（已挂到 mock tool/edit 事件；真实 grok 事件同协议）
 - [x] Ask / Plan / Agent / Verify 模式（提示词前缀；UI 可切换）
 - [x] 编辑器上下文注入（选区、打开文件、diagnostics）
 

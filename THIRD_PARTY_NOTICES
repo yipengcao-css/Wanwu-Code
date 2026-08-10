@@ -1,0 +1,33 @@
+# Third-Party Notices
+
+Wanwu-Code incorporates or interoperates with the following third-party software.
+This file is informational and does not modify license terms of those projects.
+
+## xAI Grok Build
+- Project: https://github.com/xai-org/grok-build
+- License: Apache License 2.0
+- Use in Wanwu: optional ACP backend bridge (`acp_backend = "grok"`)
+- Wanwu-Code is not affiliated with, endorsed by, or sponsored by xAI.
+
+## Agent Client Protocol
+- Project: https://github.com/agentclientprotocol/agent-client-protocol
+- License: see upstream repository
+- Use in Wanwu: protocol model for editor ↔ agent integration
+
+## Model Context Protocol
+- Project: https://modelcontextprotocol.io /
+- Use in Wanwu: planned/external tool servers via MCP configuration discovery
+
+## Visual Studio Code / Code-OSS
+- Project: https://github.com/microsoft/vscode
+- License: MIT
+- Use in Wanwu: extension host for `wanwu-code` VSIX; future IDE shell may fork Code-OSS
+
+## OpenAI Codex (reference)
+- Project: https://github.com/openai/codex
+- License: Apache License 2.0
+- Use in Wanwu: architectural reference only (CLI/IDE/Cloud config patterns); not vendored
+
+## npm dependencies
+Runtime and build dependencies are declared in package.json / pnpm-lock.yaml and
+retain their respective licenses (MIT, Apache-2.0, ISC, etc.).

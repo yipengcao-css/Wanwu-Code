@@ -1,3 +1,7 @@
 [[hooks]]
 event = "PostToolUse"
 command = "bash .wanwu/hooks/post-tool-echo.sh"
+
+[[hooks]]
+event = "PostToolUse"
+command = "bash .wanwu/hooks/post-tool-format.sh"

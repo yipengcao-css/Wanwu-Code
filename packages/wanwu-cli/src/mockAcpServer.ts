@@ -34,6 +34,21 @@ function finishPrompt(requestId: string | number, text: string, denied?: string)
         },
       },
     });
+  } else if (/\[MODE=plan\]/i.test(text)) {
+    send({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "mock-session-1",
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: "Plan only (no file edits):\n1. Reproduce failing test\n2. Patch sum()\n3. Run verify\nUse Agent mode after approval.",
+          },
+        },
+      },
+    });
   } else {
     send({
       jsonrpc: "2.0",
@@ -49,6 +64,32 @@ function finishPrompt(requestId: string | number, text: string, denied?: string)
         },
       },
     });
+
+    const wantEdit =
+      /\[SIMULATE_EDIT\]/i.test(text) ||
+      (/\[MODE=agent\]/i.test(text) && /sum|failing-test-demo/i.test(text));
+    if (wantEdit) {
+      send({
+        jsonrpc: "2.0",
+        method: "session/update",
+        params: {
+          sessionId: "mock-session-1",
+          update: {
+            sessionUpdate: "tool_call",
+            toolCallId: "tool-edit-1",
+            title: "Edit",
+            status: "pending",
+            content: {
+              type: "diff",
+              path: "examples/failing-test-demo/src/sum.js",
+              before: "export function sum(a, b) {\n  return a - b;\n}\n",
+              after: "export function sum(a, b) {\n  return a + b;\n}\n",
+            },
+          },
+        },
+      });
+    }
+
     send({
       jsonrpc: "2.0",
       method: "session/update",
@@ -56,7 +97,12 @@ function finishPrompt(requestId: string | number, text: string, denied?: string)
         sessionId: "mock-session-1",
         update: {
           sessionUpdate: "agent_message_chunk",
-          content: { type: "text", text: `Wanwu mock reply: ${text.slice(0, 200)}` },
+          content: {
+            type: "text",
+            text: wantEdit
+              ? "Proposed edit ready for Diff Review (not applied until accepted)."
+              : `Wanwu mock reply: ${text.slice(0, 200)}`,
+          },
         },
       },
     });

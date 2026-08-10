@@ -1,9 +1,12 @@
 import * as vscode from "vscode";
 import type { WanwuMode } from "../modes";
-import { AcpClient, type AcpPermissionRequest } from "../acp/client";
+import { AcpClient, type AcpEditProposal, type AcpPermissionRequest } from "../acp/client";
 import { startAcpProcess } from "../acp/process";
 import { askToolPermission } from "./permissionModal";
+import { reviewSingleFileDiff } from "./diffReview";
 import { findExtensionWorkspaceRoot } from "../workspaceRoot";
+import * as path from "node:path";
+import { writeFileSync, mkdirSync } from "node:fs";
 
 export class WanwuChatPanel {
   public static current: WanwuChatPanel | undefined;
@@ -79,6 +82,30 @@ export class WanwuChatPanel {
           type: "status",
           text: `permission ${decision} for ${req.toolName}`,
         });
+      })();
+    });
+    client.on("edit", (edit: AcpEditProposal) => {
+      void (async () => {
+        void this.panel.webview.postMessage({
+          type: "tool",
+          text: `pending Edit: ${edit.path}`,
+        });
+        const decision = await reviewSingleFileDiff(edit);
+        if (decision === "accept") {
+          const root = findExtensionWorkspaceRoot();
+          const abs = path.isAbsolute(edit.path) ? edit.path : path.join(root, edit.path);
+          mkdirSync(path.dirname(abs), { recursive: true });
+          writeFileSync(abs, edit.after, "utf8");
+          void this.panel.webview.postMessage({
+            type: "status",
+            text: `accepted edit → ${edit.path}`,
+          });
+        } else {
+          void this.panel.webview.postMessage({
+            type: "status",
+            text: `rejected edit → ${edit.path}`,
+          });
+        }
       })();
     });
     client.on("error", (err: Error) => {

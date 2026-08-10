@@ -14,9 +14,11 @@
     "build": "pnpm -r --if-present run build",
     "build:extension": "pnpm --filter wanwu-code run build",
     "package:extension": "pnpm --filter wanwu-code run package",
+    "build:cli": "bash scripts/build-cli.sh",
     "wanwu": "tsx packages/wanwu-cli/src/index.ts"
   },
   "devDependencies": {
+    "esbuild": "^0.25.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"

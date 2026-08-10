@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import path from "node:path";
-import { AcpClient, type AcpPermissionRequest } from "./client";
+import { AcpClient, type AcpEditProposal, type AcpPermissionRequest } from "./client";
 
 async function main(): Promise<void> {
   const workspaceRoot = path.resolve(__dirname, "../../../../");
@@ -13,10 +13,12 @@ async function main(): Promise<void> {
   const client = new AcpClient(child);
   const messages: string[] = [];
   const tools: string[] = [];
+  const edits: AcpEditProposal[] = [];
   client.on("message", (text: string) => messages.push(text));
   client.on("tool", (tool: { title: string; status: string }) => {
     tools.push(`${tool.status}:${tool.title}`);
   });
+  client.on("edit", (edit: AcpEditProposal) => edits.push(edit));
   client.on("permission", (req: AcpPermissionRequest) => {
     client.respond(req.id, { optionId: "deny" });
   });
@@ -36,6 +38,13 @@ async function main(): Promise<void> {
   await client.prompt(sessionId, "[SIMULATE_DANGEROUS] rm -rf ./dist");
   await new Promise((r) => setTimeout(r, 300));
   assert.ok(messages.some((m) => /Blocked by permission/i.test(m)));
+
+  edits.length = 0;
+  messages.length = 0;
+  await client.prompt(sessionId, "[SIMULATE_EDIT] fix sum");
+  await new Promise((r) => setTimeout(r, 300));
+  assert.ok(edits.some((e) => e.path.includes("sum.js") && e.after.includes("a + b")));
+  assert.ok(messages.some((m) => /Diff Review/i.test(m)));
 
   client.dispose();
   console.log("acp client integration OK");

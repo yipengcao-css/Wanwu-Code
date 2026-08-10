@@ -11,21 +11,23 @@ echo "==> smoke-acp: doctor"
 pnpm wanwu doctor
 
 echo "==> smoke-acp: inspect (memory should include WANWU.md)"
-pnpm wanwu inspect | tee /tmp/wanwu-inspect.json | head -n 50
+pnpm wanwu inspect | tee /tmp/wanwu-inspect.json | head -n 80
 grep -q 'WANWU.md' /tmp/wanwu-inspect.json
+grep -q 'demo-fix-test.md' /tmp/wanwu-inspect.json
 
 echo "==> smoke-acp: mock ACP client integration"
 pnpm --filter wanwu-code run test
 
+echo "==> smoke-acp: handshake through wanwu acp + mock backend"
+pnpm exec tsx scripts/acp-handshake.mts
+
 if [[ -n "${WANWU_ACP_COMMAND:-}" ]]; then
-  echo "==> smoke-acp: live backend via WANWU_ACP_COMMAND (timeout 2s)"
+  echo "==> smoke-acp: extra live backend via WANWU_ACP_COMMAND (timeout 2s)"
   set +e
   timeout 2 pnpm wanwu acp
   code=$?
   set -e
   echo "acp exit=$code"
-else
-  echo "==> smoke-acp: skipping external ACP stdio (set WANWU_ACP_COMMAND to enable)"
 fi
 
 echo "==> smoke-acp OK"

@@ -8,10 +8,13 @@
 - Grok Build ACP bridge (`acp_backend=grok`) with `WANWU_ACP_COMMAND` override
 - Multi-model config schema (xAI / OpenAI / Anthropic / Ollama / custom)
 - VS Code extension: Wanwu Chat, Ask/Plan/Agent/Verify, mock ACP, tool timeline, permission prompts
-- Deny-first permission matcher and PostToolUse hooks example
-- `examples/failing-test-demo` + `scripts/demo-e2e.sh` / `scripts/smoke-acp.sh`
-- Draft packaging: `pnpm package:extension` → VSIX
+- Diff Review wired to mock Edit proposals (Accept applies file)
+- Deny-first permission matcher and PostToolUse hooks (echo + prettier-style)
+- `examples/failing-test-demo` + `scripts/demo-e2e.sh` / `scripts/smoke-acp.sh` / `scripts/acp-handshake.mts`
+- `docs/WORKFLOW.md`, `THIRD_PARTY_NOTICES`
+- Packaging: `pnpm package:extension` → VSIX；`pnpm build:cli` → `dist-bin/wanwu.mjs`
 
 ### Notes
-- Code-OSS IDE shell and cloud runners remain deferred epics
+- Code-OSS IDE shell and cloud multi-agent runners remain deferred epics
 - Real Grok binary not required for mock-based local smoke tests
+- GUI screen recording still requires a local VS Code/Cursor host

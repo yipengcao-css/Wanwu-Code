@@ -14,6 +14,12 @@ export interface AcpPermissionRequest {
   risk?: string;
 }
 
+export interface AcpEditProposal {
+  path: string;
+  before: string;
+  after: string;
+}
+
 export class AcpClient extends EventEmitter {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
@@ -84,6 +90,10 @@ export class AcpClient extends EventEmitter {
       if (tool) {
         this.emit("tool", tool);
       }
+      const edit = extractEdit(msg.params);
+      if (edit) {
+        this.emit("edit", edit);
+      }
       const text = extractText(msg.params);
       if (text) {
         this.emit("message", text);
@@ -152,9 +162,29 @@ function extractTool(params: unknown): { title: string; status: string; detail?:
   const update = p.update as Record<string, unknown> | undefined;
   if (!update || update.sessionUpdate !== "tool_call") return undefined;
   const content = update.content as Record<string, unknown> | undefined;
+  const detail =
+    typeof content?.text === "string"
+      ? content.text
+      : typeof content?.path === "string"
+        ? String(content.path)
+        : undefined;
   return {
     title: String(update.title ?? "tool"),
     status: String(update.status ?? "pending"),
-    detail: typeof content?.text === "string" ? content.text : undefined,
+    detail,
+  };
+}
+
+function extractEdit(params: unknown): AcpEditProposal | undefined {
+  if (!params || typeof params !== "object") return undefined;
+  const p = params as Record<string, unknown>;
+  const update = p.update as Record<string, unknown> | undefined;
+  const content = update?.content as Record<string, unknown> | undefined;
+  if (!content || content.type !== "diff") return undefined;
+  if (typeof content.path !== "string") return undefined;
+  return {
+    path: content.path,
+    before: String(content.before ?? ""),
+    after: String(content.after ?? ""),
   };
 }

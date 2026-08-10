@@ -17,3 +17,4 @@ target/
 .wanwu/plans/
 .wanwu/settings.toml
 extensions/wanwu-vscode/*.vsix
+dist-bin/
