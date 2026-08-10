@@ -25,7 +25,7 @@ Usage:
   wanwu memory-writeback -p|--prompt <note> [--yes]
   wanwu check-perm -p|--prompt <bash>   Deny-first permission probe
   wanwu hooks <event>       Run hooks (PreToolUse|PostToolUse|Stop)
-  wanwu cloud ...           Local headless cloud runner (review-first)
+  wanwu cloud ...           Headless cloud runner (local/docker, review-first)
   wanwu parallel ...        Parallel worktree isolation demo
   wanwu help                Show this help
 

@@ -1,7 +1,15 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { FileCloudClient, listTasks, loadTask, runCloudTaskLocally } from "@wanwu/cloud";
+import {
+  FileCloudClient,
+  buildDockerRunnerImage,
+  dockerAvailable,
+  listTasks,
+  loadTask,
+  runCloudTaskInDocker,
+  runCloudTaskLocally,
+} from "@wanwu/cloud";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
 export async function runCloudCommand(args: string[]): Promise<number> {
@@ -13,12 +21,19 @@ export async function runCloudCommand(args: string[]): Promise<number> {
     case "submit": {
       let prompt = "";
       let runNow = false;
+      let useDocker = false;
+      let rebuild = false;
       for (let i = 0; i < rest.length; i += 1) {
         const a = rest[i];
         if (a === "-p" || a === "--prompt") {
           prompt = rest[++i] ?? "";
         } else if (a === "--run") {
           runNow = true;
+        } else if (a === "--docker") {
+          useDocker = true;
+          runNow = true;
+        } else if (a === "--rebuild") {
+          rebuild = true;
         } else if (!prompt && a && !a.startsWith("-")) {
           prompt = a;
         }
@@ -26,6 +41,12 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       if (!prompt) {
         console.error("wanwu cloud submit requires -p/--prompt");
         return 2;
+      }
+      if (useDocker) {
+        const task = await client.submit(prompt);
+        const done = runCloudTaskInDocker({ repoRoot: cwd, taskId: task.id, rebuild });
+        console.log(JSON.stringify(done, null, 2));
+        return done.status === "succeeded" ? 0 : 1;
       }
       if (runNow) {
         const done = await client.submitAndRun(prompt);
@@ -39,12 +60,23 @@ export async function runCloudCommand(args: string[]): Promise<number> {
     case "run": {
       const id = rest[0];
       if (!id) {
-        console.error("wanwu cloud run <taskId>");
+        console.error("wanwu cloud run <taskId> [--docker]");
         return 2;
       }
-      const done = runCloudTaskLocally({ repoRoot: cwd, taskId: id });
+      const useDocker = rest.includes("--docker");
+      const rebuild = rest.includes("--rebuild");
+      const done = useDocker
+        ? runCloudTaskInDocker({ repoRoot: cwd, taskId: id, rebuild })
+        : runCloudTaskLocally({ repoRoot: cwd, taskId: id });
       console.log(JSON.stringify(done, null, 2));
       return done.status === "succeeded" ? 0 : 1;
+    }
+    case "docker-build": {
+      if (!dockerAvailable()) {
+        console.error("Docker is not available");
+        return 1;
+      }
+      return buildDockerRunnerImage(cwd);
     }
     case "status": {
       const id = rest[0];
@@ -107,11 +139,12 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       return 0;
     }
     default:
-      console.log(`wanwu cloud — local headless runner (review-first, no auto-merge)
+      console.log(`wanwu cloud — headless runner (review-first, no auto-merge)
 
 Usage:
-  wanwu cloud submit -p "..." [--run]
-  wanwu cloud run <taskId>
+  wanwu cloud submit -p "..." [--run] [--docker] [--rebuild]
+  wanwu cloud run <taskId> [--docker]
+  wanwu cloud docker-build
   wanwu cloud status <taskId>
   wanwu cloud list
   wanwu cloud logs <taskId>

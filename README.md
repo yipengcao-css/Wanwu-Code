@@ -46,7 +46,8 @@ pnpm wanwu acp          # 默认桥接 grok ACP；可用 WANWU_ACP_COMMAND 覆�
 ./scripts/smoke-acp.sh
 pnpm build:cli          # 产出 dist-bin/wanwu.mjs
 pnpm wanwu parallel demo --cleanup
-pnpm wanwu cloud submit -p "异步任务" --run   # review-first，不自动 merge
+pnpm wanwu cloud submit -p "异步任务" --run     # 本地 worktree runner
+pnpm wanwu cloud submit -p "异步任务" --docker  # Docker（不支持时自动回退本地）
 ```
 
 扩展：

@@ -13,7 +13,7 @@
 - `examples/failing-test-demo` + `scripts/demo-e2e.sh` / `scripts/smoke-acp.sh` / `scripts/acp-handshake.mts`
 - `docs/WORKFLOW.md`, `THIRD_PARTY_NOTICES`
 - Packaging: `pnpm package:extension` → VSIX；`pnpm build:cli` → `dist-bin/wanwu.mjs`
-- Phase 5: `wanwu parallel demo` worktree isolation；`wanwu cloud submit --run` local headless runner (review-first)
+- Phase 5: `wanwu parallel demo` worktree isolation；`wanwu cloud submit --run` / `--docker` (overlay fallback)
 - Phase 6: Code-OSS 1.96 branded as Wanwu Code；builtin extension；compile + Electron `wanwu-code` launch scripts
 - Extension: `Wanwu: New Parallel Session` / `List Sessions`
 

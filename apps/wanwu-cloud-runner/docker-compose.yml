@@ -1,0 +1,11 @@
+services:
+  wanwu-cloud-runner:
+    build:
+      context: ../..
+      dockerfile: apps/wanwu-cloud-runner/Dockerfile
+    image: wanwu-cloud-runner:local
+    working_dir: /workspace
+    volumes:
+      - ../..:/workspace
+    environment:
+      WANWU_CLOUD_PROMPT: ${WANWU_CLOUD_PROMPT:-cloud docker smoke}

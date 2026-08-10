@@ -9,6 +9,7 @@ export {
   type StoredTask,
 } from "./store.js";
 export { runCloudTaskLocally } from "./runner.js";
+export { buildDockerRunnerImage, dockerAvailable, runCloudTaskInDocker } from "./dockerRunner.js";
 export { cleanupParallel, runParallelMarkers, type ParallelAgentSpec } from "./parallel.js";
 
 import { randomBytes } from "node:crypto";

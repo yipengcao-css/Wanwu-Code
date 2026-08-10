@@ -50,7 +50,7 @@
 - [x] 本地 headless cloud runner（`wanwu cloud submit --run`，review-first 不合并）
 - [x] CLI/扩展共用配置源（扩展通过 `wanwu inspect`）
 - [x] 扩展多 session UI（`Wanwu: New Parallel Session` / `List Sessions`）
-- [ ] 远程 docker runner（后续增强）
+- [x] Docker runner（`wanwu cloud submit --docker`；嵌套 overlay 主机自动回退本地 worktree）
 
 ## Phase 6 — Wanwu IDE Shell
 
