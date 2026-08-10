@@ -71,6 +71,28 @@ export class WanwuChatPanel {
     return client;
   }
 
+  private collectEditorContext(): string {
+    const editor = vscode.window.activeTextEditor;
+    const parts: string[] = [];
+    if (editor) {
+      parts.push(`Open file: ${editor.document.uri.fsPath}`);
+      const sel = editor.document.getText(editor.selection);
+      if (sel.trim()) {
+        parts.push(`Selection:\n\`\`\`\n${sel.slice(0, 4000)}\n\`\`\``);
+      }
+    }
+    const diags = vscode.languages.getDiagnostics();
+    const top = diags
+      .flatMap(([uri, items]) =>
+        items.slice(0, 5).map((d) => `${uri.fsPath}:${d.range.start.line + 1} ${d.message}`),
+      )
+      .slice(0, 20);
+    if (top.length > 0) {
+      parts.push(`Diagnostics:\n${top.join("\n")}`);
+    }
+    return parts.length ? `[EDITOR_CONTEXT]\n${parts.join("\n\n")}\n[/EDITOR_CONTEXT]\n` : "";
+  }
+
   private async handleSend(text: string, mode: WanwuMode): Promise<void> {
     this.mode = mode;
     const prefix =
@@ -81,12 +103,13 @@ export class WanwuChatPanel {
           : mode === "verify"
             ? "[MODE=verify] 验证最近变更（测试/lint），不要继续写功能。\n"
             : "[MODE=agent] 可以在权限允许下修改代码。\n";
+    const context = this.collectEditorContext();
 
     try {
       await this.panel.webview.postMessage({ type: "status", text: "connecting…" });
       const client = await this.ensureClient();
       await this.panel.webview.postMessage({ type: "status", text: `session=${this.sessionId}` });
-      await client.prompt(this.sessionId ?? "unknown", `${prefix}${text}`);
+      await client.prompt(this.sessionId ?? "unknown", `${prefix}${context}${text}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await this.panel.webview.postMessage({ type: "error", text: message });

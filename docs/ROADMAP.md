@@ -33,13 +33,13 @@
 - [x] ACP Client 聊天面板（Webview）+ mock ACP 联调
 - [x] Diff Review + 权限弹窗（Demo 命令可用；待挂到真实 tool 事件）
 - [x] Ask / Plan / Agent / Verify 模式（提示词前缀；UI 可切换）
-- [ ] 编辑器上下文注入（选区、打开文件、diagnostics）
+- [x] 编辑器上下文注入（选区、打开文件、diagnostics）
 
 ## Phase 4 — Workflow 产品化
 
-- [ ] Plan artifact
-- [ ] Verify subagent / 固定流水线
-- [ ] Hooks 示例
+- [x] Plan artifact（`wanwu plan -p ...` → `.wanwu/plans/*.plan.md`）
+- [x] Verify 固定流水线（`wanwu verify`：typecheck/test/lint，状态机隔离）
+- [x] Hooks 示例目录（`.wanwu/hooks/`，运行时加载待续）
 - [ ] Memory writeback（用户确认后）
 
 ## Phase 5 — 并行与云端

@@ -14,3 +14,5 @@ target/
 .vscode-test/
 *.tsbuildinfo
 .pnpm-store/
+.wanwu/plans/
+.wanwu/settings.toml
