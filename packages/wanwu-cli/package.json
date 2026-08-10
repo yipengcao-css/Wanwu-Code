@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx src/index.ts",
-    "wanwu": "tsx src/index.ts"
+    "wanwu": "tsx src/index.ts",
+    "mock-acp": "tsx src/mockAcpServer.ts"
   },
   "dependencies": {
     "@wanwu/config": "workspace:*",

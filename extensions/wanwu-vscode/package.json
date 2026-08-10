@@ -11,7 +11,9 @@
   "categories": ["AI", "Chat"],
   "activationEvents": [
     "onCommand:wanwu.newChat",
-    "onCommand:wanwu.doctor"
+    "onCommand:wanwu.doctor",
+    "onCommand:wanwu.planTask",
+    "onCommand:wanwu.runVerify"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -31,17 +33,36 @@
       {
         "command": "wanwu.runVerify",
         "title": "Wanwu: Run Verify"
+      },
+      {
+        "command": "wanwu.requestPermissionDemo",
+        "title": "Wanwu: Demo Permission Modal"
+      },
+      {
+        "command": "wanwu.reviewDiffDemo",
+        "title": "Wanwu: Demo Diff Review"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Wanwu",
+      "properties": {
+        "wanwu.useMockAcp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the built-in mock ACP server (recommended until grok is installed)."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "node -e \"console.log('extension tests: deferred to Phase 3')\""
+    "test": "tsx src/acp/client.integration.test.ts"
   },
   "devDependencies": {
     "@types/vscode": "^1.90.0",
-    "@types/node": "^22.15.21"
+    "@types/node": "^22.15.21",
+    "tsx": "^4.19.4"
   }
 }

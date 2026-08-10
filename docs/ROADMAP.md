@@ -30,9 +30,9 @@
 
 ## Phase 3 — VS Code 扩展 MVP
 
-- [ ] ACP Client 侧栏聊天
-- [ ] Diff Review + 权限弹窗
-- [ ] Ask / Plan / Agent / Verify 模式
+- [x] ACP Client 聊天面板（Webview）+ mock ACP 联调
+- [x] Diff Review + 权限弹窗（Demo 命令可用；待挂到真实 tool 事件）
+- [x] Ask / Plan / Agent / Verify 模式（提示词前缀；UI 可切换）
 - [ ] 编辑器上下文注入（选区、打开文件、diagnostics）
 
 ## Phase 4 — Workflow 产品化

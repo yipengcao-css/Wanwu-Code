@@ -10,7 +10,7 @@
   "scripts": {
     "lint": "pnpm -r --if-present run lint",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "test": "vitest run",
+    "test": "vitest run && pnpm --filter @wanwu/vscode run test",
     "build": "pnpm -r --if-present run build",
     "build:extension": "pnpm --filter @wanwu/vscode run build",
     "wanwu": "tsx packages/wanwu-cli/src/index.ts"
