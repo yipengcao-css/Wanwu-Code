@@ -1,0 +1,19 @@
+Wanwu-Code
+Copyright 2026 Wanwu-Code Contributors
+
+This product includes software and design ideas inspired by or bridged to:
+
+- xAI Grok Build (https://github.com/xai-org/grok-build), licensed under the Apache License, Version 2.0.
+  Wanwu-Code is not affiliated with, endorsed by, or sponsored by xAI.
+
+Additional third-party notices will be added under THIRD_PARTY_NOTICES as
+dependencies are introduced (OpenAI Codex references, Agent Client Protocol
+schemas, VS Code / Code-OSS, etc.).
+
+Trademarks:
+- "Grok" and related marks are trademarks of their respective owners.
+- "Claude" and related marks are trademarks of Anthropic.
+- "Codex" / "OpenAI" are trademarks of OpenAI.
+- "Visual Studio Code" / "VS Code" are trademarks of Microsoft.
+- Use of these names in documentation is solely for interoperability and
+  comparative description.
