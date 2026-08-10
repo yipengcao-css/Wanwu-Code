@@ -9,18 +9,24 @@ Phase 6：基于 Microsoft Code-OSS 的品牌化 IDE 整机。
 3. **品牌**：产品名 Wanwu Code、默认布局偏 Agent + Diff + Terminal  
 4. MVP 仍以扩展优先；本目录是整机发行路径
 
-## 本机构建（资源需求高）
+## 本机构建
+
+依赖：Node **20.18.x**、Python3、`build-essential`、`libkrb5-dev`、约 10GB+ 磁盘；无显示器时需 `xvfb`。
 
 ```bash
-# 需要：Node 20+、Python、C/C++ 工具链、约 10GB+ 磁盘
-./apps/wanwu-ide/scripts/fetch-code-oss.sh
-./apps/wanwu-ide/scripts/apply-branding.sh
-./apps/wanwu-ide/scripts/install-wanwu-extension.sh
-cd apps/wanwu-ide/code-oss
-yarn watch   # 或按上游文档 npm/yarn 启动
+# 一键（会下载 vscode tag 并 compile）
+./apps/wanwu-ide/scripts/bootstrap-and-compile.sh
+
+# 启动（有 DISPLAY 或自动 xvfb-run）
+./apps/wanwu-ide/scripts/launch.sh
+
+# 仅校验树完整性
+./apps/wanwu-ide/scripts/smoke-ide-tree.sh
 ```
 
-> CI / 云开发环境默认**不**拉取完整 Code-OSS（体积与编译成本过高）。
+已在云环境验证：`product.nameLong=Wanwu Code`、Electron 二进制名为 `wanwu-code`、`npm run compile` 0 errors、内置 `extensions/wanwu-code`。
+
+> CI 默认仍不拉取 Code-OSS；本地/云 agent 需显式 `WANWU_FETCH_CODE_OSS=1`。
 
 ## 文件
 

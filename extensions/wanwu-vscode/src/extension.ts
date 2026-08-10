@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { loadExtensionConfig } from "./config/loadConfig";
 import { WanwuChatPanel } from "./ui/chatPanel";
+import { SessionManager } from "./ui/sessionManager";
 import { askToolPermission } from "./ui/permissionModal";
 import { reviewSingleFileDiff } from "./ui/diffReview";
 import { findExtensionWorkspaceRoot } from "./workspaceRoot";
@@ -9,6 +10,12 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("wanwu.newChat", () => {
       WanwuChatPanel.show(context);
+    }),
+    vscode.commands.registerCommand("wanwu.newParallelSession", () => {
+      WanwuChatPanel.show(context, { forceNew: true });
+    }),
+    vscode.commands.registerCommand("wanwu.listSessions", async () => {
+      await SessionManager.pickAndReveal();
     }),
     vscode.commands.registerCommand("wanwu.requestPermissionDemo", async () => {
       const decision = await askToolPermission("Bash", "rm -rf /tmp/wanwu-demo");
@@ -61,5 +68,5 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 export function deactivate(): void {
-  WanwuChatPanel.current?.dispose();
+  SessionManager.disposeAll();
 }

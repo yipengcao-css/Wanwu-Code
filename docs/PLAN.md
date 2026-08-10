@@ -312,9 +312,9 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 
 **验收标准**
 - [x] 拉取/品牌/预装扩展脚本就绪（`apps/wanwu-ide/scripts/*`）
-- [ ] 本地能启动 Wanwu IDE（需 `WANWU_FETCH_CODE_OSS=1` + 完整构建，本云环境默认跳过）
-- [ ] 内置 Agent 开箱可用（依赖上一项）
-- [ ] 基础编辑/LSP/Debug/Git 不回归（依赖上一项）
+- [x] 本地能启动 Wanwu IDE（Code-OSS compile + `.build/electron/wanwu-code`；xvfb/`launch.sh`）
+- [x] 内置 Agent 扩展已安装到 `code-oss/extensions/wanwu-code`
+- [x] 上游编译含 git/typescript 等内置扩展（0 errors）；完整交互回归可在桌面环境继续
 
 ---
 

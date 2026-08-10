@@ -7,6 +7,7 @@ import { reviewSingleFileDiff } from "./diffReview";
 import { findExtensionWorkspaceRoot } from "../workspaceRoot";
 import * as path from "node:path";
 import { writeFileSync, mkdirSync } from "node:fs";
+import { SessionManager } from "./sessionManager";
 
 export class WanwuChatPanel {
   public static current: WanwuChatPanel | undefined;
@@ -15,14 +16,17 @@ export class WanwuChatPanel {
   private sessionId: string | undefined;
   private mode: WanwuMode = "agent";
   private disposed = false;
+  readonly localId: string;
 
   private constructor(
     panel: vscode.WebviewPanel,
     private readonly context: vscode.ExtensionContext,
+    localId: string,
   ) {
     this.panel = panel;
+    this.localId = localId;
     void this.context;
-    this.panel.webview.html = this.html();
+    this.panel.webview.html = this.html(localId);
     this.panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg?.type === "send") {
         await this.handleSend(String(msg.text ?? ""), String(msg.mode ?? this.mode) as WanwuMode);
@@ -34,19 +38,27 @@ export class WanwuChatPanel {
     this.panel.onDidDispose(() => this.dispose());
   }
 
-  static show(context: vscode.ExtensionContext): WanwuChatPanel {
-    if (WanwuChatPanel.current) {
-      WanwuChatPanel.current.panel.reveal();
+  reveal(): void {
+    this.panel.reveal(vscode.ViewColumn.Beside);
+  }
+
+  /** Open a new parallel session panel (or reuse singleton when forceNew=false). */
+  static show(context: vscode.ExtensionContext, opts?: { forceNew?: boolean }): WanwuChatPanel {
+    if (!opts?.forceNew && WanwuChatPanel.current && !WanwuChatPanel.current.disposed) {
+      WanwuChatPanel.current.reveal();
       return WanwuChatPanel.current;
     }
+    const localId = `session-${Date.now().toString(36)}`;
     const panel = vscode.window.createWebviewPanel(
       "wanwuChat",
-      "Wanwu Chat",
+      `Wanwu Chat (${localId})`,
       vscode.ViewColumn.Beside,
       { enableScripts: true, retainContextWhenHidden: true },
     );
-    WanwuChatPanel.current = new WanwuChatPanel(panel, context);
-    return WanwuChatPanel.current;
+    const instance = new WanwuChatPanel(panel, context, localId);
+    WanwuChatPanel.current = instance;
+    SessionManager.register(localId, instance);
+    return instance;
   }
 
   private async ensureClient(): Promise<AcpClient> {
@@ -168,16 +180,19 @@ export class WanwuChatPanel {
     this.disposed = true;
     this.client?.dispose();
     this.client = undefined;
-    WanwuChatPanel.current = undefined;
+    SessionManager.unregister(this.localId);
+    if (WanwuChatPanel.current === this) {
+      WanwuChatPanel.current = undefined;
+    }
   }
 
-  private html(): string {
+  private html(localId: string): string {
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wanwu Chat</title>
+  <title>Wanwu Chat ${localId}</title>
   <style>
     body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; padding: 12px; }
     #log { height: calc(100vh - 140px); overflow: auto; white-space: pre-wrap; border: 1px solid var(--vscode-panel-border); padding: 8px; }
@@ -192,7 +207,7 @@ export class WanwuChatPanel {
   </style>
 </head>
 <body>
-  <h3>Wanwu Chat</h3>
+  <h3>Wanwu Chat <small style="opacity:.7">${localId}</small></h3>
   <div class="row">
     <label>Mode
       <select id="mode">

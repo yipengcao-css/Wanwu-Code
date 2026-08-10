@@ -28,6 +28,14 @@
         "title": "Wanwu: New Chat"
       },
       {
+        "command": "wanwu.newParallelSession",
+        "title": "Wanwu: New Parallel Session"
+      },
+      {
+        "command": "wanwu.listSessions",
+        "title": "Wanwu: List Sessions"
+      },
+      {
         "command": "wanwu.doctor",
         "title": "Wanwu: Doctor"
       },

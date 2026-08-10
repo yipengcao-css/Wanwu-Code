@@ -49,7 +49,8 @@
 - [x] 并行隔离验证（`wanwu parallel demo` + 单测）
 - [x] 本地 headless cloud runner（`wanwu cloud submit --run`，review-first 不合并）
 - [x] CLI/扩展共用配置源（扩展通过 `wanwu inspect`）
-- [ ] 扩展多 session UI / 远程 docker runner（后续增强）
+- [x] 扩展多 session UI（`Wanwu: New Parallel Session` / `List Sessions`）
+- [ ] 远程 docker runner（后续增强）
 
 ## Phase 6 — Wanwu IDE Shell
 
@@ -57,7 +58,9 @@
 - [x] Code-OSS 拉取脚本（`WANWU_FETCH_CODE_OSS=1` 守护，默认不下载）
 - [x] 品牌 `product.json` + `apply-branding.sh`
 - [x] 预装扩展脚本（`install-wanwu-extension.sh`）
-- [ ] 本机完整构建并启动 Wanwu IDE（需大磁盘/工具链）
+- [x] 完整 compile + Electron 预启动（本环境已验证 `wanwu-code` 二进制与 xvfb 启动）
+- [x] `scripts/bootstrap-and-compile.sh` / `launch.sh` / `smoke-ide-tree.sh`
+- [ ] 交互式 GUI 录屏（可选）
 
 ## Phase 7 — 演示与发布
 
