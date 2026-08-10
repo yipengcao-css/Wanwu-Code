@@ -23,10 +23,10 @@
 
 ## Phase 2 — `wanwu` CLI + ACP 桥接
 
-- [ ] `wanwu doctor` / `inspect` / `acp` / `exec`
-- [ ] 桥接 `grok` ACP（可检测未安装并提示）
-- [ ] `~/.wanwu/config.toml` 多 provider schema
-- [ ] Memory 发现：`WANWU.md` / `AGENTS.md`
+- [x] `wanwu doctor` / `inspect` / `acp` / `exec`
+- [x] 桥接 `grok` ACP（可检测未安装并提示；`WANWU_ACP_COMMAND` 可覆盖）
+- [x] `~/.wanwu/config.toml` + `.wanwu/settings.toml` 多 provider schema
+- [x] Memory 发现：`WANWU.md` / `AGENTS.md` / `CLAUDE.md`
 
 ## Phase 3 — VS Code 扩展 MVP
 

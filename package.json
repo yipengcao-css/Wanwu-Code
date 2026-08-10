@@ -12,9 +12,11 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "vitest run",
     "build": "pnpm -r --if-present run build",
-    "build:extension": "pnpm --filter @wanwu/vscode run build"
+    "build:extension": "pnpm --filter @wanwu/vscode run build",
+    "wanwu": "tsx packages/wanwu-cli/src/index.ts"
   },
   "devDependencies": {
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vitest": "^3.2.4"
   }

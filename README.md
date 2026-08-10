@@ -30,24 +30,27 @@ packages/               # protocol / config / workflow / cloud
 scripts/                # bootstrap / smoke
 ```
 
-## 快速开始（当前阶段）
-
-> Phase 0/1：文档与 monorepo 骨架。CLI/扩展尚在实现中。
+## 快速开始
 
 ```bash
 pnpm install
 pnpm lint
 pnpm test
 pnpm typecheck
+
+# CLI（通过 pnpm 调用开发入口）
+pnpm wanwu doctor
+pnpm wanwu inspect
+pnpm wanwu exec -p "列出 README 标题"
+pnpm wanwu acp          # 默认桥接 grok ACP；可用 WANWU_ACP_COMMAND 覆盖
+./scripts/smoke-acp.sh
 ```
 
-后续目标命令（TBD）：
+扩展（Phase 3 完善 UI/ACP Client）：
 
 ```bash
-wanwu doctor
-wanwu acp
-wanwu exec -p "..."
-# VS Code: 安装 extensions/wanwu-vscode 的 VSIX
+pnpm --filter @wanwu/vscode run typecheck
+# VS Code: 安装 extensions/wanwu-vscode 的 VSIX（待打包）
 ```
 
 ## 文档

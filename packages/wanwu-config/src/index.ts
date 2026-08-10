@@ -68,3 +68,10 @@ export function resolveActiveModel(config: WanwuConfig): string {
 export function listConfiguredProviders(config: WanwuConfig): ProviderId[] {
   return (Object.keys(config.providers) as ProviderId[]).sort();
 }
+
+export {
+  loadTomlFile,
+  loadWanwuConfig,
+  userConfigPath,
+  type LoadedConfig,
+} from "./load.js";
