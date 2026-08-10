@@ -16,10 +16,10 @@
 
 ## Phase 1 — Monorepo 基线
 
-- [ ] pnpm workspace + TS packages
-- [ ] 最小 lint/test/typecheck
-- [ ] GitHub Actions CI
-- [ ] `crates/README.md` 说明桥接策略
+- [x] pnpm workspace + TS packages
+- [x] 最小 lint/test/typecheck
+- [x] GitHub Actions CI
+- [x] `crates/README.md` 说明桥接策略
 
 ## Phase 2 — `wanwu` CLI + ACP 桥接
 

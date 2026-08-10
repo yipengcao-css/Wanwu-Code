@@ -1,0 +1,21 @@
+{
+  "name": "wanwu-code",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Wanwu-Code — AI-native IDE (wanwu CLI + VS Code extension)",
+  "packageManager": "pnpm@10.33.3",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "vitest run",
+    "build": "pnpm -r --if-present run build",
+    "build:extension": "pnpm --filter @wanwu/vscode run build"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "@wanwu/vscode",
+  "displayName": "Wanwu Code",
+  "description": "Wanwu-Code VS Code extension — ACP client for the wanwu agent",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "wanwu",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["AI", "Chat"],
+  "activationEvents": [
+    "onCommand:wanwu.newChat",
+    "onCommand:wanwu.doctor"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wanwu.newChat",
+        "title": "Wanwu: New Chat"
+      },
+      {
+        "command": "wanwu.doctor",
+        "title": "Wanwu: Doctor"
+      },
+      {
+        "command": "wanwu.planTask",
+        "title": "Wanwu: Plan this task"
+      },
+      {
+        "command": "wanwu.runVerify",
+        "title": "Wanwu: Run Verify"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node -e \"console.log('extension tests: deferred to Phase 3')\""
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^22.15.21"
+  }
+}
