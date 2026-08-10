@@ -311,9 +311,10 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 4. 保留扩展市场兼容策略（说明与 VS Marketplace 的关系/风险）。
 
 **验收标准**
-- [ ] 本地能启动 Wanwu IDE
-- [ ] 内置 Agent 开箱可用
-- [ ] 基础编辑/LSP/Debug/Git 不回归
+- [x] 拉取/品牌/预装扩展脚本就绪（`apps/wanwu-ide/scripts/*`）
+- [ ] 本地能启动 Wanwu IDE（需 `WANWU_FETCH_CODE_OSS=1` + 完整构建，本云环境默认跳过）
+- [ ] 内置 Agent 开箱可用（依赖上一项）
+- [ ] 基础编辑/LSP/Debug/Git 不回归（依赖上一项）
 
 ---
 

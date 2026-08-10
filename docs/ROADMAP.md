@@ -54,9 +54,10 @@
 ## Phase 6 — Wanwu IDE Shell
 
 - [x] 占位目录与说明（`apps/wanwu-ide`）
-- [ ] Code-OSS 拉取 + patch（独立 epic）
-- [ ] 预装 wanwu 扩展
-- [ ] 品牌与默认布局
+- [x] Code-OSS 拉取脚本（`WANWU_FETCH_CODE_OSS=1` 守护，默认不下载）
+- [x] 品牌 `product.json` + `apply-branding.sh`
+- [x] 预装扩展脚本（`install-wanwu-extension.sh`）
+- [ ] 本机完整构建并启动 Wanwu IDE（需大磁盘/工具链）
 
 ## Phase 7 — 演示与发布
 
