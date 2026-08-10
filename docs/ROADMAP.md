@@ -60,7 +60,7 @@
 - [x] 预装扩展脚本（`install-wanwu-extension.sh`）
 - [x] 完整 compile + Electron 预启动（本环境已验证 `wanwu-code` 二进制与 xvfb 启动）
 - [x] `scripts/bootstrap-and-compile.sh` / `launch.sh` / `smoke-ide-tree.sh`
-- [ ] 交互式 GUI 录屏（可选）
+- [x] GUI 截图证据（xvfb 下启动 Wanwu IDE 打开 demo 工程）
 
 ## Phase 7 — 演示与发布
 
@@ -68,7 +68,7 @@
 - [x] smoke scripts（`scripts/smoke-acp.sh`）+ CI 集成
 - [x] VSIX 打包（`pnpm package:extension`）+ `CHANGELOG.md`
 - [x] 手工测试清单（`docs/manual-test-extension.md`）
-- [ ] GUI 录屏（需本机 VS Code/Cursor 手工）
+- [x] GUI 截图（`wanwu-ide-desktop.png` 走查产物）
 - [x] CLI 单文件 bundle（`pnpm build:cli` → `dist-bin/wanwu.mjs`；原生平台二进制仍可后续）
 - [x] `docs/WORKFLOW.md` + `THIRD_PARTY_NOTICES`
 

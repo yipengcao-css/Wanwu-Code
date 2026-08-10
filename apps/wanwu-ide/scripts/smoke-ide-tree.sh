@@ -14,7 +14,12 @@ name="$(node -e "console.log(require('$OSS/product.json').nameLong)")"
 [[ -f "$OSS/extensions/wanwu-code/out/extension.js" ]] || fail "extension not compiled"
 [[ -d "$OSS/src/vs" ]] || fail "upstream sources incomplete"
 
+BIN="$OSS/.build/electron/wanwu-code"
 echo "OK: Wanwu IDE tree smoke"
 echo "  product: $name"
 echo "  extension: $OSS/extensions/wanwu-code"
-echo "  note: full Electron boot requires npm install + native toolchain on a desktop host"
+if [[ -x "$BIN" ]]; then
+  echo "  electron: $BIN ($("$BIN" --version 2>/dev/null || echo present))"
+else
+  echo "  electron: not built yet (run bootstrap-and-compile.sh)"
+fi
