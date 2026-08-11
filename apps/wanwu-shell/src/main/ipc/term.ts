@@ -1,45 +1,69 @@
 import { ipcMain, type BrowserWindow } from "electron";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import type { IPty } from "node-pty";
+import { resolveShell } from "../shellResolve.js";
 
-let shell: ChildProcessWithoutNullStreams | undefined;
+let ptyProc: IPty | undefined;
+
+async function loadPty(): Promise<typeof import("node-pty")> {
+  return import("node-pty");
+}
 
 export function registerTermIpc(getRoot: () => string | null, getWin: () => BrowserWindow | null): void {
-  ipcMain.handle("term:start", () => {
-    if (shell && !shell.killed) return true;
+  ipcMain.handle("term:start", async (_e, cols?: number, rows?: number) => {
+    if (ptyProc) return true;
     const cwd = getRoot() ?? process.cwd();
-    const shellPath = process.env.SHELL || "/bin/bash";
-    shell = spawn(shellPath, ["-i"], {
+    const shell = resolveShell();
+    const pty = await loadPty();
+    ptyProc = pty.spawn(shell.file, shell.args, {
+      name: "xterm-256color",
+      cols: Math.max(2, cols ?? 80),
+      rows: Math.max(1, rows ?? 24),
       cwd,
-      env: process.env,
-      stdio: ["pipe", "pipe", "pipe"],
+      env: process.env as Record<string, string>,
     });
     const win = getWin();
-    const push = (data: Buffer) => {
-      win?.webContents.send("term:data", data.toString("utf8"));
-    };
-    shell.stdout.on("data", push);
-    shell.stderr.on("data", push);
-    shell.on("exit", (code) => {
-      win?.webContents.send("term:data", `\r\n[shell exited ${code}]\r\n`);
-      shell = undefined;
+    ptyProc.onData((data) => {
+      win?.webContents.send("term:data", data);
+    });
+    ptyProc.onExit(({ exitCode }) => {
+      win?.webContents.send("term:data", `\r\n[shell exited ${exitCode} · ${shell.label}]\r\n`);
+      ptyProc = undefined;
     });
     return true;
   });
 
   ipcMain.handle("term:write", (_e, data: string) => {
-    if (!shell || shell.killed) return false;
-    shell.stdin.write(data);
+    if (!ptyProc) return false;
+    ptyProc.write(data);
+    return true;
+  });
+
+  ipcMain.handle("term:resize", (_e, cols: number, rows: number) => {
+    if (!ptyProc) return false;
+    ptyProc.resize(Math.max(2, cols), Math.max(1, rows));
     return true;
   });
 
   ipcMain.handle("term:stop", () => {
-    if (shell && !shell.killed) shell.kill();
-    shell = undefined;
+    if (ptyProc) {
+      try {
+        ptyProc.kill();
+      } catch {
+        /* ignore */
+      }
+      ptyProc = undefined;
+    }
     return true;
   });
 }
 
 export function disposeTerm(): void {
-  if (shell && !shell.killed) shell.kill();
-  shell = undefined;
+  if (ptyProc) {
+    try {
+      ptyProc.kill();
+    } catch {
+      /* ignore */
+    }
+    ptyProc = undefined;
+  }
 }

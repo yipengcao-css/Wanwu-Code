@@ -26,12 +26,15 @@ export function TerminalPane(props: { active: boolean }) {
     fit.fit();
     termRef.current = term;
 
-    void window.wanwu.term.start();
+    void window.wanwu.term.start(term.cols, term.rows);
     const off = window.wanwu.term.onData((data) => term.write(data));
     const disp = term.onData((data) => {
       void window.wanwu.term.write(data);
     });
-    const onResize = () => fit.fit();
+    const onResize = () => {
+      fit.fit();
+      void window.wanwu.term.resize(term.cols, term.rows);
+    };
     window.addEventListener("resize", onResize);
 
     return () => {

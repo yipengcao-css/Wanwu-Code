@@ -24,7 +24,7 @@ await esbuild.build({
   platform: "node",
   format: "esm",
   target: "node20",
-  external: ["electron"],
+  external: ["electron", "node-pty"],
   sourcemap: true,
 });
 
