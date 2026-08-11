@@ -13,8 +13,8 @@
 - **v1.0 beta**（tag `v1.0.0-beta`）已发 — 见 `CHANGELOG.md` 与 [GitHub Release](https://github.com/yipengcao-css/Wanwu-Code/releases/tag/v1.0.0-beta)  
 - **CI 说明**：GitHub Actions 因账号额度/账单上限暂无法跑通；用户确认相关验收先行跳过，以本地测试 + Release 产物为准  
 - **E2-A Native Agent**：已完成（默认 `wanwu-native` ACP）  
-- **E2-SHELL**：进行中 — 自研 Electron 壳，**抛弃 Code-OSS 产品路径**（[ADR 0005](./ADRs/0005-custom-electron-shell.md)）  
-- **其后**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-B 多模型 E2E**
+- **E2-SHELL**：已完成 MVP — 自研 Electron 壳，**抛弃 Code-OSS 产品路径**（[ADR 0005](./ADRs/0005-custom-electron-shell.md)）  
+- **下一步默认 epic**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-B 多模型 E2E**
 
 ## Phase 0 — 文档与决策
 

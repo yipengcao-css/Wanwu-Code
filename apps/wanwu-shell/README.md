@@ -11,6 +11,8 @@
 ```bash
 # 仓库根目录
 pnpm install
+# 若 pnpm 忽略了 electron 的 install 脚本，需手动拉取二进制：
+#   node node_modules/electron/install.js
 pnpm --filter wanwu-shell dev
 # 或
 pnpm shell:dev

@@ -1,6 +1,6 @@
 # Epic 2 Backlog（Post v1.0 beta）
 
-> 默认下一步：**E2-SHELL 自研 Electron 壳**（用户 2026-08-11 锁定抛弃 Code-OSS）。  
+> 默认下一步：**E2-B 多模型 E2E**（E2-SHELL MVP 已完成）。  
 > 本文件供后续 coding agent 直接领取任务；**不要**再把 MVP Phase 0–7 当未完成项。
 
 ## 优先级
@@ -8,7 +8,7 @@
 | 顺序 | ID | 主题 | 状态 |
 |---|---|---|---|
 | 1 | **E2-A** | **Native Agent Runtime** | **完成（TS wanwu-native）** |
-| 2 | **E2-SHELL** | **自研 Electron 壳（Wanwu Lattice）** | **进行中** |
+| 2 | **E2-SHELL** | **自研 Electron 壳（Wanwu Lattice）** | **完成（MVP）** |
 | 3 | E2-B | 真实多模型端到端矩阵 | queued |
 | 4 | E2-C | 发行矩阵（平台原生 CLI / 安装包） | queued |
 | 5 | E2-D | Cloud 多任务编排 | queued |
@@ -47,13 +47,13 @@
 抛弃 Code-OSS 产品路径；交付 `apps/wanwu-shell`：Electron + Monaco + Lattice UI + wanwu-native ACP。
 
 ### 验收
-- [ ] `pnpm shell:dev` / `pnpm shell` 可启动自研窗口
-- [ ] 无 VS Activity Bar；Orbit + Agent Studio + 非蓝状态栏
-- [ ] 打开文件夹、编辑保存、Agent 一轮、终端 echo
-- [ ] `apps/wanwu-ide` 文档标记 DEPRECATED
-- [ ] 截图/录屏入 artifacts
+- [x] `pnpm shell:dev` / `pnpm shell` 可启动自研窗口
+- [x] 无 VS Activity Bar；Orbit + Agent Studio + 非蓝状态栏
+- [x] 打开文件夹、编辑保存、Agent 一轮、终端 echo
+- [x] `apps/wanwu-ide` 文档标记 DEPRECATED
+- [x] 截图/录屏入 artifacts
 
-详见执行计划（agent artifacts `PLAN.md`）与 [ADR 0005](./ADRs/0005-custom-electron-shell.md)。
+详见 [ADR 0005](./ADRs/0005-custom-electron-shell.md)、[DESIGN_SYSTEM](./DESIGN_SYSTEM.md)、[UI_DIFF_CHECKLIST](./UI_DIFF_CHECKLIST.md)。
 
 ## E2-B — 真实多模型 E2E
 
