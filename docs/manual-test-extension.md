@@ -7,7 +7,18 @@ pnpm install
 pnpm --filter wanwu-code run package
 # 安装生成的 extensions/wanwu-vscode/wanwu-code-1.0.0-beta.vsix
 # 或在仓库根目录用 VS Code/Cursor 打开后 F5 跑 Extension Development Host
-# GUI 长录屏产物（若有）：/opt/cursor/artifacts/wanwu-ide-walkthrough.mp4
+# GUI 长录屏（本环境产物示例）：
+#   /opt/cursor/artifacts/wanwu-ide-walkthrough.mp4
+#   /opt/cursor/artifacts/wanwu-ide-walkthrough-demo.mp4
+```
+
+### GUI 长录屏复现
+
+```bash
+# 需 DISPLAY 或 xvfb
+bash apps/wanwu-ide/scripts/launch.sh /workspace/examples/failing-test-demo --disable-gpu --disable-workspace-trust
+# 另开终端录制 ≥30s，例如：
+# ffmpeg -y -f x11grab -video_size 1920x1080 -i "$DISPLAY" -t 40 /tmp/wanwu-ide-walkthrough.mp4
 ```
 
 确保设置 `wanwu.useMockAcp` 为 `true`（默认），除非已安装 `grok`。
