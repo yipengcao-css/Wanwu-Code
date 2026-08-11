@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- **E2-B `@wanwu/providers`**：OpenAI-compat + Anthropic；fixture 矩阵；`wanwu exec` BYOK LLM 路径
+- `docs/PROVIDERS.md`、`scripts/e2e-providers-live.mts`；doctor 多 provider 修复建议
+- 支持 `OPENAI_BASE_URL` / `WANWU_MODEL`（DeepSeek 等兼容代理）
 - **E2-SHELL**：自研 Electron 桌面壳 `apps/wanwu-shell`（Wanwu Lattice UI + Monaco + xterm + wanwu-native ACP）
 - 共享包 `@wanwu/acp-client`；扩展改为依赖该包
 - `docs/DESIGN_SYSTEM.md`、`docs/ADRs/0005-custom-electron-shell.md`

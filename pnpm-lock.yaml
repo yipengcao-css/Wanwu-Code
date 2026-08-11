@@ -114,6 +114,9 @@ importers:
       '@wanwu/config':
         specifier: workspace:*
         version: link:../wanwu-config
+      '@wanwu/providers':
+        specifier: workspace:*
+        version: link:../wanwu-providers
       '@wanwu/workflow':
         specifier: workspace:*
         version: link:../wanwu-workflow
@@ -141,6 +144,22 @@ importers:
         version: 22.20.1
 
   packages/wanwu-protocol: {}
+
+  packages/wanwu-providers:
+    dependencies:
+      '@wanwu/config':
+        specifier: workspace:*
+        version: link:../wanwu-config
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.20.1
+      typescript:
+        specifier: ^5.8.3
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/node@22.20.1)(tsx@4.23.11)
 
   packages/wanwu-workflow: {}
 

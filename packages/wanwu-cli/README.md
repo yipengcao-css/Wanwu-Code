@@ -46,4 +46,17 @@ pnpm exec tsx scripts/acp-handshake-native.mts
 
 ## 配置
 
-见 `@wanwu/config` 与 `docs/ADRs/0003-multi-model-provider.md`。
+见 `@wanwu/config`、`docs/PROVIDERS.md` 与 `docs/ADRs/0003-multi-model-provider.md`。
+
+### BYOK / LLM
+
+有 API key 时 `wanwu exec` 走真实模型；否则确定性 native loop。
+
+```bash
+export OPENAI_API_KEY=...
+export OPENAI_BASE_URL=https://api.deepseek.com   # 可选兼容代理
+export WANWU_MODEL=deepseek-chat
+pnpm wanwu exec -p "只回复一个词：pong"
+```
+
+强制确定性：`WANWU_FORCE_DETERMINISTIC=1`。

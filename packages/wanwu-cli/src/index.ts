@@ -33,6 +33,10 @@ Env:
   WANWU_ACP_COMMAND         Override ACP backend command line
   WANWU_GROK_ACP_ARGS       Args for grok ACP (default: "acp")
   WANWU_GROK_EXEC_ARGS      Args prefix for grok exec (default: "exec --prompt")
+  WANWU_PROVIDER            Override active provider (openai|anthropic|xai|ollama|custom)
+  WANWU_MODEL               Override model id
+  OPENAI_BASE_URL           OpenAI-compatible API base (e.g. https://api.deepseek.com)
+  WANWU_FORCE_DETERMINISTIC=1  Disable LLM; use native heuristic loop
 `);
   process.exit(0);
 }
@@ -83,7 +87,7 @@ async function main(argv: string[]): Promise<number> {
         console.error("wanwu exec requires -p/--prompt");
         return 2;
       }
-      return runExec({ prompt });
+      return await runExec({ prompt });
     }
     case "plan": {
       const prompt = readPrompt(rest);

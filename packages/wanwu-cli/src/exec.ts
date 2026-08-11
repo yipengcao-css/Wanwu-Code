@@ -1,8 +1,10 @@
 import { spawnSync } from "node:child_process";
 import { loadWanwuConfig } from "@wanwu/config";
+import { ProviderError } from "@wanwu/providers";
 import { discoverMemory, renderMemoryForPrompt } from "./memory.js";
 import { resolveAcpLaunch } from "./acpBridge.js";
 import { runDeterministicTurn } from "./native/agentLoop.js";
+import { runLlmTurn, shouldUseLlm } from "./native/llmTurn.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
 export interface ExecOptions {
@@ -12,10 +14,10 @@ export interface ExecOptions {
 
 /**
  * Headless one-shot execution.
- * wanwu-native: deterministic tool loop (no grok / API key required).
- * grok-bridge: spawn grok exec when available.
+ * With BYOK credentials → LLM turn via @wanwu/providers.
+ * Else wanwu-native deterministic tool loop.
  */
-export function runExec(options: ExecOptions): number {
+export async function runExec(options: ExecOptions): Promise<number> {
   const cwd = options.cwd ?? findWorkspaceRoot();
   const { config } = loadWanwuConfig(cwd);
   const memory = discoverMemory(cwd);
@@ -45,11 +47,10 @@ export function runExec(options: ExecOptions): number {
   }
 
   if (plan.backend === "wanwu-native" || plan.backend.startsWith("env:")) {
-    // Capture session updates by temporarily patching stdout for tool narrative
     const sessionId = "exec-session";
     const chunks: string[] = [];
     const origWrite = process.stdout.write.bind(process.stdout);
-    process.stdout.write = ((chunk: string | Uint8Array, ...args: unknown[]) => {
+    process.stdout.write = ((chunk: string | Uint8Array) => {
       const s = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
       for (const line of s.split("\n")) {
         if (!line.trim()) continue;
@@ -69,20 +70,48 @@ export function runExec(options: ExecOptions): number {
           /* not jsonrpc */
         }
       }
-      // suppress ACP wire noise for exec UX
       return true;
     }) as typeof process.stdout.write;
 
+    const ctx = {
+      workspaceRoot: cwd,
+      sessionId,
+      permissionMode: config.permissionMode,
+      mode: config.defaultMode,
+    };
+
+    let llm = false;
+    let provider = (process.env.WANWU_PROVIDER?.trim() || config.activeProvider) as typeof config.activeProvider;
+    let model = process.env.WANWU_MODEL?.trim() || config.model;
     try {
-      runDeterministicTurn(
-        {
-          workspaceRoot: cwd,
-          sessionId,
-          permissionMode: config.permissionMode,
-          mode: config.defaultMode,
-        },
-        options.prompt,
-      );
+      if (shouldUseLlm(config)) {
+        llm = true;
+        const out = await runLlmTurn(ctx, config, options.prompt);
+        provider = out.provider as typeof provider;
+        model = out.model;
+      } else {
+        runDeterministicTurn(ctx, options.prompt);
+      }
+    } catch (err) {
+      process.stdout.write = origWrite;
+      if (err instanceof ProviderError) {
+        console.log(
+          JSON.stringify(
+            {
+              status: "error",
+              llm: true,
+              provider: err.provider,
+              code: err.code,
+              message: err.message,
+              hint: err.hint,
+            },
+            null,
+            2,
+          ),
+        );
+        return 1;
+      }
+      throw err;
     } finally {
       process.stdout.write = origWrite;
     }
@@ -92,8 +121,9 @@ export function runExec(options: ExecOptions): number {
         {
           status: "ok",
           backend: plan.backend,
-          provider: config.activeProvider,
-          model: config.model,
+          llm,
+          provider,
+          model,
           output: chunks.join("\n").slice(0, 8000),
         },
         null,

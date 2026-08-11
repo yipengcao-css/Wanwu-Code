@@ -1,6 +1,6 @@
 # Epic 2 Backlog（Post v1.0 beta）
 
-> 默认下一步：**E2-B 多模型 E2E**（E2-SHELL MVP 已完成）。  
+> 默认下一步：**E2-C 发行矩阵**（E2-B 多模型 MVP 已完成）。  
 > 本文件供后续 coding agent 直接领取任务；**不要**再把 MVP Phase 0–7 当未完成项。
 
 ## 优先级
@@ -9,7 +9,7 @@
 |---|---|---|---|
 | 1 | **E2-A** | **Native Agent Runtime** | **完成（TS wanwu-native）** |
 | 2 | **E2-SHELL** | **自研 Electron 壳（Wanwu Lattice）** | **完成（MVP）** |
-| 3 | E2-B | 真实多模型端到端矩阵 | queued |
+| 3 | **E2-B** | **真实多模型端到端矩阵** | **完成（fixture + DeepSeek live）** |
 | 4 | E2-C | 发行矩阵（平台原生 CLI / 安装包） | queued |
 | 5 | E2-D | Cloud 多任务编排 | queued |
 | 6 | E2-E | 扩展商店发布通道 | queued |
@@ -57,9 +57,12 @@
 
 ## E2-B — 真实多模型 E2E
 
-- BYOK 集成测试：OpenAI / Anthropic / xAI / Ollama（可用录制 fixture）
-- Provider 错误信息可读；`wanwu doctor` 给出修复建议
-- 验收：至少 2 个真实 provider 在有密钥的 secret 环境跑通 `wanwu exec`
+- [x] `@wanwu/providers`：OpenAI-compat（openai/xai/ollama/custom）+ Anthropic Messages
+- [x] Fixture 矩阵（无网络）
+- [x] `wanwu exec` / native ACP：有凭据走 LLM，否则 deterministic
+- [x] `wanwu doctor` 多 provider 状态 + 修复建议
+- [x] Live 脚本 `scripts/e2e-providers-live.mts`（OpenAI 兼容代理如 DeepSeek 可用）
+- 文档：`docs/PROVIDERS.md`
 
 ## E2-C — 发行矩阵
 

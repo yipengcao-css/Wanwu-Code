@@ -1,5 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { loadWanwuConfig, listConfiguredProviders, userConfigPath } from "@wanwu/config";
+import {
+  loadWanwuConfig,
+  listConfiguredProviders,
+  userConfigPath,
+  type ProviderId,
+  type WanwuConfig,
+} from "@wanwu/config";
+import { hasProviderCredentials, resolveProvider } from "@wanwu/providers";
 import { discoverMemory } from "./memory.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
@@ -13,6 +20,41 @@ function commandExists(cmd: string): boolean {
   const probe = process.platform === "win32" ? "where" : "which";
   const result = spawnSync(probe, [cmd], { encoding: "utf8" });
   return result.status === 0;
+}
+
+function providerStatus(config: WanwuConfig, id: ProviderId): DoctorFinding {
+  const pc = config.providers[id];
+  if (!pc) {
+    return { level: "warn", code: `provider.${id}`, message: `${id}: not in config` };
+  }
+  if (id === "ollama") {
+    const base = process.env.OLLAMA_BASE_URL || pc.baseUrl || "http://127.0.0.1:11434";
+    return {
+      level: "ok",
+      code: `provider.${id}`,
+      message: `${id}: no API key required · base=${base} (ensure ollama serve)`,
+    };
+  }
+  const envName = pc.apiKeyEnv ?? "?";
+  const set = Boolean(process.env[envName]);
+  const baseHint =
+    id === "openai" && process.env.OPENAI_BASE_URL
+      ? ` · OPENAI_BASE_URL=${process.env.OPENAI_BASE_URL}`
+      : pc.baseUrl
+        ? ` · base_url=${pc.baseUrl}`
+        : "";
+  if (set) {
+    return {
+      level: "ok",
+      code: `provider.${id}`,
+      message: `${id}: ${envName} set${baseHint}`,
+    };
+  }
+  return {
+    level: "warn",
+    code: `provider.${id}`,
+    message: `${id}: ${envName} missing — export ${envName}=... or edit ${userConfigPath()}${baseHint}`,
+  };
 }
 
 export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
@@ -33,7 +75,7 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
   findings.push({
     level: "ok",
     code: "config.active",
-    message: `activeProvider=${config.activeProvider} model=${config.model} acpBackend=${config.acpBackend}`,
+    message: `activeProvider=${config.activeProvider} model=${process.env.WANWU_MODEL ?? config.model} acpBackend=${config.acpBackend}`,
   });
 
   findings.push({
@@ -42,21 +84,29 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
     message: `providers (parity): ${listConfiguredProviders(config).join(", ")}`,
   });
 
-  const provider = config.providers[config.activeProvider];
-  if (provider?.apiKeyEnv) {
-    if (process.env[provider.apiKeyEnv]) {
+  for (const id of listConfiguredProviders(config)) {
+    findings.push(providerStatus(config, id));
+  }
+
+  const override = process.env.WANWU_PROVIDER?.trim() as ProviderId | undefined;
+  const activeId = override || config.activeProvider;
+  if (hasProviderCredentials(config, { providerId: override })) {
+    try {
+      const resolved = resolveProvider(config, { providerId: override });
       findings.push({
         level: "ok",
-        code: "provider.key",
-        message: `${provider.apiKeyEnv} is set`,
+        code: "provider.active.ready",
+        message: `LLM ready: ${resolved.id} model=${resolved.model} base=${resolved.baseUrl}`,
       });
-    } else {
-      findings.push({
-        level: "warn",
-        code: "provider.key",
-        message: `${provider.apiKeyEnv} is not set (BYOK). Export it or edit ${userConfigPath()}`,
-      });
+    } catch {
+      /* unreachable when hasProviderCredentials true */
     }
+  } else {
+    findings.push({
+      level: "warn",
+      code: "provider.active.ready",
+      message: `LLM not ready for ${activeId} — wanwu exec will use deterministic native loop. Fix: export key / OPENAI_BASE_URL for proxies (e.g. DeepSeek) / WANWU_FORCE_DETERMINISTIC=1 to silence`,
+    });
   }
 
   if (config.acpBackend === "wanwu-native") {
