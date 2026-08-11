@@ -4,7 +4,7 @@
 
 - Electron + React + Monaco + xterm  
 - 视觉：Wanwu Lattice（见 `docs/DESIGN_SYSTEM.md`）  
-- Agent：`wanwu-native` ACP  
+- Agent：`wanwu-native` ACP（随包分发 `resources/wanwu-cli`，运行时不依赖 pnpm/tsx）  
 
 ## 开发
 
@@ -13,6 +13,7 @@
 pnpm install
 # 若 pnpm 忽略了 electron 的 install 脚本，需手动拉取二进制：
 #   node node_modules/electron/install.js
+# 首次会自动 pnpm build:cli → dist-bin/wanwu.mjs（ACP 后端）
 pnpm --filter wanwu-shell dev
 # 或
 pnpm shell:dev

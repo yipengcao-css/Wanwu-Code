@@ -7,6 +7,10 @@ directories:
 files:
   - dist/**/*
   - package.json
+extraResources:
+  # Staged by scripts/stage-shell-acp.sh before each platform build
+  - from: resources/wanwu-cli
+    to: wanwu-cli
 extraMetadata:
   main: dist/electron/main.js
 asar: true

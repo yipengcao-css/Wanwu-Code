@@ -11,7 +11,7 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/main/pathSandbox.test.ts",
+    "test": "tsx src/main/pathSandbox.test.ts && tsx src/main/acpLaunch.test.ts",
     "dist": "bash ../../scripts/build-shell-dist.sh",
     "dist:builder": "electron-builder --config electron-builder.yml"
   },
