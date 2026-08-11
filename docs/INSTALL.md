@@ -82,7 +82,9 @@ pnpm shell:dist
 | Windows | `Wanwu-Code-<ver>-win-x64.zip`（解压后运行 `Wanwu Code.exe`） |
 | macOS | `Wanwu-Code-<ver>-mac-x64.zip` / `…-mac-arm64.zip`（未签名） |
 
-开发态：`pnpm shell:dev` / `pnpm shell`。
+安装包内嵌 **wanwu-cli ACP**（`resources/wanwu-cli/wanwu[.exe]` + `wanwu.mjs`），Agent 启动不再依赖本机 `pnpm`/`tsx` 或 monorepo 源码树。覆盖后端可用环境变量 `WANWU_ACP_COMMAND`。
+
+开发态：`pnpm shell:dev` / `pnpm shell`（自动确保 `dist-bin/wanwu.mjs`）。
 
 ### macOS 备注
 

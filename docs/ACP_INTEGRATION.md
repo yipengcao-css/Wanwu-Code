@@ -13,18 +13,22 @@
 |---|---|
 | `extensions/wanwu-vscode` | Client |
 | `wanwu acp` | Agent 入口（默认 **wanwu-native**；可桥接 `grok`） |
-| `apps/wanwu-ide` | Client（内置扩展） |
+| `apps/wanwu-shell` | Client（品牌整机；随包 ACP） |
+| `apps/wanwu-ide` | ~~Client~~（已退役） |
 
 ## 拓扑
 
 ```
-VS Code Extension (ACP Client)
+VS Code Extension / Wanwu Shell (ACP Client)
         │ stdin/stdout JSON-RPC
         ▼
-   wanwu acp   (acpBridge.resolveAcpLaunch)
+   wanwu ACP backend
         │
-        ├─ acp_backend=wanwu-native → packages/wanwu-cli/src/native/acpServer.ts
-        └─ acp_backend=grok         → grok acp（或 WANWU_ACP_COMMAND）
+        ├─ Shell 安装包 → resources/wanwu-cli/wanwu[.exe] --wanwu-internal-acp
+        │                 （回退 wanwu.mjs + ELECTRON_RUN_AS_NODE；无 pnpm/tsx）
+        ├─ Shell 开发   → dist-bin/wanwu.mjs --wanwu-internal-acp
+        ├─ CLI wanwu acp → acpBridge.resolveAcpLaunch → wanwu-native / grok
+        └─ WANWU_ACP_COMMAND 可覆盖任意后端
 ```
 
 ### wanwu-native（E2-A）

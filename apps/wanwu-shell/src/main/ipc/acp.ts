@@ -1,4 +1,4 @@
-import { ipcMain, type BrowserWindow } from "electron";
+import { app, ipcMain, type BrowserWindow } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,9 +7,11 @@ import {
   type AcpEditProposal,
   type AcpPermissionRequest,
 } from "@wanwu/acp-client";
+import { resolveShellAcpLaunch } from "../acpLaunch.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-/** apps/wanwu-shell/dist/electron → repo root */
+
+/** apps/wanwu-shell/dist/electron → repo root (dev / unpacked). */
 function findRepoRoot(): string {
   return path.resolve(here, "../../../../");
 }
@@ -23,13 +25,18 @@ function broadcast(win: BrowserWindow | null, channel: string, payload: unknown)
 }
 
 function startNativeAcp(cwd: string): AcpClient {
-  const repoRoot = findRepoRoot();
-  const nativeEntry = path.join(repoRoot, "packages/wanwu-cli/src/native/acpServer.ts");
-  child = spawn("pnpm", ["exec", "tsx", nativeEntry], {
-    cwd: repoRoot,
+  const plan = resolveShellAcpLaunch({
+    workspaceRoot: cwd,
+    isPackaged: app.isPackaged,
+    resourcesPath: process.resourcesPath,
+    execPath: process.execPath,
+    repoRoot: app.isPackaged ? undefined : findRepoRoot(),
+  });
+  child = spawn(plan.command, plan.args, {
+    cwd: plan.spawnCwd,
     env: {
       ...process.env,
-      WANWU_WORKSPACE_ROOT: cwd,
+      ...plan.env,
     },
     stdio: ["pipe", "pipe", "pipe"],
   });
