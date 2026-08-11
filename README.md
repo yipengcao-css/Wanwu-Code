@@ -74,7 +74,7 @@ node dist-bin/wanwu.mjs doctor
 - [架构](docs/ARCHITECTURE.md)
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
-- [Epic 2 Backlog（下一步 E2-A Native Agent）](docs/EPIC2_BACKLOG.md)
+- [Epic 2 Backlog（E2-A 已完成；下一步 E2-B）](docs/EPIC2_BACKLOG.md)
 - [ACP 集成](docs/ACP_INTEGRATION.md)
 - [ADR 0001 Runtime 底座](docs/ADRs/0001-agent-runtime-base.md)
 - [ADR 0002 扩展优先](docs/ADRs/0002-ide-strategy-extension-first.md)
