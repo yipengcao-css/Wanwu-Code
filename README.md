@@ -66,7 +66,8 @@ WANWU_INSTALL_FROM=local bash scripts/install.sh
 pnpm shell:dist
 ```
 
-安装说明：[`docs/INSTALL.md`](docs/INSTALL.md)
+安装说明：[`docs/INSTALL.md`](docs/INSTALL.md)  
+**公司演示安装包**：[`demo-dist/v1.0.0-beta/`](demo-dist/v1.0.0-beta/)（Git LFS，需 `git lfs pull`）
 
 ### 安装预发布产物（v1.0 beta）
 

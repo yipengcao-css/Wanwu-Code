@@ -1,0 +1,10 @@
+# Demo distribution binaries via Git LFS
+demo-dist/**/*.AppImage filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/*.zip filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/*.deb filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/*.exe filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/*.vsix filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/*.mjs filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/wanwu-*-linux-* filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/wanwu-*-macos-* filter=lfs diff=lfs merge=lfs -text
+demo-dist/**/wanwu-*-win-* filter=lfs diff=lfs merge=lfs -text
