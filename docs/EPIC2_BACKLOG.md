@@ -99,6 +99,16 @@
 
 ---
 
+## 商业就绪续作（Post P0）
+
+| 顺序 | 主题 | 状态 |
+|---|---|---|
+| 1 | P0-1/2/3（ACP 随包 · node-pty · session reset） | **完成（已合 main）** |
+| 2 | 商业 UI + BYOK Settings / Welcome Gate | **进行中** |
+| 3 | ACP 多轮会话上下文 + Plan/Verify 真工作流 | 下一 |
+| 4 | Diff Review / 会话历史 / Hooks·MCP 接入 native | 后续 |
+| 5 | 签名分发 · LSP | 后续 |
+
 ## 领取方式
 
 点名下一 epic 即可（例如性能、LSP、签名分发等）。

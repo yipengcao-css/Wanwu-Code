@@ -39,6 +39,29 @@ export type WanwuBridge = {
     onFocusAgent: (cb: () => void) => () => void;
     onToggleTerminal: (cb: () => void) => () => void;
   };
+  settings: {
+    get: () => Promise<{
+      activeProvider: string;
+      model: string;
+      baseUrl: string;
+      hasApiKey: boolean;
+      configPath: string;
+      sources: string[];
+    }>;
+    save: (patch: {
+      activeProvider?: string;
+      model?: string;
+      baseUrl?: string;
+      apiKey?: string;
+    }) => Promise<{
+      activeProvider: string;
+      model: string;
+      baseUrl: string;
+      hasApiKey: boolean;
+      configPath: string;
+      sources: string[];
+    }>;
+  };
 };
 
 function on(channel: string, cb: (...args: unknown[]) => void): () => void {
@@ -81,6 +104,10 @@ const bridge: WanwuBridge = {
   shell: {
     onFocusAgent: (cb) => on("shell:focus-agent", () => cb()),
     onToggleTerminal: (cb) => on("shell:toggle-terminal", () => cb()),
+  },
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    save: (patch) => ipcRenderer.invoke("settings:save", patch),
   },
 };
 

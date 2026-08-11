@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { registerFsIpc } from "./ipc/fs.js";
 import { disposeAcp, onWorkspaceRootChanged, registerAcpIpc } from "./ipc/acp.js";
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
+import { registerSettingsIpc } from "./ipc/settings.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -90,6 +91,7 @@ app.whenReady().then(() => {
       mainWindow?.webContents.send("workspace:changed", r);
     },
   );
+  registerSettingsIpc(() => workspaceRoot);
   registerAcpIpc(
     () => workspaceRoot,
     () => mainWindow,
