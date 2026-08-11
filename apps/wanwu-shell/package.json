@@ -1,0 +1,36 @@
+{
+  "name": "wanwu-shell",
+  "version": "1.0.0-beta",
+  "private": true,
+  "description": "Wanwu Code Desktop — custom Electron shell (not Code-OSS)",
+  "main": "dist/electron/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx src/main/pathSandbox.test.ts"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "@wanwu/acp-client": "workspace:*",
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "monaco-editor": "^0.52.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/react": "^18.3.20",
+    "@types/react-dom": "^18.3.6",
+    "@vitejs/plugin-react": "^4.4.1",
+    "electron": "^35.2.1",
+    "esbuild": "^0.25.5",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}

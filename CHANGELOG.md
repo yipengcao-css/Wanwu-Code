@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **E2-SHELL**：自研 Electron 桌面壳 `apps/wanwu-shell`（Wanwu Lattice UI + Monaco + xterm + wanwu-native ACP）
+- 共享包 `@wanwu/acp-client`；扩展改为依赖该包
+- `docs/DESIGN_SYSTEM.md`、`docs/ADRs/0005-custom-electron-shell.md`
+
+### Changed
+- **退役** Code-OSS 整机路径（`apps/wanwu-ide` DEPRECATED）；品牌整机改为自研壳
+
+### Previously
 - **E2-A wanwu-native ACP**：默认 `acp_backend=wanwu-native`，无 grok 也可握手 + 工具回合（Read/Edit/Bash/Glob/Grep）
 - `scripts/acp-handshake-native.mts` + smoke 集成；`wanwu exec` 走确定性 native loop
 

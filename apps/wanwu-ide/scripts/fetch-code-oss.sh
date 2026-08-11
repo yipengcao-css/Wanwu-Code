@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Shallow-clone Microsoft vscode (Code-OSS) at a pinned tag.
+# DEPRECATED: Code-OSS is no longer the product shell. Use apps/wanwu-shell.
+# Shallow-clone Microsoft vscode (Code-OSS) at a pinned tag (legacy only).
 set -euo pipefail
+echo "WARNING: apps/wanwu-ide Code-OSS path is DEPRECATED. Prefer apps/wanwu-shell." >&2
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
 TAG="${CODE_OSS_TAG:-1.96.0}"

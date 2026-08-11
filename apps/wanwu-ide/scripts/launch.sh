@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Launch Wanwu IDE (Code-OSS) in development mode.
+# DEPRECATED: launch apps/wanwu-shell instead.
+# Launch legacy Wanwu IDE (Code-OSS) in development mode.
+echo "WARNING: Code-OSS launch is DEPRECATED. Use: pnpm --filter wanwu-shell dev" >&2
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OSS="$ROOT/code-oss"

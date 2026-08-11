@@ -13,7 +13,8 @@
 - **v1.0 beta**（tag `v1.0.0-beta`）已发 — 见 `CHANGELOG.md` 与 [GitHub Release](https://github.com/yipengcao-css/Wanwu-Code/releases/tag/v1.0.0-beta)  
 - **CI 说明**：GitHub Actions 因账号额度/账单上限暂无法跑通；用户确认相关验收先行跳过，以本地测试 + Release 产物为准  
 - **E2-A Native Agent**：已完成（默认 `wanwu-native` ACP）  
-- **下一步默认 epic**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-B 多模型 E2E**
+- **E2-SHELL**：进行中 — 自研 Electron 壳，**抛弃 Code-OSS 产品路径**（[ADR 0005](./ADRs/0005-custom-electron-shell.md)）  
+- **其后**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-B 多模型 E2E**
 
 ## Phase 0 — 文档与决策
 
@@ -59,15 +60,10 @@
 - [x] 扩展多 session UI（`Wanwu: New Parallel Session` / `List Sessions`）
 - [x] Docker runner（`wanwu cloud submit --docker`；嵌套 overlay 主机自动回退本地 worktree）
 
-## Phase 6 — Wanwu IDE Shell
+## Phase 6 — Wanwu IDE Shell（历史：Code-OSS；已退役）
 
-- [x] 占位目录与说明（`apps/wanwu-ide`）
-- [x] Code-OSS 拉取脚本（`WANWU_FETCH_CODE_OSS=1` 守护，默认不下载）
-- [x] 品牌 `product.json` + `apply-branding.sh`
-- [x] 预装扩展脚本（`install-wanwu-extension.sh`）
-- [x] 完整 compile + Electron 预启动（本环境已验证 `wanwu-code` 二进制与 xvfb 启动）
-- [x] `scripts/bootstrap-and-compile.sh` / `launch.sh` / `smoke-ide-tree.sh`
-- [x] GUI 截图证据（xvfb 下启动 Wanwu IDE 打开 demo 工程）
+- [x] 曾交付 Code-OSS 品牌化脚本与截图（归档）
+- [x] **2026-08-11 退役**：改由 **E2-SHELL / `apps/wanwu-shell`** 作为品牌整机（见 ADR 0005）
 
 ## Phase 7 — 演示与发布
 

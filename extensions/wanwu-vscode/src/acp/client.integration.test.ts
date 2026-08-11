@@ -10,7 +10,10 @@ async function main(): Promise<void> {
     cwd: workspaceRoot,
     stdio: ["pipe", "pipe", "pipe"],
   });
-  const client = new AcpClient(child);
+  const client = new AcpClient(child, {
+    clientName: "wanwu-vscode",
+    protocolVersion: "0.1.0-wanwu-mock",
+  });
   const messages: string[] = [];
   const tools: string[] = [];
   const edits: AcpEditProposal[] = [];

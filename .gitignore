@@ -21,3 +21,6 @@ target/
 extensions/wanwu-vscode/*.vsix
 dist-bin/
 apps/wanwu-ide/code-oss/
+apps/wanwu-shell/dist/
+apps/wanwu-shell/release/
+apps/wanwu-shell/out/

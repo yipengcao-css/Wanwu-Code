@@ -10,13 +10,16 @@
   "scripts": {
     "lint": "pnpm -r --if-present run lint",
     "typecheck": "pnpm -r --if-present run typecheck",
-    "test": "vitest run && pnpm --filter wanwu-code run test",
+    "test": "vitest run && pnpm --filter wanwu-code run test && pnpm --filter @wanwu/acp-client run test && pnpm --filter wanwu-shell run test",
     "build": "pnpm -r --if-present run build",
     "build:extension": "pnpm --filter wanwu-code run build",
     "package:extension": "pnpm --filter wanwu-code run package",
     "build:cli": "bash scripts/build-cli.sh",
-    "wanwu": "tsx packages/wanwu-cli/src/index.ts"
+    "wanwu": "tsx packages/wanwu-cli/src/index.ts",
+    "shell": "pnpm --filter wanwu-shell start",
+    "shell:dev": "pnpm --filter wanwu-shell dev"
   },
+
   "devDependencies": {
     "esbuild": "^0.25.5",
     "tsx": "^4.19.4",

@@ -74,6 +74,9 @@
     "test": "tsx src/acp/client.integration.test.ts",
     "package": "pnpm run build && vsce package --no-dependencies"
   },
+  "dependencies": {
+    "@wanwu/acp-client": "workspace:*"
+  },
   "devDependencies": {
     "@types/vscode": "^1.90.0",
     "@types/node": "^22.15.21",
