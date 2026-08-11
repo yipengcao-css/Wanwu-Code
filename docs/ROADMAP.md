@@ -10,7 +10,8 @@
 
 ## 发布状态
 
-- **v1.0 beta**（tag `v1.0.0-beta`）预发布收口中/已发 — 见 `CHANGELOG.md` 与 GitHub Releases  
+- **v1.0 beta**（tag `v1.0.0-beta`）已发 — 见 `CHANGELOG.md` 与 [GitHub Release](https://github.com/yipengcao-css/Wanwu-Code/releases/tag/v1.0.0-beta)  
+- **CI 说明**：GitHub Actions 因账号额度/账单上限暂无法跑通；用户确认相关验收先行跳过，以本地测试 + Release 产物为准  
 - **下一步默认 epic**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-A Native Agent**
 
 ## Phase 0 — 文档与决策
