@@ -43,5 +43,46 @@ describe("runLlmAgentLoop", () => {
     expect(result.toolsUsed).toContain("Read");
     expect(result.text).toMatch(/Wanwu-Code|README/i);
     expect(result.turns).toBeGreaterThanOrEqual(2);
+    expect(result.messages.some((m) => m.role === "user")).toBe(true);
+  });
+
+  it("continues from prior history on the next prompt", async () => {
+    const round2 = readFileSync(path.join(fixtures, "openai-tool-round2.json"), "utf8");
+    let sawMessages = 0;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        messages: Array<{ role: string; content?: string }>;
+      };
+      sawMessages = body.messages.length;
+      return new Response(round2, { status: 200, headers: { "content-type": "application/json" } });
+    };
+
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "openai",
+      model: "deepseek-chat",
+    });
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+    await runLlmAgentLoop(
+      {
+        workspaceRoot: root,
+        sessionId: "test-session-2",
+        permissionMode: "ask",
+        mode: "ask",
+      },
+      config,
+      "第二轮：继续",
+      {
+        fetchImpl,
+        maxTurns: 2,
+        history: [
+          { role: "user", content: "第一轮问题" },
+          { role: "assistant", content: "第一轮回答" },
+        ],
+      },
+    );
+
+    // system + 2 history + new user
+    expect(sawMessages).toBeGreaterThanOrEqual(4);
   });
 });

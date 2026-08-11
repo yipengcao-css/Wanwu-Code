@@ -11,6 +11,7 @@ import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import type { AgentContext } from "./agentLoop.js";
+import { detectMode } from "./mode.js";
 import { dispatchTool } from "./toolDispatch.js";
 import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 
@@ -26,14 +27,6 @@ function providerOverride(): ProviderId | undefined {
 export function shouldUseLlm(config: WanwuConfig): boolean {
   if (process.env.WANWU_FORCE_DETERMINISTIC === "1") return false;
   return hasProviderCredentials(config, { providerId: providerOverride() });
-}
-
-function detectMode(prompt: string, fallback: WanwuMode): WanwuMode {
-  if (/\[MODE=plan\]/i.test(prompt)) return "plan";
-  if (/\[MODE=agent\]/i.test(prompt)) return "agent";
-  if (/\[MODE=ask\]/i.test(prompt)) return "ask";
-  if (/\[MODE=verify\]/i.test(prompt)) return "verify";
-  return fallback;
 }
 
 function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
@@ -69,24 +62,34 @@ export interface LlmLoopResult {
   model: string;
   turns: number;
   toolsUsed: string[];
+  /** Full chat transcript for cross-prompt session memory (includes system). */
+  messages: ChatMessage[];
 }
+
+const MAX_HISTORY_MESSAGES = 48;
 
 /**
  * Multi-turn tool-calling agent loop (OpenAI-compat providers).
+ * Pass `history` (prior session messages, system stripped) to continue a conversation.
  */
 export async function runLlmAgentLoop(
   ctx: AgentContext,
   config: WanwuConfig,
   prompt: string,
-  opts?: { fetchImpl?: FetchLike; maxTurns?: number },
+  opts?: { fetchImpl?: FetchLike; maxTurns?: number; history?: ChatMessage[] },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
   const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "6") || 6);
   const providerId = providerOverride();
   const toolsUsed: string[] = [];
 
+  const prior = (opts?.history ?? [])
+    .filter((m) => m.role !== "system")
+    .slice(-MAX_HISTORY_MESSAGES);
+
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystem(ctx, mode) },
+    ...prior,
     { role: "user", content: prompt },
   ];
 
@@ -182,6 +185,7 @@ export async function runLlmAgentLoop(
     model: last?.model ?? config.model,
     turns,
     toolsUsed,
+    messages,
   };
 }
 

@@ -43,6 +43,8 @@ Reply with \`wanwu\` Agent mode after reviewing this plan, or edit this file fir
 `;
 
   writeFileSync(outPath, body, "utf8");
-  console.log(outPath);
+  if (process.env.WANWU_PLAN_QUIET !== "1") {
+    console.log(outPath);
+  }
   return outPath;
 }

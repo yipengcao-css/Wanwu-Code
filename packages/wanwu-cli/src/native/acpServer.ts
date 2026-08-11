@@ -3,18 +3,28 @@
  * Wanwu-native ACP stdio server — no grok binary required.
  */
 import * as readline from "node:readline";
+import type { ChatMessage } from "@wanwu/providers";
 import { loadWanwuConfig } from "@wanwu/config";
 import { findWorkspaceRoot } from "../workspaceRoot.js";
+import { runPlan } from "../plan.js";
+import { runVerifyDetailed } from "../verify.js";
 import { runDeterministicTurn } from "./agentLoop.js";
 import { runLlmAgentLoop, shouldUseLlm } from "./llmAgentLoop.js";
 import type { JsonRpc } from "./jsonRpcStdio.js";
-import { sendError, sendResult } from "./jsonRpcStdio.js";
+import { sendError, sendResult, sessionUpdate } from "./jsonRpcStdio.js";
+import { detectMode, stripModeTags } from "./mode.js";
+
+type SessionState = {
+  id: string;
+  /** Cross-prompt transcript for LLM (system messages stripped on use). */
+  history: ChatMessage[];
+};
 
 export function startNativeAcpStdioServer(): void {
   const workspaceRoot = process.env.WANWU_WORKSPACE_ROOT?.trim() || findWorkspaceRoot();
   const { config } = loadWanwuConfig(workspaceRoot);
 
-  const sessions = new Map<string, { id: string }>();
+  const sessions = new Map<string, SessionState>();
   let sessionCounter = 0;
 
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
@@ -50,7 +60,7 @@ export function startNativeAcpStdioServer(): void {
 
     if (method === "session/new" || method === "newSession") {
       const sessionId = `wanwu-native-${++sessionCounter}`;
-      sessions.set(sessionId, { id: sessionId });
+      sessions.set(sessionId, { id: sessionId, history: [] });
       sendResult(id, { sessionId });
       return;
     }
@@ -71,7 +81,9 @@ export function startNativeAcpStdioServer(): void {
         sendError(id, -32000, "unknown session");
         return;
       }
+      const session = sessions.get(sessionId)!;
       const text = params.prompt ?? params.text ?? "";
+      const mode = detectMode(text, config.defaultMode);
       const ctx = {
         workspaceRoot,
         sessionId,
@@ -79,11 +91,55 @@ export function startNativeAcpStdioServer(): void {
         mode: config.defaultMode,
       };
       try {
-      if (shouldUseLlm(config)) {
-        await runLlmAgentLoop(ctx, config, text);
-      } else {
-        runDeterministicTurn(ctx, text);
-      }
+        // Plan/Verify are real workflow gates (not prompt candy).
+        if (mode === "plan") {
+          const prev = process.env.WANWU_PLAN_QUIET;
+          process.env.WANWU_PLAN_QUIET = "1";
+          let planPath = "";
+          try {
+            planPath = runPlan(stripModeTags(text) || "Untitled task", workspaceRoot);
+          } finally {
+            if (prev === undefined) delete process.env.WANWU_PLAN_QUIET;
+            else process.env.WANWU_PLAN_QUIET = prev;
+          }
+          sessionUpdate(sessionId, {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: `已写入 Plan 工件：\n${planPath}\n` },
+          });
+        }
+        if (mode === "verify") {
+          sessionUpdate(sessionId, {
+            sessionUpdate: "agent_message_chunk",
+            content: {
+              type: "text",
+              text: "正在运行隔离 Verify（typecheck → test → lint）…\n",
+            },
+          });
+          const result = runVerifyDetailed(workspaceRoot, { quiet: true });
+          sessionUpdate(sessionId, {
+            sessionUpdate: "agent_message_chunk",
+            content: {
+              type: "text",
+              text:
+                (result.code === 0 ? "Verify 通过。\n\n" : `Verify 失败（exit=${result.code}）。\n\n`) +
+                result.log.slice(0, 6000),
+            },
+          });
+          sendResult(id, { stopReason: result.code === 0 ? "end_turn" : "end_turn" });
+          return;
+        }
+
+        if (shouldUseLlm(config) && mode !== "verify") {
+          const out = await runLlmAgentLoop(ctx, config, text, {
+            history: session.history,
+          });
+          session.history = out.messages.filter((m) => m.role !== "system");
+        } else if (mode !== "plan") {
+          // Deterministic path also handles plan/verify; skip double-plan when already written.
+          runDeterministicTurn(ctx, text);
+        } else {
+          // Plan artifact already written; deterministic would duplicate — skip.
+        }
         sendResult(id, { stopReason: "end_turn" });
       } catch (err) {
         sendError(id, -32001, err instanceof Error ? err.message : String(err));
