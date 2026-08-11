@@ -5,6 +5,7 @@ export type WanwuBridge = {
     getRoot: () => Promise<string | null>;
     openDialog: () => Promise<string | null>;
     openPath: (dir: string) => Promise<string>;
+    onChanged: (cb: (root: string) => void) => () => void;
   };
   fs: {
     list: (rel?: string) => Promise<{ name: string; path: string; type: "file" | "dir" }[]>;
@@ -12,13 +13,14 @@ export type WanwuBridge = {
     write: (rel: string, content: string) => Promise<boolean>;
   };
   acp: {
-    ensure: () => Promise<{ sessionId?: string }>;
+    ensure: () => Promise<{ sessionId?: string; cwd?: string }>;
     prompt: (text: string) => Promise<unknown>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
     onTool: (cb: (tool: { title: string; status: string; detail?: string }) => void) => () => void;
     onError: (cb: (text: string) => void) => () => void;
+    onSession: (cb: (info: { sessionId?: string; cwd?: string }) => void) => () => void;
     onPermission: (
       cb: (req: { id: number; toolName: string; summary: string; risk?: string }) => void,
     ) => () => void;
@@ -49,6 +51,7 @@ const bridge: WanwuBridge = {
     getRoot: () => ipcRenderer.invoke("workspace:getRoot"),
     openDialog: () => ipcRenderer.invoke("workspace:openDialog"),
     openPath: (dir) => ipcRenderer.invoke("workspace:openPath", dir),
+    onChanged: (cb) => on("workspace:changed", (r) => cb(String(r))),
   },
   fs: {
     list: (rel) => ipcRenderer.invoke("fs:list", rel),
@@ -63,6 +66,7 @@ const bridge: WanwuBridge = {
     onMessage: (cb) => on("acp:message", (t) => cb(String(t))),
     onTool: (cb) => on("acp:tool", (t) => cb(t as never)),
     onError: (cb) => on("acp:error", (t) => cb(String(t))),
+    onSession: (cb) => on("acp:session", (t) => cb(t as never)),
     onPermission: (cb) => on("acp:permission", (t) => cb(t as never)),
     onEdit: (cb) => on("acp:edit", (t) => cb(t as never)),
   },

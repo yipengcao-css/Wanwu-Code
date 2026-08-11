@@ -8,6 +8,7 @@ type LogItem =
 export function AgentStudio(props: {
   mode: WanwuMode;
   enabled: boolean;
+  workspaceRoot: string | null;
   activePath: string | null;
   selectionHint?: string;
   onStatus: (s: string) => void;
@@ -26,6 +27,23 @@ export function AgentStudio(props: {
     return window.wanwu.shell.onFocusAgent(() => inputRef.current?.focus());
   }, []);
 
+  const prevRootRef = useRef<string | null>(null);
+  // Workspace switch → clear transcript; main process already disposed ACP + reset cwd.
+  useEffect(() => {
+    const next = props.workspaceRoot;
+    if (!next) return;
+    if (prevRootRef.current && prevRootRef.current !== next) {
+      setLog([
+        {
+          kind: "status",
+          text: `工作区已切换 · ${next}（将创建新 ACP session）`,
+        },
+      ]);
+      setBusy(false);
+    }
+    prevRootRef.current = next;
+  }, [props.workspaceRoot]);
+
   useEffect(() => {
     const offs = [
       window.wanwu.acp.onMessage((t) => setLog((prev) => [...prev, { kind: "assistant", text: t }])),
@@ -36,6 +54,15 @@ export function AgentStudio(props: {
         ]),
       ),
       window.wanwu.acp.onError((t) => setLog((prev) => [...prev, { kind: "error", text: t }])),
+      window.wanwu.acp.onSession((info) =>
+        setLog((prev) => [
+          ...prev,
+          {
+            kind: "status",
+            text: `新 session=${info.sessionId ?? "?"} · cwd=${info.cwd ?? "?"}`,
+          },
+        ]),
+      ),
     ];
     return () => offs.forEach((off) => off());
   }, []);
@@ -48,8 +75,8 @@ export function AgentStudio(props: {
     setLog((prev) => [...prev, { kind: "user", text: prompt }]);
     try {
       props.onStatus("连接 ACP…");
-      const { sessionId } = await window.wanwu.acp.ensure();
-      props.onStatus(`session=${sessionId ?? "?"}`);
+      const { sessionId, cwd } = await window.wanwu.acp.ensure();
+      props.onStatus(`session=${sessionId ?? "?"} · ${cwd ?? props.workspaceRoot ?? "?"}`);
       const prefix =
         props.mode === "plan"
           ? "[MODE=plan] 只产出计划，不要修改文件。\n"

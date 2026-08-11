@@ -8,6 +8,7 @@ import {
   type AcpPermissionRequest,
 } from "@wanwu/acp-client";
 import { resolveShellAcpLaunch } from "../acpLaunch.js";
+import { shouldResetAcpSession } from "../acpSession.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,6 +20,8 @@ function findRepoRoot(): string {
 let client: AcpClient | undefined;
 let child: ChildProcessWithoutNullStreams | undefined;
 let sessionId: string | undefined;
+/** Workspace cwd the current ACP child was launched with. */
+let clientCwd: string | undefined;
 
 function broadcast(win: BrowserWindow | null, channel: string, payload: unknown): void {
   win?.webContents.send(channel, payload);
@@ -47,24 +50,37 @@ function startNativeAcp(cwd: string): AcpClient {
   });
 }
 
+async function ensureClient(
+  root: string,
+  getWin: () => BrowserWindow | null,
+): Promise<string | undefined> {
+  if (client && shouldResetAcpSession(clientCwd, root)) {
+    disposeAcp();
+  }
+  if (!client) {
+    client = startNativeAcp(root);
+    clientCwd = root;
+    const win = getWin();
+    client.on("message", (text: string) => broadcast(win, "acp:message", text));
+    client.on("tool", (tool) => broadcast(win, "acp:tool", tool));
+    client.on("error", (err: Error) => broadcast(win, "acp:error", err.message));
+    client.on("permission", (req: AcpPermissionRequest) =>
+      broadcast(win, "acp:permission", req),
+    );
+    client.on("edit", (edit: AcpEditProposal) => broadcast(win, "acp:edit", edit));
+    await client.initialize();
+    sessionId = await client.newSession(root);
+    broadcast(win, "acp:session", { sessionId, cwd: root });
+  }
+  return sessionId;
+}
+
 export function registerAcpIpc(getRoot: () => string | null, getWin: () => BrowserWindow | null): void {
   ipcMain.handle("acp:ensure", async () => {
     const root = getRoot();
     if (!root) throw new Error("no workspace open");
-    if (!client) {
-      client = startNativeAcp(root);
-      const win = getWin();
-      client.on("message", (text: string) => broadcast(win, "acp:message", text));
-      client.on("tool", (tool) => broadcast(win, "acp:tool", tool));
-      client.on("error", (err: Error) => broadcast(win, "acp:error", err.message));
-      client.on("permission", (req: AcpPermissionRequest) =>
-        broadcast(win, "acp:permission", req),
-      );
-      client.on("edit", (edit: AcpEditProposal) => broadcast(win, "acp:edit", edit));
-      await client.initialize();
-      sessionId = await client.newSession(root);
-    }
-    return { sessionId };
+    const id = await ensureClient(root, getWin);
+    return { sessionId: id, cwd: clientCwd };
   });
 
   ipcMain.handle("acp:prompt", async (_e, text: string) => {
@@ -79,10 +95,7 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
   });
 
   ipcMain.handle("acp:dispose", () => {
-    client?.dispose();
-    client = undefined;
-    child = undefined;
-    sessionId = undefined;
+    disposeAcp();
     return true;
   });
 }
@@ -92,4 +105,12 @@ export function disposeAcp(): void {
   client = undefined;
   child = undefined;
   sessionId = undefined;
+  clientCwd = undefined;
+}
+
+/** Call when the shell workspace root changes (breaks ACP singleton). */
+export function onWorkspaceRootChanged(prev: string | null, next: string): void {
+  if (shouldResetAcpSession(prev ?? clientCwd, next) || shouldResetAcpSession(clientCwd, next)) {
+    disposeAcp();
+  }
 }
