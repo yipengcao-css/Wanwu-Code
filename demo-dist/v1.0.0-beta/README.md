@@ -17,6 +17,30 @@ demo-dist/v1.0.0-beta/
   docs/                     ← INSTALL / PROVIDERS / CLOUD 文档副本
 ```
 
+## Windows 一键安装（推荐）
+
+> ⚠️ **不要**再使用（私有仓库会 404）：  
+> `irm https://raw.githubusercontent.com/.../install.ps1 | iex`
+
+请先克隆并拉取 LFS，再在本目录执行离线脚本：
+
+```powershell
+# 1) 安装 Git LFS 后克隆
+git lfs install
+git clone https://github.com/yipengcao-css/Wanwu-Code.git
+cd Wanwu-Code
+git lfs pull
+
+# 2) 安装 Desktop + CLI（可改路径）
+Set-ExecutionPolicy -Scope Process Bypass -Force
+cd demo-dist\v1.0.0-beta
+.\install-windows.ps1
+# 或指定目录：
+# .\install-windows.ps1 -InstallDir "$env:USERPROFILE\WanwuCode"
+```
+
+然后**新开** PowerShell：`wanwu doctor`，并用开始菜单/快捷方式打开 `Wanwu Code`。
+
 ## 快速安装（按平台）
 
 ### 1) Desktop IDE（推荐演示主界面）
@@ -24,7 +48,7 @@ demo-dist/v1.0.0-beta/
 | 系统 | 文件 | 用法 |
 |---|---|---|
 | Linux | `desktop/Wanwu-Code-1.0.0-beta-linux-x64.AppImage` | `chmod +x …AppImage && ./…AppImage` |
-| Windows | `desktop/Wanwu-Code-1.0.0-beta-win-x64.zip` | 解压后运行 `Wanwu Code.exe` |
+| Windows | `desktop/Wanwu-Code-1.0.0-beta-win-x64.zip` | 优先用上面的 `install-windows.ps1`；或手动解压运行 `Wanwu Code.exe` |
 | macOS Intel | `desktop/Wanwu-Code-1.0.0-beta-mac-x64.zip` | 解压后打开 `.app`（需解除隔离/签名，见下） |
 | macOS Apple Silicon | `desktop/Wanwu-Code-1.0.0-beta-mac-arm64.zip` | 同上 |
 

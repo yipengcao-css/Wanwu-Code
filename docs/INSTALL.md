@@ -28,12 +28,22 @@ wanwu doctor
 
 ### Windows（PowerShell）
 
-```powershell
-# Release
-irm https://raw.githubusercontent.com/yipengcao-css/Wanwu-Code/main/scripts/install.ps1 | iex
+> 私有仓库下 `irm https://raw.githubusercontent.com/... | iex` 会 **404**（无匿名 raw 访问）。  
+> 公司演示请用离线包脚本：
 
-# 本地
-$env:WANWU_INSTALL_FROM="local"
+```powershell
+git lfs install
+git clone https://github.com/yipengcao-css/Wanwu-Code.git
+cd Wanwu-Code
+git lfs pull
+Set-ExecutionPolicy -Scope Process Bypass -Force
+.\demo-dist\v1.0.0-beta\install-windows.ps1
+```
+
+仅 CLI（仓库内）：
+
+```powershell
+$env:WANWU_INSTALL_FROM="demo"   # 或 local（dist-bin）
 .\scripts\install.ps1
 ```
 
