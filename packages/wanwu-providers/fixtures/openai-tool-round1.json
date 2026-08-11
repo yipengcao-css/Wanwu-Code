@@ -1,0 +1,24 @@
+{
+  "id": "chatcmpl-tools-1",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_readme",
+            "type": "function",
+            "function": {
+              "name": "Read",
+              "arguments": "{\"path\":\"README.md\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ]
+}

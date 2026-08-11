@@ -1,0 +1,22 @@
+export type { CloudClient, CloudTask, CloudTaskStatus } from "./types.js";
+export {
+  ensureTasksRoot,
+  listTasks,
+  loadTask,
+  saveTask,
+  tasksRoot,
+  updateTaskStatus,
+  type StoredTask,
+} from "./store.js";
+export { runCloudTaskLocally, worktreePath } from "./runner.js";
+export {
+  buildDockerRunnerImage,
+  dockerAvailable,
+  isNestedOverlayFailure,
+  runCloudTaskInDocker,
+  shouldRefuseDockerFallback,
+} from "./dockerRunner.js";
+export { cleanupParallel, runParallelMarkers, type ParallelAgentSpec } from "./parallel.js";
+export { FileCloudClient, InMemoryCloudClient } from "./client.js";
+export { orchestrateCloudTasks, type OrchestrateOptions, type OrchestrateResult } from "./orchestrator.js";
+export { openTaskPullRequest, type OpenPrOptions, type OpenPrResult } from "./openPr.js";

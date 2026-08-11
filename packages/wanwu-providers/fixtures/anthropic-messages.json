@@ -1,0 +1,8 @@
+{
+  "id": "msg_fixture",
+  "type": "message",
+  "role": "assistant",
+  "content": [{ "type": "text", "text": "pong" }],
+  "model": "claude-sonnet-4",
+  "stop_reason": "end_turn"
+}

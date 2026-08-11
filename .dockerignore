@@ -1,0 +1,13 @@
+apps/wanwu-ide/code-oss
+**/node_modules
+.wanwu/worktrees
+.wanwu/cloud-tasks
+.wanwu/plans
+dist-bin
+extensions/wanwu-vscode/*.vsix
+.git/objects
+**/out
+**/dist
+**/.turbo
+coverage
+*.log

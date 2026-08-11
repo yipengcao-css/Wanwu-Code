@@ -1,0 +1,11 @@
+{
+  "id": "chatcmpl-fixture-xai",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "pong-xai" },
+      "finish_reason": "stop"
+    }
+  ]
+}

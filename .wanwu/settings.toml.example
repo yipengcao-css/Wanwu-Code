@@ -1,0 +1,19 @@
+# Copy to .wanwu/settings.toml for workspace overrides
+active_provider = "openai"
+model = "gpt-5"
+permission_mode = "ask"
+sandbox = "workspace"
+acp_backend = "grok"
+default_mode = "agent"
+
+[providers.openai]
+api_key_env = "OPENAI_API_KEY"
+default_model = "gpt-5"
+
+[providers.anthropic]
+api_key_env = "ANTHROPIC_API_KEY"
+default_model = "claude-sonnet-4"
+
+[providers.xai]
+api_key_env = "XAI_API_KEY"
+default_model = "grok-4"

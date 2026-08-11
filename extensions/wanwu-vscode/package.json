@@ -1,0 +1,86 @@
+{
+  "name": "wanwu-code",
+  "displayName": "Wanwu Code",
+  "description": "Wanwu-Code VS Code extension — ACP client for the wanwu agent",
+  "version": "1.0.0-beta",
+  "private": true,
+  "publisher": "wanwu",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yipengcao-css/Wanwu-Code"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["AI", "Chat"],
+  "activationEvents": [
+    "onCommand:wanwu.newChat",
+    "onCommand:wanwu.doctor",
+    "onCommand:wanwu.planTask",
+    "onCommand:wanwu.runVerify"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wanwu.newChat",
+        "title": "Wanwu: New Chat"
+      },
+      {
+        "command": "wanwu.newParallelSession",
+        "title": "Wanwu: New Parallel Session"
+      },
+      {
+        "command": "wanwu.listSessions",
+        "title": "Wanwu: List Sessions"
+      },
+      {
+        "command": "wanwu.doctor",
+        "title": "Wanwu: Doctor"
+      },
+      {
+        "command": "wanwu.planTask",
+        "title": "Wanwu: Plan this task"
+      },
+      {
+        "command": "wanwu.runVerify",
+        "title": "Wanwu: Run Verify"
+      },
+      {
+        "command": "wanwu.requestPermissionDemo",
+        "title": "Wanwu: Demo Permission Modal"
+      },
+      {
+        "command": "wanwu.reviewDiffDemo",
+        "title": "Wanwu: Demo Diff Review"
+      }
+    ],
+    "configuration": {
+      "title": "Wanwu",
+      "properties": {
+        "wanwu.useMockAcp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use the built-in mock ACP server (recommended until grok is installed)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx src/acp/client.integration.test.ts",
+    "package": "pnpm run build && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "@wanwu/acp-client": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.90.0",
+    "@types/node": "^22.15.21",
+    "@vscode/vsce": "^3.3.2",
+    "tsx": "^4.19.4"
+  }
+}

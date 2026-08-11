@@ -1,0 +1,101 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Lint
+        run: pnpm lint
+      - name: Smoke ACP (mock + wanwu-native)
+        run: ./scripts/smoke-acp.sh
+      - name: Native ACP handshake
+        run: pnpm exec tsx scripts/acp-handshake-native.mts
+      - name: Demo E2E
+        run: ./scripts/demo-e2e.sh
+      - name: Parallel worktrees + cloud runner
+        run: |
+          pnpm wanwu parallel demo --cleanup
+          pnpm wanwu cloud submit -p "ci cloud review" --run
+          pnpm wanwu cloud cleanup --purge
+      - name: Permission probe
+        run: |
+          pnpm wanwu check-perm -p 'cat ~/.ssh/id_rsa' && exit 1 || true
+          pnpm wanwu check-perm -p 'pnpm test'
+      - name: Build CLI bundle
+        run: pnpm build:cli
+      - name: Package VSIX
+        run: pnpm package:extension
+      - name: Upload VSIX
+        uses: actions/upload-artifact@v4
+        with:
+          name: wanwu-code-vsix
+          path: extensions/wanwu-vscode/*.vsix
+      - name: Upload CLI bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: wanwu-cli-bundle
+          path: dist-bin/wanwu.mjs
+
+  docker-cloud:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Pure Docker cloud runner (no fallback)
+        env:
+          WANWU_DOCKER_REQUIRE: "1"
+        run: |
+          set -euo pipefail
+          OUT=$(pnpm wanwu -- cloud submit -p "gha pure docker" --docker)
+          echo "$OUT"
+          echo "$OUT" | tee /tmp/cloud-docker-out.json
+          # Extract task id from JSON
+          TASK_ID=$(node -e 'const s=require("fs").readFileSync(0,"utf8"); const m=s.match(/\{[\s\S]*\}/); if(!m) process.exit(2); const j=JSON.parse(m[0]); if(j.status!=="succeeded"){console.error(j); process.exit(1)}; console.log(j.id)') <<<"$OUT"
+          LOG=".wanwu/cloud-tasks/${TASK_ID}/docker-runner.log"
+          test -f "$LOG"
+          if grep -q '\[fallback\] docker run failed on nested overlay' "$LOG"; then
+            echo "UNEXPECTED FALLBACK in pure-docker CI job" >&2
+            cat "$LOG" >&2
+            exit 1
+          fi
+          echo "OK: pure docker path for $TASK_ID"
+      - name: Upload docker cloud artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wanwu-docker-cloud
+          path: .wanwu/cloud-tasks/**
+          if-no-files-found: warn

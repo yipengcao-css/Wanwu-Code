@@ -1,0 +1,29 @@
+appId: com.wanwu.code
+productName: Wanwu Code
+copyright: Copyright © Wanwu
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - package.json
+extraMetadata:
+  main: dist/electron/main.js
+asar: true
+linux:
+  target:
+    - AppImage
+    - deb
+  category: Development
+  maintainer: Wanwu <wanwu@example.com>
+win:
+  target:
+    - zip
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+mac:
+  target:
+    - zip
+  category: public.app-category.developer-tools
+  identity: null
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}

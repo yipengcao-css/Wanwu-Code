@@ -1,0 +1,33 @@
+{
+  "name": "wanwu-monorepo",
+  "private": true,
+  "version": "1.0.0-beta",
+  "description": "Wanwu-Code — AI-native IDE (wanwu CLI + VS Code extension)",
+  "packageManager": "pnpm@10.33.3",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "vitest run && pnpm --filter wanwu-code run test && pnpm --filter @wanwu/acp-client run test && pnpm --filter wanwu-shell run test",
+    "test:providers:live": "tsx scripts/e2e-providers-live.mts",
+    "build": "pnpm -r --if-present run build",
+    "build:extension": "pnpm --filter wanwu-code run build",
+    "package:extension": "pnpm --filter wanwu-code run package",
+    "build:cli": "bash scripts/build-cli.sh",
+    "wanwu": "tsx packages/wanwu-cli/src/index.ts",
+    "shell": "pnpm --filter wanwu-shell start",
+    "shell:dev": "pnpm --filter wanwu-shell dev",
+    "build:cli:native": "bash scripts/build-cli-native.sh",
+    "install:cli:local": "WANWU_INSTALL_FROM=local bash scripts/install.sh",
+    "shell:dist": "bash scripts/build-shell-dist.sh"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0",
+    "esbuild": "^0.25.5",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

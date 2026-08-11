@@ -1,0 +1,11 @@
+{
+  "id": "chatcmpl-fixture-openai",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "pong" },
+      "finish_reason": "stop"
+    }
+  ]
+}

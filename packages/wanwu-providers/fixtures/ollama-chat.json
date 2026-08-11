@@ -1,0 +1,11 @@
+{
+  "id": "chatcmpl-fixture-ollama",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": { "role": "assistant", "content": "pong-ollama" },
+      "finish_reason": "stop"
+    }
+  ]
+}
