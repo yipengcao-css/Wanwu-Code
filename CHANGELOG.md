@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **E2-A wanwu-native ACP**：默认 `acp_backend=wanwu-native`，无 grok 也可握手 + 工具回合（Read/Edit/Bash/Glob/Grep）
+- `scripts/acp-handshake-native.mts` + smoke 集成；`wanwu exec` 走确定性 native loop
+
 ## 1.0.0-beta — 2026-08-11
 
 Wanwu-Code **v1.0 beta** — 首个对外预发布。

@@ -13,7 +13,8 @@
     "lint": "tsc -p tsconfig.json --noEmit",
     "dev": "tsx src/index.ts",
     "wanwu": "tsx src/index.ts",
-    "mock-acp": "tsx src/mockAcpServer.ts"
+    "mock-acp": "tsx src/mockAcpServer.ts",
+    "native-acp": "tsx src/native/acpServer.ts"
   },
   "dependencies": {
     "@wanwu/cloud": "workspace:*",

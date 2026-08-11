@@ -18,15 +18,30 @@ pnpm --filter @wanwu/cli build
 pnpm --filter @wanwu/cli link --global
 ```
 
-## ACP 桥接
+## ACP 后端
 
-默认 `acpBackend=grok`：`wanwu acp` → `grok acp`（可用 `WANWU_GROK_ACP_ARGS` 覆盖参数）。
+默认 `acp_backend=wanwu-native`：`wanwu acp` 启动内置 TypeScript ACP server（**不依赖**系统 `grok`）。
 
-覆盖整个后端：
+最小工具面：Read / Edit / Bash / Glob / Grep（deny-first 权限 + workspace 边界）。
+
+切换回 Grok Build 桥接：
+
+```toml
+# .wanwu/settings.toml
+acp_backend = "grok"
+```
+
+覆盖整个后端进程：
 
 ```bash
 export WANWU_ACP_COMMAND="my-agent --stdio"
 wanwu acp
+```
+
+本地黄金路径：
+
+```bash
+pnpm exec tsx scripts/acp-handshake-native.mts
 ```
 
 ## 配置

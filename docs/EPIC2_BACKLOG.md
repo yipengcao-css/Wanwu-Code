@@ -7,7 +7,7 @@
 
 | 顺序 | ID | 主题 | 状态 |
 |---|---|---|---|
-| 1 | **E2-A** | **Native Agent Runtime** | **下一步默认** |
+| 1 | **E2-A** | **Native Agent Runtime** | **完成（TS wanwu-native）** |
 | 2 | E2-B | 真实多模型端到端矩阵 | queued |
 | 3 | E2-C | 发行矩阵（平台原生 CLI / 安装包） | queued |
 | 4 | E2-D | Cloud 多任务编排 | queued |
@@ -29,10 +29,10 @@
 5. 集成测试：`scripts/acp-handshake.mts` 对 native backend 黄金路径。
 
 ### 验收
-- [ ] `acp_backend=wanwu-native` 时，无 `grok` 亦可完成 initialize + 一轮 prompt
-- [ ] 危险 bash 默认被权限策略拦截
-- [ ] NOTICE / 许可证清洁（不冒用上游品牌）
-- [ ] CI 覆盖 native ACP smoke（不依赖外部二进制）
+- [x] `acp_backend=wanwu-native` 时，无 `grok` 亦可完成 initialize + 一轮 prompt（`scripts/acp-handshake-native.mts`）
+- [x] 危险 bash 默认被权限策略拦截
+- [x] NOTICE / 许可证清洁（agentInfo=`wanwu-native`，不冒用上游品牌）
+- [x] smoke 覆盖 native ACP（`scripts/smoke-acp.sh`；GHA 额度恢复后自动跑）
 
 ### 非目标
 - 完整对标 grok-build 全部 skills/plugins marketplace

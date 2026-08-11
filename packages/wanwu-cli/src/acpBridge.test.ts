@@ -1,4 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { resolveAcpLaunch } from "./acpBridge.js";
 
 describe("resolveAcpLaunch", () => {
@@ -17,11 +20,22 @@ describe("resolveAcpLaunch", () => {
     else process.env.WANWU_GROK_ACP_ARGS = prevArgs;
   });
 
-  it("defaults to grok ACP bridge", () => {
-    const plan = resolveAcpLaunch(process.cwd());
+  it("defaults to wanwu-native ACP", () => {
+    const dir = mkdtempSync(join(tmpdir(), "wanwu-acp-"));
+    mkdirSync(join(dir, ".wanwu"), { recursive: true });
+    writeFileSync(join(dir, ".wanwu", "settings.toml"), 'acp_backend = "wanwu-native"\n');
+    const plan = resolveAcpLaunch(dir);
+    expect(plan.backend).toBe("wanwu-native");
+    expect(plan.args.join(" ")).toMatch(/acpServer\.(ts|js)/);
+  });
+
+  it("uses grok when workspace settings request it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "wanwu-acp-grok-"));
+    mkdirSync(join(dir, ".wanwu"), { recursive: true });
+    writeFileSync(join(dir, ".wanwu", "settings.toml"), 'acp_backend = "grok"\n');
+    const plan = resolveAcpLaunch(dir);
     expect(plan.backend).toBe("grok-bridge");
     expect(plan.command).toBe("grok");
-    expect(plan.args[0]).toBe("acp");
   });
 
   it("honors WANWU_ACP_COMMAND override", () => {

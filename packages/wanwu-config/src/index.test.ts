@@ -25,7 +25,7 @@ describe("wanwu-config", () => {
     expect(resolveActiveModel(merged)).toBe("claude-sonnet-4");
   });
 
-  it("defaults acp backend to grok bridge", () => {
-    expect(DEFAULT_CONFIG.acpBackend).toBe("grok");
+  it("defaults acp backend to wanwu-native", () => {
+    expect(DEFAULT_CONFIG.acpBackend).toBe("wanwu-native");
   });
 });

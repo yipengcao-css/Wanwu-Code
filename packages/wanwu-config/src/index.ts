@@ -25,7 +25,7 @@ export const DEFAULT_CONFIG: WanwuConfig = {
   model: "gpt-5",
   permissionMode: "ask",
   sandbox: "workspace",
-  acpBackend: "grok",
+  acpBackend: "wanwu-native",
   defaultMode: "agent",
   providers: {
     xai: { apiKeyEnv: "XAI_API_KEY", defaultModel: "grok-4" },

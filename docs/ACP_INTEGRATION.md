@@ -12,46 +12,57 @@
 | 组件 | ACP 角色 |
 |---|---|
 | `extensions/wanwu-vscode` | Client |
-| `wanwu acp` | Agent 入口（可桥接到 `grok` ACP） |
-| 未来 `apps/wanwu-ide` | Client（内置） |
+| `wanwu acp` | Agent 入口（默认 **wanwu-native**；可桥接 `grok`） |
+| `apps/wanwu-ide` | Client（内置扩展） |
 
-## MVP 桥接拓扑
+## 拓扑
 
 ```
 VS Code Extension (ACP Client)
         │ stdin/stdout JSON-RPC
         ▼
-   wanwu acp
-        │  (可选直通或包装)
-        ▼
-   grok ACP / 未来 wanwu-native
+   wanwu acp   (acpBridge.resolveAcpLaunch)
+        │
+        ├─ acp_backend=wanwu-native → packages/wanwu-cli/src/native/acpServer.ts
+        └─ acp_backend=grok         → grok acp（或 WANWU_ACP_COMMAND）
 ```
+
+### wanwu-native（E2-A）
+
+- 默认后端；**不依赖**系统 `grok` 二进制
+- 工具：Read / Edit / Bash / Glob / Grep
+- 权限：复用 deny-first `assessBash` + workspace path sandbox
+- 无 API key 时使用确定性 tool loop（便于本地/CI）
+- 黄金路径：`pnpm exec tsx scripts/acp-handshake-native.mts`
 
 ### 桥接层职责
 
 1. 解析 `~/.wanwu/config.toml` 与工作区配置
-2. 检查 `grok` 是否可用（`wanwu doctor`）
-3. 注入 Wanwu 系统上下文（`WANWU.md`、模式：Plan/Act/Verify）
-4. 统一日志与错误码（扩展可展示友好提示）
-5. 多模型：若后端暂仅支持部分厂商，在桥接层说明降级策略
+2. `wanwu doctor` 报告 native / grok 可用性
+3. 注入 Wanwu 系统上下文（`WANWU.md`、Plan/Agent 模式）
+4. 统一日志与错误码
+5. 多模型：LLM 调用为后续增强；当前 native 可无密钥运行
 
 ## 扩展侧最小流程
 
 1. `activate` → 注册命令与侧栏
 2. 用户发消息 → 确保 ACP 子进程存活
-3. `initialize` / `session/new`（以实际 schema 版本为准）
+3. `initialize` / `session/new`
 4. 订阅 `session/update` 渲染流式内容与 tool timeline
-5. 收到权限请求 → 弹窗 Allow once / session / Deny
-6. 收到编辑 → Diff Review → apply / reject
+5. 权限请求 → Allow once / session / Deny
+6. 编辑 → Diff Review → apply / reject
+
+扩展默认仍可用 mock ACP（`wanwu.useMockAcp`）；关闭 mock 且 `acp_backend=wanwu-native` 时走真实 native。
 
 ## 兼容性策略
 
-- 锁定并记录所实现的 ACP schema 版本于 `packages/wanwu-protocol`
-- 增加 `scripts/smoke-acp.sh` 做握手 + 单轮 prompt 黄金路径
-- grok 未安装时：扩展显示安装指引，不崩溃
+- 协议类型见 `packages/wanwu-protocol`
+- `scripts/smoke-acp.sh`：mock + **native** 握手
+- grok 未安装时：使用默认 native，不崩溃
 
 ## 参考
 
 - https://github.com/agentclientprotocol/agent-client-protocol
-- https://github.com/xai-org/grok-build（ACP 模式）
+- https://github.com/xai-org/grok-build（可选桥接）
 - `docs/ADRs/0001-agent-runtime-base.md`
+- `docs/EPIC2_BACKLOG.md`（E2-A）

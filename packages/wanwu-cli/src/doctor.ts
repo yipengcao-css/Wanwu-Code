@@ -59,7 +59,13 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
     }
   }
 
-  if (config.acpBackend === "grok") {
+  if (config.acpBackend === "wanwu-native") {
+    findings.push({
+      level: "ok",
+      code: "acp.native",
+      message: "acp_backend=wanwu-native (no grok binary required)",
+    });
+  } else if (config.acpBackend === "grok") {
     if (commandExists("grok")) {
       findings.push({
         level: "ok",
@@ -71,7 +77,7 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
         level: "warn",
         code: "acp.grok",
         message:
-          "grok not found on PATH. Install Grok Build (https://x.ai/cli) or set WANWU_ACP_COMMAND",
+          "grok not found on PATH. Install Grok Build (https://x.ai/cli), set WANWU_ACP_COMMAND, or switch acp_backend=wanwu-native",
       });
     }
   }
