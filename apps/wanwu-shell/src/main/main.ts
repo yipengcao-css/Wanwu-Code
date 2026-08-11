@@ -8,7 +8,7 @@ import {
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerFsIpc } from "./ipc/fs.js";
-import { disposeAcp, registerAcpIpc } from "./ipc/acp.js";
+import { disposeAcp, onWorkspaceRootChanged, registerAcpIpc } from "./ipc/acp.js";
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -82,7 +82,12 @@ app.whenReady().then(() => {
   registerFsIpc(
     () => workspaceRoot,
     (r) => {
+      const prev = workspaceRoot;
+      onWorkspaceRootChanged(prev, r);
       workspaceRoot = r;
+      // Terminal cwd is bound at spawn time; force restart on workspace switch.
+      disposeTerm();
+      mainWindow?.webContents.send("workspace:changed", r);
     },
   );
   registerAcpIpc(

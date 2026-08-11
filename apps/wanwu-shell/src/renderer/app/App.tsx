@@ -77,14 +77,23 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
-  const openFolder = useCallback(async () => {
-    const dir = await window.wanwu.workspace.openDialog();
-    if (dir) {
+  useEffect(() => {
+    return window.wanwu.workspace.onChanged((dir) => {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
       setStatus(`工作区 · ${dir}`);
-      await window.wanwu.acp.dispose();
+    });
+  }, []);
+
+  const openFolder = useCallback(async () => {
+    const dir = await window.wanwu.workspace.openDialog();
+    if (dir) {
+      // Main process disposes ACP/term on root change; renderer state via onChanged + local sync.
+      setRoot(dir);
+      setTabs([]);
+      setActivePath(null);
+      setStatus(`工作区 · ${dir}`);
     }
   }, []);
 
@@ -168,6 +177,7 @@ export function App() {
           <AgentStudio
             mode={mode}
             enabled={Boolean(root)}
+            workspaceRoot={root}
             activePath={activePath}
             selectionHint={activeTab?.content.slice(0, 500)}
             onStatus={setStatus}
@@ -181,7 +191,7 @@ export function App() {
             onDrag={(d) => setTermH((h) => Math.min(480, Math.max(120, h - d)))}
           />
           <div className="terminal-drawer">
-            <TerminalPane active={termOpen} />
+            <TerminalPane key={root ?? "no-ws"} active={termOpen} />
           </div>
         </>
       ) : null}
