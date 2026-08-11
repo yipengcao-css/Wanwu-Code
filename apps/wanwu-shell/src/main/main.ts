@@ -21,6 +21,26 @@ let workspaceRoot: string | null =
 
 nativeTheme.themeSource = "dark";
 
+function send(channel: string): void {
+  mainWindow?.webContents.send(channel);
+}
+
+function wireWindowHotkeys(win: BrowserWindow): void {
+  win.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") return;
+    const mod = input.control || input.meta;
+    if (!mod) return;
+    const key = input.key.toLowerCase();
+    if (key === "i" && !input.alt && !input.shift) {
+      event.preventDefault();
+      send("shell:focus-agent");
+    } else if (key === "`" && !input.alt) {
+      event.preventDefault();
+      send("shell:toggle-terminal");
+    }
+  });
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -39,6 +59,7 @@ function createWindow(): void {
   });
 
   Menu.setApplicationMenu(null);
+  wireWindowHotkeys(mainWindow);
 
   const devUrl = process.env.WANWU_SHELL_DEV_URL;
   if (devUrl) {
@@ -46,6 +67,11 @@ function createWindow(): void {
   } else {
     void mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
+
+  mainWindow.webContents.on("did-finish-load", () => {
+    // Default: focus Agent Studio after cold start
+    setTimeout(() => send("shell:focus-agent"), 200);
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -70,12 +96,13 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  globalShortcut.register("CommandOrControl+I", () => {
-    mainWindow?.webContents.send("shell:focus-agent");
-  });
-  globalShortcut.register("CommandOrControl+`", () => {
-    mainWindow?.webContents.send("shell:toggle-terminal");
-  });
+  // Best-effort global shortcuts (may fail if grabbed elsewhere)
+  try {
+    globalShortcut.register("CommandOrControl+I", () => send("shell:focus-agent"));
+    globalShortcut.register("CommandOrControl+`", () => send("shell:toggle-terminal"));
+  } catch {
+    /* ignore */
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

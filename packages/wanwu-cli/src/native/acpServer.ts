@@ -6,7 +6,7 @@ import * as readline from "node:readline";
 import { loadWanwuConfig } from "@wanwu/config";
 import { findWorkspaceRoot } from "../workspaceRoot.js";
 import { runDeterministicTurn } from "./agentLoop.js";
-import { runLlmTurn, shouldUseLlm } from "./llmTurn.js";
+import { runLlmAgentLoop, shouldUseLlm } from "./llmAgentLoop.js";
 import type { JsonRpc } from "./jsonRpcStdio.js";
 import { sendError, sendResult } from "./jsonRpcStdio.js";
 
@@ -79,11 +79,11 @@ export function startNativeAcpStdioServer(): void {
         mode: config.defaultMode,
       };
       try {
-        if (shouldUseLlm(config)) {
-          await runLlmTurn(ctx, config, text);
-        } else {
-          runDeterministicTurn(ctx, text);
-        }
+      if (shouldUseLlm(config)) {
+        await runLlmAgentLoop(ctx, config, text);
+      } else {
+        runDeterministicTurn(ctx, text);
+      }
         sendResult(id, { stopReason: "end_turn" });
       } catch (err) {
         sendError(id, -32001, err instanceof Error ? err.message : String(err));

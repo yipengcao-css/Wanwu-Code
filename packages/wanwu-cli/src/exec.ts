@@ -4,7 +4,7 @@ import { ProviderError } from "@wanwu/providers";
 import { discoverMemory, renderMemoryForPrompt } from "./memory.js";
 import { resolveAcpLaunch } from "./acpBridge.js";
 import { runDeterministicTurn } from "./native/agentLoop.js";
-import { runLlmTurn, shouldUseLlm } from "./native/llmTurn.js";
+import { runLlmAgentLoop, shouldUseLlm } from "./native/llmAgentLoop.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
 export interface ExecOptions {
@@ -83,12 +83,16 @@ export async function runExec(options: ExecOptions): Promise<number> {
     let llm = false;
     let provider = (process.env.WANWU_PROVIDER?.trim() || config.activeProvider) as typeof config.activeProvider;
     let model = process.env.WANWU_MODEL?.trim() || config.model;
+    let turns = 0;
+    let toolsUsed: string[] = [];
     try {
       if (shouldUseLlm(config)) {
         llm = true;
-        const out = await runLlmTurn(ctx, config, options.prompt);
+        const out = await runLlmAgentLoop(ctx, config, options.prompt);
         provider = out.provider as typeof provider;
         model = out.model;
+        turns = out.turns;
+        toolsUsed = out.toolsUsed;
       } else {
         runDeterministicTurn(ctx, options.prompt);
       }
@@ -124,6 +128,8 @@ export async function runExec(options: ExecOptions): Promise<number> {
           llm,
           provider,
           model,
+          turns,
+          toolsUsed,
           output: chunks.join("\n").slice(0, 8000),
         },
         null,

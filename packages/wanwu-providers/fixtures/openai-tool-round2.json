@@ -1,0 +1,14 @@
+{
+  "id": "chatcmpl-tools-2",
+  "object": "chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "README 标题：Wanwu-Code"
+      },
+      "finish_reason": "stop"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
 import { OrbitBar, type WanwuMode } from "../layout/OrbitBar";
+import { SplitHandle } from "../layout/SplitHandle";
+import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { MonacoPane, type EditorTab } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
@@ -7,11 +9,15 @@ import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
 
 export function App() {
+  const initial = loadLayout();
   const [root, setRoot] = useState<string | null>(null);
   const [mode, setMode] = useState<WanwuMode>("agent");
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
-  const [termOpen, setTermOpen] = useState(false);
+  const [termOpen, setTermOpen] = useState(initial.termOpen);
+  const [filesW, setFilesW] = useState(initial.filesW);
+  const [agentW, setAgentW] = useState(initial.agentW);
+  const [termH, setTermH] = useState(initial.termH);
   const [status, setStatus] = useState("就绪 · Wanwu Lattice");
   const [perm, setPerm] = useState<{
     id: number;
@@ -27,13 +33,12 @@ export function App() {
   );
 
   useEffect(() => {
-    void window.wanwu.workspace.getRoot().then(async (r) => {
-      if (r) {
-        setRoot(r);
-        return;
-      }
-      // Dev convenience: open monorepo examples demo when WANWU_SHELL_WORKSPACE unset
-      // Main may already set it; otherwise leave null until user opens folder.
+    saveLayout({ filesW, agentW, termH, termOpen });
+  }, [filesW, agentW, termH, termOpen]);
+
+  useEffect(() => {
+    void window.wanwu.workspace.getRoot().then((r) => {
+      if (r) setRoot(r);
     });
   }, []);
 
@@ -49,6 +54,28 @@ export function App() {
       offE();
     };
   }, []);
+
+  // Renderer-local hotkeys (backup for before-input-event)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key.toLowerCase() === "i" && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus();
+      }
+      if (e.key === "`") {
+        e.preventDefault();
+        setTermOpen((v) => !v);
+      }
+      if (e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void saveActive();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const openFolder = useCallback(async () => {
     const dir = await window.wanwu.workspace.openDialog();
@@ -85,19 +112,14 @@ export function App() {
     setStatus(`已保存 · ${activeTab.path}`);
   }, [activeTab]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        void saveActive();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [saveActive]);
+  const style = {
+    ["--ww-files-w" as string]: `${filesW}px`,
+    ["--ww-agent-w" as string]: `${agentW}px`,
+    ["--ww-term-h" as string]: `${termH}px`,
+  } as CSSProperties;
 
   return (
-    <div className={`app${termOpen ? " term-open" : ""}`}>
+    <div className={`app${termOpen ? " term-open" : ""}`} style={style}>
       <OrbitBar
         mode={mode}
         onMode={setMode}
@@ -107,7 +129,7 @@ export function App() {
         workspaceLabel={root ? root.split(/[\\/]/).filter(Boolean).slice(-2).join("/") : "未打开工作区"}
       />
       <div className="workspace">
-        <aside className="panel">
+        <aside className="panel files-panel">
           <div className="panel-title">Files</div>
           {root ? (
             <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
@@ -121,6 +143,10 @@ export function App() {
             </div>
           )}
         </aside>
+        <SplitHandle
+          orientation="vertical"
+          onDrag={(d) => setFilesW((w) => Math.min(420, Math.max(160, w + d)))}
+        />
         <section className="editor-pane">
           <MonacoPane
             tabs={tabs}
@@ -133,6 +159,10 @@ export function App() {
             }}
           />
         </section>
+        <SplitHandle
+          orientation="vertical"
+          onDrag={(d) => setAgentW((w) => Math.min(640, Math.max(300, w - d)))}
+        />
         <aside className="panel agent">
           <div className="panel-title">Agent Studio</div>
           <AgentStudio
@@ -145,14 +175,20 @@ export function App() {
         </aside>
       </div>
       {termOpen ? (
-        <div className="terminal-drawer">
-          <TerminalPane active={termOpen} />
-        </div>
+        <>
+          <SplitHandle
+            orientation="horizontal"
+            onDrag={(d) => setTermH((h) => Math.min(480, Math.max(120, h - d)))}
+          />
+          <div className="terminal-drawer">
+            <TerminalPane active={termOpen} />
+          </div>
+        </>
       ) : null}
       <footer className="status">
         <span className="status-dot" />
         <span>{status}</span>
-        <span style={{ marginLeft: "auto" }}>Ctrl/Cmd+I Agent · Ctrl/Cmd+` Terminal</span>
+        <span style={{ marginLeft: "auto" }}>Ctrl/Cmd+I Agent · Ctrl/Cmd+` Terminal · 拖拽分栏可调</span>
       </footer>
 
       {perm ? (

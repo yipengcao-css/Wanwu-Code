@@ -14,8 +14,8 @@
   --ww-font-mono: "JetBrains Mono", "Sarasa Mono SC", ui-monospace, monospace;
   --ww-orbit-h: 52px;
   --ww-status-h: 28px;
-  --ww-files-w: 240px;
-  --ww-agent-w: 380px;
+  --ww-files-w: 220px;
+  --ww-agent-w: 420px;
   --ww-term-h: 220px;
 }
 
@@ -62,7 +62,28 @@ button {
 }
 
 .app.term-open {
-  grid-template-rows: var(--ww-orbit-h) 1fr var(--ww-term-h) var(--ww-status-h);
+  grid-template-rows: var(--ww-orbit-h) 1fr 6px var(--ww-term-h) var(--ww-status-h);
+}
+
+.split-handle {
+  background: transparent;
+  z-index: 2;
+}
+
+.split-handle.vertical {
+  width: 6px;
+  cursor: col-resize;
+  background: linear-gradient(90deg, transparent, rgba(46, 230, 166, 0.15), transparent);
+}
+
+.split-handle.horizontal {
+  height: 6px;
+  cursor: row-resize;
+  background: linear-gradient(180deg, transparent, rgba(123, 97, 255, 0.2), transparent);
+}
+
+.split-handle:hover {
+  background: rgba(46, 230, 166, 0.35);
 }
 
 .orbit {
@@ -156,7 +177,7 @@ button {
 
 .workspace {
   display: grid;
-  grid-template-columns: var(--ww-files-w) 1fr var(--ww-agent-w);
+  grid-template-columns: var(--ww-files-w) 6px 1fr 6px var(--ww-agent-w);
   min-height: 0;
 }
 

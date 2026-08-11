@@ -1,0 +1,196 @@
+import { readFileSync } from "node:fs";
+import {
+  completeChat,
+  hasProviderCredentials,
+  ProviderError,
+  type ChatMessage,
+  type ChatResponse,
+  type FetchLike,
+} from "@wanwu/providers";
+import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
+import { discoverMemory } from "../memory.js";
+import { sessionUpdate } from "./jsonRpcStdio.js";
+import type { AgentContext } from "./agentLoop.js";
+import { dispatchTool } from "./toolDispatch.js";
+import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
+
+function providerOverride(): ProviderId | undefined {
+  const raw = process.env.WANWU_PROVIDER?.trim();
+  if (!raw) return undefined;
+  if (["xai", "openai", "anthropic", "ollama", "custom"].includes(raw)) {
+    return raw as ProviderId;
+  }
+  return undefined;
+}
+
+export function shouldUseLlm(config: WanwuConfig): boolean {
+  if (process.env.WANWU_FORCE_DETERMINISTIC === "1") return false;
+  return hasProviderCredentials(config, { providerId: providerOverride() });
+}
+
+function detectMode(prompt: string, fallback: WanwuMode): WanwuMode {
+  if (/\[MODE=plan\]/i.test(prompt)) return "plan";
+  if (/\[MODE=agent\]/i.test(prompt)) return "agent";
+  if (/\[MODE=ask\]/i.test(prompt)) return "ask";
+  if (/\[MODE=verify\]/i.test(prompt)) return "verify";
+  return fallback;
+}
+
+function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
+  const memory = discoverMemory(ctx.workspaceRoot)
+    .slice(0, 2)
+    .map((f) => {
+      try {
+        return readFileSync(f.path, "utf8").slice(0, 1200);
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean)
+    .join("\n---\n");
+
+  return [
+    "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
+    "Prefer Read/Glob/Grep before answering about files. Be concise.",
+    `Workspace: ${ctx.workspaceRoot}`,
+    `Mode: ${mode}`,
+    mode === "plan" || mode === "ask"
+      ? "Do NOT use Edit. Avoid destructive Bash."
+      : "You may Edit/Bash when needed (permissions still apply).",
+    memory ? `Project memory:\n${memory}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export interface LlmLoopResult {
+  text: string;
+  provider: string;
+  model: string;
+  turns: number;
+  toolsUsed: string[];
+}
+
+/**
+ * Multi-turn tool-calling agent loop (OpenAI-compat providers).
+ */
+export async function runLlmAgentLoop(
+  ctx: AgentContext,
+  config: WanwuConfig,
+  prompt: string,
+  opts?: { fetchImpl?: FetchLike; maxTurns?: number },
+): Promise<LlmLoopResult> {
+  const mode = detectMode(prompt, ctx.mode);
+  const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "6") || 6);
+  const providerId = providerOverride();
+  const toolsUsed: string[] = [];
+
+  const messages: ChatMessage[] = [
+    { role: "system", content: buildSystem(ctx, mode) },
+    { role: "user", content: prompt },
+  ];
+
+  let last: ChatResponse | undefined;
+  let turns = 0;
+
+  for (let i = 0; i < maxTurns; i += 1) {
+    turns = i + 1;
+    try {
+      last = await completeChat({
+        config,
+        providerId,
+        fetchImpl: opts?.fetchImpl,
+        env: {
+          ...process.env,
+          // fixture / injected fetch paths still need resolveProvider credentials
+          OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
+          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
+          XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
+        },
+        request: {
+          messages,
+          temperature: 0.2,
+          maxTokens: 2048,
+          tools: WANWU_TOOL_SPECS,
+          toolChoice: "auto",
+        },
+      });
+    } catch (err) {
+      if (err instanceof ProviderError) {
+        const text = `Provider error (${err.provider}/${err.code}): ${err.message}\nHint: ${err.hint}`;
+        sessionUpdate(ctx.sessionId, {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text },
+        });
+        throw err;
+      }
+      throw err;
+    }
+
+    if (last.toolCalls?.length) {
+      messages.push({
+        role: "assistant",
+        content: last.text || "",
+        toolCalls: last.toolCalls,
+      });
+      for (const call of last.toolCalls) {
+        toolsUsed.push(call.name);
+        const toolCallId = `native-tool-${toolsUsed.length}`;
+        sessionUpdate(ctx.sessionId, {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: call.name,
+          status: "pending",
+          content: { type: "text", text: call.arguments.slice(0, 500) },
+        });
+        const result = dispatchTool(ctx, mode, call.name, call.arguments);
+        sessionUpdate(ctx.sessionId, {
+          sessionUpdate: "tool_call",
+          toolCallId,
+          title: call.name,
+          status: result.ok ? "completed" : "failed",
+          content: {
+            type: result.diff ? "diff" : "text",
+            text: result.text.slice(0, 8000),
+            path: result.diff?.path,
+            before: result.diff?.before,
+            after: result.diff?.after,
+          },
+        });
+        messages.push({
+          role: "tool",
+          toolCallId: call.id,
+          name: call.name,
+          content: result.text.slice(0, 12000),
+        });
+      }
+      continue;
+    }
+
+    if (last.text) {
+      sessionUpdate(ctx.sessionId, {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: last.text },
+      });
+    }
+    break;
+  }
+
+  return {
+    text: last?.text ?? "",
+    provider: last?.provider ?? config.activeProvider,
+    model: last?.model ?? config.model,
+    turns,
+    toolsUsed,
+  };
+}
+
+/** @deprecated use runLlmAgentLoop */
+export async function runLlmTurn(
+  ctx: AgentContext,
+  config: WanwuConfig,
+  prompt: string,
+): Promise<{ text: string; provider: string; model: string }> {
+  const r = await runLlmAgentLoop(ctx, config, prompt);
+  return { text: r.text, provider: r.provider, model: r.model };
+}

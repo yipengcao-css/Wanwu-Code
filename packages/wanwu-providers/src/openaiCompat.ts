@@ -1,5 +1,36 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
-import type { ChatRequest, ChatResponse, FetchLike, ResolvedProvider } from "./types.js";
+import type {
+  ChatMessage,
+  ChatRequest,
+  ChatResponse,
+  FetchLike,
+  ResolvedProvider,
+  ToolCall,
+} from "./types.js";
+
+function toApiMessages(messages: ChatMessage[]): unknown[] {
+  return messages.map((m) => {
+    if (m.role === "tool") {
+      return {
+        role: "tool",
+        tool_call_id: m.toolCallId,
+        content: m.content,
+      };
+    }
+    if (m.role === "assistant" && m.toolCalls?.length) {
+      return {
+        role: "assistant",
+        content: m.content || null,
+        tool_calls: m.toolCalls.map((t) => ({
+          id: t.id,
+          type: "function",
+          function: { name: t.name, arguments: t.arguments },
+        })),
+      };
+    }
+    return { role: m.role, content: m.content };
+  });
+}
 
 export async function completeOpenAiCompat(
   resolved: ResolvedProvider,
@@ -15,17 +46,31 @@ export async function completeOpenAiCompat(
     headers.authorization = `Bearer ${resolved.apiKey}`;
   }
 
+  const body: Record<string, unknown> = {
+    model,
+    messages: toApiMessages(request.messages),
+    temperature: request.temperature ?? 0.2,
+    max_tokens: request.maxTokens ?? 2048,
+  };
+
+  if (request.tools?.length) {
+    body.tools = request.tools.map((t) => ({
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: t.parameters,
+      },
+    }));
+    body.tool_choice = request.toolChoice ?? "auto";
+  }
+
   let res: Response;
   try {
     res = await fetchImpl(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        model,
-        messages: request.messages,
-        temperature: request.temperature ?? 0.2,
-        max_tokens: request.maxTokens ?? 1024,
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     throw mapNetworkError(resolved.id, err);
@@ -37,7 +82,15 @@ export async function completeOpenAiCompat(
   }
 
   let data: {
-    choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
+    choices?: Array<{
+      message?: {
+        content?: string | Array<{ text?: string }> | null;
+        tool_calls?: Array<{
+          id?: string;
+          function?: { name?: string; arguments?: string };
+        }>;
+      };
+    }>;
   };
   try {
     data = JSON.parse(bodyText) as typeof data;
@@ -45,7 +98,8 @@ export async function completeOpenAiCompat(
     throw mapHttpError(resolved.id, res.status, bodyText);
   }
 
-  const content = data.choices?.[0]?.message?.content;
+  const message = data.choices?.[0]?.message;
+  const content = message?.content;
   const text =
     typeof content === "string"
       ? content
@@ -53,9 +107,23 @@ export async function completeOpenAiCompat(
         ? content.map((c) => c.text ?? "").join("")
         : "";
 
-  if (!text.trim()) {
+  const toolCalls: ToolCall[] = (message?.tool_calls ?? [])
+    .map((tc, i) => ({
+      id: tc.id ?? `call_${i}`,
+      name: tc.function?.name ?? "",
+      arguments: tc.function?.arguments ?? "{}",
+    }))
+    .filter((t) => t.name);
+
+  if (!text.trim() && toolCalls.length === 0) {
     throw mapHttpError(resolved.id, res.status, bodyText || "empty assistant content");
   }
 
-  return { text: text.trim(), provider: resolved.id, model, raw: data };
+  return {
+    text: text.trim(),
+    provider: resolved.id,
+    model,
+    toolCalls: toolCalls.length ? toolCalls : undefined,
+    raw: data,
+  };
 }

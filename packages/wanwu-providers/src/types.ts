@@ -1,10 +1,25 @@
 import type { ProviderId, WanwuConfig } from "@wanwu/config";
 
-export type ChatRole = "system" | "user" | "assistant";
+export type ChatRole = "system" | "user" | "assistant" | "tool";
+
+export interface ToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
 
 export interface ChatMessage {
   role: ChatRole;
   content: string;
+  toolCallId?: string;
+  name?: string;
+  toolCalls?: ToolCall[];
+}
+
+export interface ToolSpec {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
 }
 
 export interface ChatRequest {
@@ -12,12 +27,15 @@ export interface ChatRequest {
   model?: string;
   temperature?: number;
   maxTokens?: number;
+  tools?: ToolSpec[];
+  toolChoice?: "auto" | "none";
 }
 
 export interface ChatResponse {
   text: string;
   provider: ProviderId;
   model: string;
+  toolCalls?: ToolCall[];
   raw?: unknown;
 }
 
@@ -65,7 +83,6 @@ export type FetchLike = typeof fetch;
 export interface CompleteChatOptions {
   config: WanwuConfig;
   request: ChatRequest;
-  /** Override active provider for matrix runs */
   providerId?: ProviderId;
   fetchImpl?: FetchLike;
   env?: NodeJS.ProcessEnv;
