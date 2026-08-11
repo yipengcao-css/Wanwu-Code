@@ -43,7 +43,7 @@ pnpm typecheck
 pnpm wanwu doctor
 pnpm wanwu inspect
 pnpm wanwu exec -p "列出 README 标题"
-pnpm wanwu acp          # 默认桥接 grok ACP；可用 WANWU_ACP_COMMAND 覆盖
+pnpm wanwu acp          # 默认 wanwu-native ACP；可切 grok 或 WANWU_ACP_COMMAND
 ./scripts/smoke-acp.sh
 pnpm build:cli          # 产出 dist-bin/wanwu.mjs
 pnpm wanwu parallel demo --cleanup
