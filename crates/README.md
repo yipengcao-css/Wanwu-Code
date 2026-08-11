@@ -8,7 +8,7 @@
 2. `wanwu acp` **桥接**系统已安装的 Grok Build ACP（`grok`）
 3. 桥接层负责：配置归一化、`WANWU.md` 注入、Plan/Verify 模式、日志
 
-**中期**：当桥接无法满足多模型对等或沙箱定制时，再将必要 crate 裁剪迁入本目录并去品牌化。
+**中期 / Epic 2-A（优先）**：交付 `acp_backend=wanwu-native`（详见 `docs/EPIC2_BACKLOG.md` E2-A）。必要时将 grok-build 必要 crate 裁剪迁入本目录并去品牌化。
 
 ## 预期命令
 

@@ -75,9 +75,15 @@ export function buildDockerRunnerImage(repoRoot: string): number {
   return result.status ?? 1;
 }
 
-function isNestedOverlayFailure(stderr: string, status: number | null): boolean {
+/** Exported for unit tests. */
+export function isNestedOverlayFailure(stderr: string, status: number | null): boolean {
   if (status === 125) return true;
   return /overlay|invalid argument|containerd-mount/i.test(stderr);
+}
+
+/** Exported for unit tests. */
+export function shouldRefuseDockerFallback(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.WANWU_DOCKER_REQUIRE === "1";
 }
 
 /**
@@ -148,6 +154,18 @@ export function runCloudTaskInDocker(opts: {
   }
 
   if (isNestedOverlayFailure(stderr, result.status)) {
+    const requireDocker = process.env.WANWU_DOCKER_REQUIRE === "1";
+    if (requireDocker) {
+      writeFileSync(
+        logPath,
+        `${readFileSync(logPath, "utf8")}\n[require] WANWU_DOCKER_REQUIRE=1 — refusing nested-overlay fallback\n`,
+        "utf8",
+      );
+      return updateTaskStatus(repoRoot, taskId, "failed", {
+        exitCode: result.status ?? 1,
+        logPath,
+      });
+    }
     writeFileSync(
       logPath,
       `${readFileSync(logPath, "utf8")}\n[fallback] docker run failed on nested overlay; using local worktree runner\n`,

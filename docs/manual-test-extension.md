@@ -5,8 +5,9 @@
 ```bash
 pnpm install
 pnpm --filter wanwu-code run package
-# 安装生成的 extensions/wanwu-vscode/*.vsix
+# 安装生成的 extensions/wanwu-vscode/wanwu-code-1.0.0-beta.vsix
 # 或在仓库根目录用 VS Code/Cursor 打开后 F5 跑 Extension Development Host
+# GUI 长录屏产物（若有）：/opt/cursor/artifacts/wanwu-ide-walkthrough.mp4
 ```
 
 确保设置 `wanwu.useMockAcp` 为 `true`（默认），除非已安装 `grok`。

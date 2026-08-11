@@ -2,7 +2,8 @@
 
 **Wanwu-Code（万物 Code）** —— AI 时代的 IDE：把自然语言意图编译为可验证的代码变更。
 
-CLI 命令名：**`wanwu`**
+CLI 命令名：**`wanwu`**  
+当前预发布：**v1.0 beta**（tag `v1.0.0-beta`）
 
 ## 产品一句话
 
@@ -47,17 +48,25 @@ pnpm wanwu acp          # 默认桥接 grok ACP；可用 WANWU_ACP_COMMAND 覆�
 pnpm build:cli          # 产出 dist-bin/wanwu.mjs
 pnpm wanwu parallel demo --cleanup
 pnpm wanwu cloud submit -p "异步任务" --run     # 本地 worktree runner
-pnpm wanwu cloud submit -p "异步任务" --docker  # Docker（不支持时自动回退本地）
+pnpm wanwu cloud submit -p "异步任务" --docker  # Docker（嵌套 overlay 主机默认回退本地）
+WANWU_DOCKER_REQUIRE=1 pnpm wanwu cloud submit -p "强制容器" --docker  # CI 纯 Docker 门禁
 ```
 
-扩展：
+### 安装预发布产物（v1.0 beta）
 
 ```bash
-pnpm --filter wanwu-code run typecheck
+# 扩展
 pnpm package:extension
-# 安装 extensions/wanwu-vscode/wanwu-code-0.1.0.vsix
-# 手工清单：docs/manual-test-extension.md
+# 安装 extensions/wanwu-vscode/wanwu-code-1.0.0-beta.vsix
+# 或从 GitHub Release v1.0.0-beta 下载同名 VSIX
+
+# CLI 单文件 bundle
+pnpm build:cli
+node dist-bin/wanwu.mjs doctor
+# Release 资产名：wanwu-1.0.0-beta.mjs
 ```
+
+手工清单：`docs/manual-test-extension.md`
 
 ## 文档
 
@@ -65,6 +74,7 @@ pnpm package:extension
 - [架构](docs/ARCHITECTURE.md)
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
+- [Epic 2 Backlog（下一步 E2-A Native Agent）](docs/EPIC2_BACKLOG.md)
 - [ACP 集成](docs/ACP_INTEGRATION.md)
 - [ADR 0001 Runtime 底座](docs/ADRs/0001-agent-runtime-base.md)
 - [ADR 0002 扩展优先](docs/ADRs/0002-ide-strategy-extension-first.md)

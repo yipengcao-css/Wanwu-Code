@@ -8,7 +8,12 @@
 - 模型：多模型对等
 - 语义：AI-native IDE + Agent Runtime
 
-## Phase 0 — 文档与决策（当前）
+## 发布状态
+
+- **v1.0 beta**（tag `v1.0.0-beta`）预发布收口中/已发 — 见 `CHANGELOG.md` 与 GitHub Releases  
+- **下一步默认 epic**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-A Native Agent**
+
+## Phase 0 — 文档与决策
 
 - [x] 产品愿景 / 架构 / 竞品 / 路线图
 - [x] ADR：runtime 底座、扩展优先、多模型
@@ -72,7 +77,18 @@
 - [x] CLI 单文件 bundle（`pnpm build:cli` → `dist-bin/wanwu.mjs`；原生平台二进制仍可后续）
 - [x] `docs/WORKFLOW.md` + `THIRD_PARTY_NOTICES`
 
-## PR 拆分建议
+## Post-1.0-beta
+
+见 [`EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md)。优先级：
+
+1. **E2-A Native Agent**（默认下一轮）  
+2. E2-B 多模型 E2E  
+3. E2-C 发行矩阵  
+4. E2-D Cloud 编排  
+5. E2-E 扩展商店  
+6. E2-F IDE polish  
+
+## PR 拆分建议（历史）
 
 1. 文档 + 骨架  
 2. monorepo + CI  

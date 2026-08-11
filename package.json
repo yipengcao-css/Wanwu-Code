@@ -1,7 +1,7 @@
 {
   "name": "wanwu-monorepo",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0-beta",
   "description": "Wanwu-Code — AI-native IDE (wanwu CLI + VS Code extension)",
   "packageManager": "pnpm@10.33.3",
   "engines": {

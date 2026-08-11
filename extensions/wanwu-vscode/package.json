@@ -2,7 +2,7 @@
   "name": "wanwu-code",
   "displayName": "Wanwu Code",
   "description": "Wanwu-Code VS Code extension — ACP client for the wanwu agent",
-  "version": "0.1.0",
+  "version": "1.0.0-beta",
   "private": true,
   "publisher": "wanwu",
   "license": "Apache-2.0",

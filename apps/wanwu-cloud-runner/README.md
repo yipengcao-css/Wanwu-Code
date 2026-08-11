@@ -23,3 +23,19 @@ WANWU_CLOUD_PROMPT="fix demo" docker compose -f apps/wanwu-cloud-runner/docker-c
 
 - Docker Engine
 - 首次 build 会 `pnpm install`（需网络）
+
+## Nested overlay / CI
+
+部分 Cloud VM（嵌套 overlay）上 `docker run` 会失败。默认行为是**回退本地 worktree runner**，并在 `docker-runner.log` 写入：
+
+```text
+[fallback] docker run failed on nested overlay; using local worktree runner
+```
+
+若要**禁止回退**（例如 GitHub Actions 纯 Docker 验收）：
+
+```bash
+WANWU_DOCKER_REQUIRE=1 pnpm wanwu cloud submit -p "must use real docker" --docker
+```
+
+权威纯 Docker 验收在 CI job `docker-cloud`（`ubuntu-latest`），不依赖本机嵌套环境。
