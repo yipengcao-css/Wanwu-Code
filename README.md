@@ -61,6 +61,9 @@ pnpm --filter wanwu-shell build && pnpm shell
 # 跨平台 CLI 发行物
 pnpm build:cli:native                 # dist-bin/ 多平台二进制 + SHA256SUMS
 WANWU_INSTALL_FROM=local bash scripts/install.sh
+
+# Desktop 安装包（AppImage / Win zip / mac zip）
+pnpm shell:dist
 ```
 
 安装说明：[`docs/INSTALL.md`](docs/INSTALL.md)
@@ -87,7 +90,7 @@ node dist-bin/wanwu.mjs doctor
 - [架构](docs/ARCHITECTURE.md)
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
-- [Epic 2 Backlog（下一步 E2-E）](docs/EPIC2_BACKLOG.md)
+- [Epic 2 Backlog（E2-E 已跳过；E2-F+ 完成）](docs/EPIC2_BACKLOG.md)
 - [安装 CLI](docs/INSTALL.md)
 - [Cloud 编排](docs/CLOUD.md)
 - [多模型 Providers](docs/PROVIDERS.md)

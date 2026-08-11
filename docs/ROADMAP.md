@@ -17,7 +17,9 @@
 - **E2-B**：已完成 — `@wanwu/providers`；DeepSeek + Moonshot live  
 - **E2-C**：已完成 — 跨平台 CLI 二进制 + 安装脚本（`docs/INSTALL.md`）  
 - **E2-D**：已完成 — Cloud 多任务编排 + draft PR（`docs/CLOUD.md`）  
-- **下一步默认 epic**：[`docs/EPIC2_BACKLOG.md`](./EPIC2_BACKLOG.md) 的 **E2-E 扩展商店**
+- **E2-F+**：已完成 — Shell polish + 多轮 tool-calling + Desktop 三平台安装包  
+- **E2-E**：用户跳过扩展商店  
+- **下一步**：由用户点名
 
 ## Phase 0 — 文档与决策
 

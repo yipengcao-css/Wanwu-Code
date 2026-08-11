@@ -51,6 +51,16 @@ default_model = "deepseek-chat"
 | `WANWU_LIVE_OPENAI_2_KEY` / `_BASE_URL` / `_MODEL` | 第二家 OpenAI 兼容端点（如 Moonshot） |
 | `WANWU_LIVE_REQUIRE_TWO=1` | live 脚本要求至少 2 家通过 |
 
+## 多轮 Tool-Calling
+
+有密钥时 `wanwu exec` / ACP 走 `runLlmAgentLoop`：
+
+- 工具：`Read` / `Glob` / `Grep` / `Edit` / `Bash`
+- 上限：`WANWU_AGENT_MAX_TURNS`（默认 6）
+- Plan/Ask 模式阻止 Edit
+
+Fixture：`packages/wanwu-providers/fixtures/openai-tool-round*.json`
+
 ## 测试
 
 - Fixture（无网络）：`pnpm --filter @wanwu/providers test` / 根 `pnpm test`  

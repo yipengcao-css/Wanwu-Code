@@ -1,6 +1,6 @@
 # Epic 2 Backlog（Post v1.0 beta）
 
-> 默认下一步：**E2-E 扩展商店**（E2-D Cloud 编排已完成）。  
+> 默认下一步：用户点名（**E2-E 商店已跳过**；E2-F+ 已完成）。  
 > 本文件供后续 coding agent 直接领取任务；**不要**再把 MVP Phase 0–7 当未完成项。
 
 ## 优先级
@@ -12,8 +12,8 @@
 | 3 | **E2-B** | **真实多模型端到端矩阵** | **完成（fixture + DeepSeek/Moonshot live）** |
 | 4 | **E2-C** | **发行矩阵（平台原生 CLI / 安装包）** | **完成** |
 | 5 | **E2-D** | **Cloud 多任务编排** | **完成** |
-| 6 | E2-E | 扩展商店发布通道 | queued |
-| 7 | E2-F | Shell polish / 键位 | queued（并入 shell 后半） |
+| 6 | E2-E | 扩展商店发布通道 | **skipped（用户暂不需要）** |
+| 7 | **E2-F+** | **Shell polish + Tool-calling + Desktop 安装包** | **完成** |
 
 ---
 
@@ -86,20 +86,19 @@
 - 需要 publisher 凭证（用户提供）
 - 验收：商店页可安装与仓库 VSIX 同版本
 
-## E2-F — IDE polish
+## E2-F+ — Shell polish · Tool-calling · Desktop 安装包
 
-- 默认布局突出 Agent + Diff + Terminal
-- `Ctrl/Cmd+I` 呼出 Wanwu
-- 验收：手工清单 + 短录屏
+- [x] `Ctrl/Cmd+I` / `` Ctrl/` `` 窗口内热键；可拖分栏 + localStorage 持久化
+- [x] LLM 多轮 tool-calling（OpenAI-compat → Read/Edit/Bash/Glob/Grep）
+- [x] Desktop：`pnpm shell:dist` → Linux AppImage + Win zip + mac x64/arm64 zip
+- 文档：`docs/INSTALL.md` Desktop 节；`docs/PROVIDERS.md` tools 说明
+
+## E2-E — 扩展商店（跳过）
+
+用户确认暂时不需要。
 
 ---
 
 ## 领取方式
 
-执行 agent 默认：
-
-```
-实现 docs/EPIC2_BACKLOG.md 的 E2-A Native Agent
-```
-
-完成 E2-A 后再推进 E2-B/C。
+点名下一 epic 即可（例如性能、LSP、签名分发等）。

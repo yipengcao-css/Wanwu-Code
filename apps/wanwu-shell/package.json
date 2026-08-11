@@ -11,7 +11,9 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/main/pathSandbox.test.ts"
+    "test": "tsx src/main/pathSandbox.test.ts",
+    "dist": "bash ../../scripts/build-shell-dist.sh",
+    "dist:builder": "electron-builder --config electron-builder.yml"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -23,14 +25,17 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electron/packager": "^20.2.1",
     "@types/node": "^22.15.21",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
     "@vitejs/plugin-react": "^4.4.1",
     "electron": "^35.2.1",
+    "electron-builder": "^26.15.3",
     "esbuild": "^0.25.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
-  }
+  },
+  "author": "Wanwu <wanwu@example.com>"
 }

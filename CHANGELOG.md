@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **E2-F+**：Shell 分栏/热键 polish；LLM 多轮 tool-calling；`pnpm shell:dist` 三平台桌面包（AppImage / Win zip / mac zip）
 - **E2-D Cloud 编排**：`wanwu cloud orchestrate` 并发多 worktree；`--pr`/`--pr-dry-run` draft PR；`docs/CLOUD.md`
 - Runner 隔离修复：plan/review 写入任务 worktree
 - **E2-C 发行矩阵**：`pnpm build:cli:native`（linux/macOS/win）、`scripts/install.sh` / `install.ps1`、`docs/INSTALL.md`、`SHA256SUMS`

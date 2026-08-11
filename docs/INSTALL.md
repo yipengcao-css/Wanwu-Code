@@ -59,14 +59,30 @@ pnpm build:cli:native   # linux / macos / win 二进制 + SHA256SUMS
 - `wanwu-<ver>-win-x64.exe`
 - `SHA256SUMS`
 
-## IDE 安装包
-
-自研 Electron 壳见 `apps/wanwu-shell`（`pnpm shell`）。完整桌面安装包（dmg/msi）属后续评估，不在本发行矩阵硬验收内。
-
-## macOS 备注
-
-未签名的 macOS 二进制可能被 Gatekeeper 拦截。分发前请在 macOS 上执行：
+## Desktop（Wanwu Shell 安装包）
 
 ```bash
-codesign --sign - wanwu-*-macos-*
+pnpm shell:dist
+# 产物在 apps/wanwu-shell/release/（已 gitignore）
 ```
+
+| 平台 | 产物 |
+|---|---|
+| Linux | `Wanwu-Code-<ver>-linux-x64.AppImage`（另有 `.deb`） |
+| Windows | `Wanwu-Code-<ver>-win-x64.zip`（解压后运行 `Wanwu Code.exe`） |
+| macOS | `Wanwu-Code-<ver>-mac-x64.zip` / `…-mac-arm64.zip`（未签名） |
+
+开发态：`pnpm shell:dev` / `pnpm shell`。
+
+### macOS 备注
+
+Linux 主机交叉产出的 mac zip **未签名**，Gatekeeper 可能拦截。在 Mac 上：
+
+```bash
+codesign --sign - -f "Wanwu Code.app"
+xattr -cr "Wanwu Code.app"
+```
+
+### Windows 备注
+
+当前默认产出 **zip 便携包**（本机 Linux 交叉构建 NSIS 依赖完整 wine 环境）。需要 `.exe` 安装器时请在 Windows 主机运行 `electron-builder --win nsis`。
