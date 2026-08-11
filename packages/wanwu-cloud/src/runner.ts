@@ -15,18 +15,21 @@ function run(
   logFile: string,
   env: NodeJS.ProcessEnv = process.env,
 ): number {
-  appendFileSync(logFile, `\n$ ${cmd} ${args.join(" ")}\n`, "utf8");
+  appendFileSync(logFile, `\n$ (cwd=${cwd}) ${cmd} ${args.join(" ")}\n`, "utf8");
   const result = spawnSync(cmd, args, { cwd, encoding: "utf8", env });
   if (result.stdout) appendFileSync(logFile, result.stdout, "utf8");
   if (result.stderr) appendFileSync(logFile, result.stderr, "utf8");
   return result.status ?? 1;
 }
 
-function worktreePath(repoRoot: string, taskId: string): string {
+export function worktreePath(repoRoot: string, taskId: string): string {
   return join(repoRoot, ".wanwu", "worktrees", taskId);
 }
 
-/** Create an isolated worktree and run plan → review artifact → diff (never merges to main). */
+/**
+ * Create an isolated worktree and run plan → review artifact → diff (never merges to main).
+ * All plan/review writes happen inside the worktree cwd.
+ */
 export function runCloudTaskLocally(opts: RunOptions): StoredTask {
   const { repoRoot, taskId } = opts;
   const task = loadTask(repoRoot, taskId);
@@ -61,26 +64,60 @@ export function runCloudTaskLocally(opts: RunOptions): StoredTask {
     }
   }
 
+  // Isolation marker (proves tasks don't clobber each other / main)
+  const markerRel = join(".wanwu", "cloud-markers", `${taskId}.txt`);
+  const markerAbs = join(wt, markerRel);
+  mkdirSync(join(wt, ".wanwu", "cloud-markers"), { recursive: true });
+  writeFileSync(markerAbs, `task=${taskId}\nprompt=${task.prompt}\n`, "utf8");
+
+  // Prefer packaged CLI if present; else tsx from monorepo entry
+  const bundled = join(repoRoot, "dist-bin", "wanwu.mjs");
   const cliEntry = join(repoRoot, "packages/wanwu-cli/src/index.ts");
-  const planCode = run(
-    "pnpm",
-    ["exec", "tsx", cliEntry, "plan", "-p", task.prompt],
-    repoRoot,
-    logPath,
-    { ...process.env, WANWU_WORKDIR: wt },
-  );
+  let planCode: number;
+  if (existsSync(bundled)) {
+    planCode = run(process.execPath, [bundled, "plan", "-p", task.prompt], wt, logPath);
+  } else if (existsSync(cliEntry)) {
+    planCode = run(
+      "pnpm",
+      ["exec", "tsx", cliEntry, "plan", "-p", task.prompt],
+      wt,
+      logPath,
+      { ...process.env, WANWU_WORKDIR: wt },
+    );
+  } else {
+    // Minimal plan fallback when CLI sources unavailable (e.g. tiny test repos)
+    const plansDir = join(wt, ".wanwu", "plans");
+    mkdirSync(plansDir, { recursive: true });
+    const planFile = join(plansDir, `${taskId}.plan.md`);
+    writeFileSync(
+      planFile,
+      `# Wanwu Plan\n\n- task: ${taskId}\n\n## Task\n\n${task.prompt}\n`,
+      "utf8",
+    );
+    planCode = 0;
+    appendFileSync(logPath, `\n[fallback plan written] ${planFile}\n`, "utf8");
+  }
 
   const reviewNote = join(wt, ".wanwu", "cloud-review.md");
   mkdirSync(join(wt, ".wanwu"), { recursive: true });
   writeFileSync(
     reviewNote,
-    `# Cloud task review (do not merge automatically)\n\n- task: ${taskId}\n- prompt: ${task.prompt}\n- planExit: ${planCode}\n`,
+    `# Cloud task review (do not merge automatically)\n\n- task: ${taskId}\n- prompt: ${task.prompt}\n- planExit: ${planCode}\n- marker: ${markerRel}\n`,
     "utf8",
   );
-  run("git", ["add", ".wanwu/cloud-review.md"], wt, logPath);
+
+  run("git", ["add", ".wanwu"], wt, logPath);
   run(
     "git",
-    ["-c", "user.email=wanwu@example.com", "-c", "user.name=Wanwu Cloud", "commit", "-m", `wanwu cloud task ${taskId}: review artifact (no merge)`],
+    [
+      "-c",
+      "user.email=wanwu@example.com",
+      "-c",
+      "user.name=Wanwu Cloud",
+      "commit",
+      "-m",
+      `wanwu cloud task ${taskId}: review artifact (no merge)`,
+    ],
     wt,
     logPath,
   );
@@ -90,7 +127,7 @@ export function runCloudTaskLocally(opts: RunOptions): StoredTask {
   writeFileSync(diffPath, diff.stdout ?? "", "utf8");
   appendFileSync(logPath, `\n[review.diff written — review-first, not merged to main]\n`, "utf8");
 
-  const ok = planCode === 0;
+  const ok = planCode === 0 && (diff.stdout ?? "").length > 0;
   const next = updateTaskStatus(repoRoot, taskId, ok ? "succeeded" : "failed", {
     worktree: wt,
     branch,

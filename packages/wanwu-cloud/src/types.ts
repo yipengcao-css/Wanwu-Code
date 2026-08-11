@@ -6,6 +6,9 @@ export interface CloudTask {
   status: CloudTaskStatus;
   worktree?: string;
   branch?: string;
+  /** Draft PR URL when opened via `wanwu cloud … --pr` */
+  prUrl?: string;
+  prDraftPath?: string;
 }
 
 export interface CloudClient {

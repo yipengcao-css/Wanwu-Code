@@ -1,6 +1,6 @@
 # Epic 2 Backlog（Post v1.0 beta）
 
-> 默认下一步：**E2-D Cloud 多任务编排**（E2-C 发行矩阵已完成）。  
+> 默认下一步：**E2-E 扩展商店**（E2-D Cloud 编排已完成）。  
 > 本文件供后续 coding agent 直接领取任务；**不要**再把 MVP Phase 0–7 当未完成项。
 
 ## 优先级
@@ -11,7 +11,7 @@
 | 2 | **E2-SHELL** | **自研 Electron 壳（Wanwu Lattice）** | **完成（MVP）** |
 | 3 | **E2-B** | **真实多模型端到端矩阵** | **完成（fixture + DeepSeek/Moonshot live）** |
 | 4 | **E2-C** | **发行矩阵（平台原生 CLI / 安装包）** | **完成** |
-| 5 | E2-D | Cloud 多任务编排 | queued |
+| 5 | **E2-D** | **Cloud 多任务编排** | **完成** |
 | 6 | E2-E | 扩展商店发布通道 | queued |
 | 7 | E2-F | Shell polish / 键位 | queued（并入 shell 后半） |
 
@@ -74,9 +74,11 @@
 
 ## E2-D — Cloud 多任务编排
 
-- 多 worktree / 多任务队列
-- 完成后自动开 PR（review-first，不自动 merge）
-- 验收：同时 2 个 cloud task 不互相踩文件，并产出独立 review.diff
+- [x] `wanwu cloud orchestrate -p … -p … [--concurrency N]`
+- [x] Runner 在独立 worktree 写 plan/review（不踩主仓）
+- [x] `--pr` / `--pr-dry-run`：draft PR 或 `pr-draft.md`（永不 merge）
+- [x] 并发 2 任务测试 + 独立 `review.diff`
+- 文档：`docs/CLOUD.md`
 
 ## E2-E — 扩展商店
 

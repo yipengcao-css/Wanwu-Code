@@ -50,6 +50,7 @@ pnpm wanwu acp          # 默认 wanwu-native ACP；可切 grok 或 WANWU_ACP_CO
 pnpm build:cli          # 产出 dist-bin/wanwu.mjs
 pnpm wanwu parallel demo --cleanup
 pnpm wanwu cloud submit -p "异步任务" --run     # 本地 worktree runner
+pnpm wanwu cloud orchestrate -p "A" -p "B" --concurrency 2 --pr-dry-run
 pnpm wanwu cloud submit -p "异步任务" --docker  # Docker（嵌套 overlay 主机默认回退本地）
 WANWU_DOCKER_REQUIRE=1 pnpm wanwu cloud submit -p "强制容器" --docker  # CI 纯 Docker 门禁
 
@@ -86,8 +87,9 @@ node dist-bin/wanwu.mjs doctor
 - [架构](docs/ARCHITECTURE.md)
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
-- [Epic 2 Backlog（下一步 E2-D）](docs/EPIC2_BACKLOG.md)
+- [Epic 2 Backlog（下一步 E2-E）](docs/EPIC2_BACKLOG.md)
 - [安装 CLI](docs/INSTALL.md)
+- [Cloud 编排](docs/CLOUD.md)
 - [多模型 Providers](docs/PROVIDERS.md)
 - [设计系统 Wanwu Lattice](docs/DESIGN_SYSTEM.md)
 - [ACP 集成](docs/ACP_INTEGRATION.md)

@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- **E2-D Cloud 编排**：`wanwu cloud orchestrate` 并发多 worktree；`--pr`/`--pr-dry-run` draft PR；`docs/CLOUD.md`
+- Runner 隔离修复：plan/review 写入任务 worktree
 - **E2-C 发行矩阵**：`pnpm build:cli:native`（linux/macOS/win）、`scripts/install.sh` / `install.ps1`、`docs/INSTALL.md`、`SHA256SUMS`
 - 打包二进制内建 `--wanwu-internal-acp`（无需 tsx/monorepo）
 - **E2-B `@wanwu/providers`**：OpenAI-compat + Anthropic；fixture 矩阵；`wanwu exec` BYOK LLM 路径
