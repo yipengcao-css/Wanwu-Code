@@ -65,6 +65,17 @@ async function main(argv: string[]): Promise<number> {
   while (argv[0] === "--") {
     argv = argv.slice(1);
   }
+
+  // Packaged / self-reexec entry for wanwu-native ACP stdio server
+  if (argv.includes("--wanwu-internal-acp") || process.env.WANWU_INTERNAL_ACP === "1") {
+    const { startNativeAcpStdioServer } = await import("./native/acpServer.js");
+    startNativeAcpStdioServer();
+    await new Promise<void>(() => {
+      /* keep alive for readline */
+    });
+    return 0;
+  }
+
   const [cmd, ...rest] = argv;
 
   switch (cmd) {

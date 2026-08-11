@@ -12,7 +12,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -26,29 +26,38 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Test
         run: pnpm test
-      - name: Build CLI
-        run: pnpm build:cli
+      - name: Build CLI (mjs + native matrix)
+        run: pnpm build:cli:native
       - name: Package VSIX
         run: pnpm package:extension
-      - name: Rename artifacts
+      - name: List artifacts
         run: |
           set -euo pipefail
           VER="${GITHUB_REF_NAME#v}"
-          cp dist-bin/wanwu.mjs "dist-bin/wanwu-${VER}.mjs"
+          ls -lah dist-bin/
+          test -f "dist-bin/wanwu-${VER}-linux-x64"
+          test -f "dist-bin/wanwu-${VER}.mjs"
+          test -f dist-bin/SHA256SUMS
           VSIX=$(ls extensions/wanwu-vscode/*.vsix | head -1)
           cp "$VSIX" "extensions/wanwu-vscode/wanwu-code-${VER}.vsix"
-          ls -la dist-bin/ extensions/wanwu-vscode/*.vsix
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
           files: |
             dist-bin/wanwu-*.mjs
+            dist-bin/wanwu-*-linux-x64
+            dist-bin/wanwu-*-macos-x64
+            dist-bin/wanwu-*-macos-arm64
+            dist-bin/wanwu-*-win-x64.exe
+            dist-bin/SHA256SUMS
             extensions/wanwu-vscode/wanwu-code-*.vsix
           body: |
-            Wanwu-Code **v1.0 beta** release artifacts.
+            Wanwu-Code release artifacts (E2-C matrix).
 
+            - CLI native: linux-x64 / macos-x64 / macos-arm64 / win-x64
+            - CLI portable: `wanwu-*.mjs` (Node ≥20)
             - VS Code extension VSIX
-            - CLI single-file bundle (`node wanwu-*.mjs …`)
+            - Checksums: `SHA256SUMS`
 
-            See `CHANGELOG.md` for details.
+            Install: see `docs/INSTALL.md`

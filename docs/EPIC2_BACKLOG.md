@@ -1,6 +1,6 @@
 # Epic 2 Backlog（Post v1.0 beta）
 
-> 默认下一步：**E2-C 发行矩阵**（E2-B 多模型 MVP 已完成）。  
+> 默认下一步：**E2-D Cloud 多任务编排**（E2-C 发行矩阵已完成）。  
 > 本文件供后续 coding agent 直接领取任务；**不要**再把 MVP Phase 0–7 当未完成项。
 
 ## 优先级
@@ -9,8 +9,8 @@
 |---|---|---|---|
 | 1 | **E2-A** | **Native Agent Runtime** | **完成（TS wanwu-native）** |
 | 2 | **E2-SHELL** | **自研 Electron 壳（Wanwu Lattice）** | **完成（MVP）** |
-| 3 | **E2-B** | **真实多模型端到端矩阵** | **完成（fixture + DeepSeek live）** |
-| 4 | E2-C | 发行矩阵（平台原生 CLI / 安装包） | queued |
+| 3 | **E2-B** | **真实多模型端到端矩阵** | **完成（fixture + DeepSeek/Moonshot live）** |
+| 4 | **E2-C** | **发行矩阵（平台原生 CLI / 安装包）** | **完成** |
 | 5 | E2-D | Cloud 多任务编排 | queued |
 | 6 | E2-E | 扩展商店发布通道 | queued |
 | 7 | E2-F | Shell polish / 键位 | queued（并入 shell 后半） |
@@ -61,14 +61,16 @@
 - [x] Fixture 矩阵（无网络）
 - [x] `wanwu exec` / native ACP：有凭据走 LLM，否则 deterministic
 - [x] `wanwu doctor` 多 provider 状态 + 修复建议
-- [x] Live 脚本 `scripts/e2e-providers-live.mts`（OpenAI 兼容代理如 DeepSeek 可用）
+- [x] Live 脚本 `scripts/e2e-providers-live.mts`（DeepSeek + Moonshot ≥2 家）
 - 文档：`docs/PROVIDERS.md`
 
 ## E2-C — 发行矩阵
 
-- macOS / Linux / Windows 原生 CLI 二进制（或官方安装脚本）
-- IDE 安装包评估（可选）
-- 验收：Release 资产包含三大平台 CLI
+- [x] 官方安装脚本 `scripts/install.sh` / `scripts/install.ps1` + `docs/INSTALL.md`
+- [x] 多平台原生 CLI（`pnpm build:cli:native` → linux/macos/win + `SHA256SUMS`）
+- [x] 通用 `wanwu.mjs` 保留；release.yml 上传矩阵
+- [x] IDE 安装包：评估延后（`apps/wanwu-shell` 开发启动；dmg/msi 非本轮）
+- 验收：本地 `dist-bin` 含三大平台资产；linux 二进制 `help`/`doctor`/`exec` 冒烟通过
 
 ## E2-D — Cloud 多任务编排
 

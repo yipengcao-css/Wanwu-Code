@@ -56,7 +56,13 @@ WANWU_DOCKER_REQUIRE=1 pnpm wanwu cloud submit -p "强制容器" --docker  # CI 
 # 品牌桌面壳（自研 Electron，非 Code-OSS）
 pnpm shell:dev          # 开发：Vite + Electron
 pnpm --filter wanwu-shell build && pnpm shell
+
+# 跨平台 CLI 发行物
+pnpm build:cli:native                 # dist-bin/ 多平台二进制 + SHA256SUMS
+WANWU_INSTALL_FROM=local bash scripts/install.sh
 ```
+
+安装说明：[`docs/INSTALL.md`](docs/INSTALL.md)
 
 ### 安装预发布产物（v1.0 beta）
 
@@ -80,7 +86,8 @@ node dist-bin/wanwu.mjs doctor
 - [架构](docs/ARCHITECTURE.md)
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
-- [Epic 2 Backlog（E2-SHELL 完成；E2-B 多模型）](docs/EPIC2_BACKLOG.md)
+- [Epic 2 Backlog（下一步 E2-D）](docs/EPIC2_BACKLOG.md)
+- [安装 CLI](docs/INSTALL.md)
 - [多模型 Providers](docs/PROVIDERS.md)
 - [设计系统 Wanwu Lattice](docs/DESIGN_SYSTEM.md)
 - [ACP 集成](docs/ACP_INTEGRATION.md)

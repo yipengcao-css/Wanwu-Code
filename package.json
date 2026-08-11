@@ -18,10 +18,12 @@
     "build:cli": "bash scripts/build-cli.sh",
     "wanwu": "tsx packages/wanwu-cli/src/index.ts",
     "shell": "pnpm --filter wanwu-shell start",
-    "shell:dev": "pnpm --filter wanwu-shell dev"
+    "shell:dev": "pnpm --filter wanwu-shell dev",
+    "build:cli:native": "bash scripts/build-cli-native.sh",
+    "install:cli:local": "WANWU_INSTALL_FROM=local bash scripts/install.sh"
   },
-
   "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0",
     "esbuild": "^0.25.5",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3",

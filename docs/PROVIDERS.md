@@ -48,6 +48,8 @@ default_model = "deepseek-chat"
 | `OPENAI_BASE_URL` | openai provider 的 base |
 | `WANWU_FORCE_DETERMINISTIC=1` | 禁用 LLM |
 | `WANWU_LIVE_PROVIDERS=1` | 启用 `scripts/e2e-providers-live.mts` |
+| `WANWU_LIVE_OPENAI_2_KEY` / `_BASE_URL` / `_MODEL` | 第二家 OpenAI 兼容端点（如 Moonshot） |
+| `WANWU_LIVE_REQUIRE_TWO=1` | live 脚本要求至少 2 家通过 |
 
 ## 测试
 
