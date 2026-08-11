@@ -29,8 +29,9 @@ export type WanwuBridge = {
     ) => () => void;
   };
   term: {
-    start: () => Promise<boolean>;
+    start: (cols?: number, rows?: number) => Promise<boolean>;
     write: (data: string) => Promise<boolean>;
+    resize: (cols: number, rows: number) => Promise<boolean>;
     stop: () => Promise<boolean>;
     onData: (cb: (data: string) => void) => () => void;
   };
@@ -71,8 +72,9 @@ const bridge: WanwuBridge = {
     onEdit: (cb) => on("acp:edit", (t) => cb(t as never)),
   },
   term: {
-    start: () => ipcRenderer.invoke("term:start"),
+    start: (cols, rows) => ipcRenderer.invoke("term:start", cols, rows),
     write: (data) => ipcRenderer.invoke("term:write", data),
+    resize: (cols, rows) => ipcRenderer.invoke("term:resize", cols, rows),
     stop: () => ipcRenderer.invoke("term:stop"),
     onData: (cb) => on("term:data", (t) => cb(String(t))),
   },
