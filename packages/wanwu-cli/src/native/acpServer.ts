@@ -15,11 +15,14 @@ import type { JsonRpc } from "./jsonRpcStdio.js";
 import { sendError, sendResult, sessionUpdate } from "./jsonRpcStdio.js";
 import { detectMode, stripModeTags } from "./mode.js";
 import { resolvePermissionRequest } from "./permissions.js";
+import { loadSession, saveSession } from "./sessionStore.js";
 
 type SessionState = {
   id: string;
   /** Cross-prompt transcript for LLM (system messages stripped on use). */
   history: ChatMessage[];
+  /** AbortController for the in-flight prompt, if any. */
+  abort?: AbortController;
 };
 
 export function startNativeAcpStdioServer(): void {
@@ -74,7 +77,7 @@ export function startNativeAcpStdioServer(): void {
       void warmMcp();
       sendResult(id, {
         protocolVersion: "0.1.0-wanwu-native",
-        agentCapabilities: { loadSession: false },
+        agentCapabilities: { loadSession: true },
         agentInfo: { name: "wanwu-native", version: "1.0.0-beta" },
       });
       return;
@@ -87,7 +90,31 @@ export function startNativeAcpStdioServer(): void {
       return;
     }
 
+    if (method === "session/load" || method === "loadSession") {
+      const params = (msg.params ?? {}) as { sessionId?: string };
+      const targetId = params.sessionId;
+      if (!targetId) {
+        sendError(id, -32602, "sessionId required");
+        return;
+      }
+      const stored = loadSession(workspaceRoot, targetId);
+      if (!stored) {
+        sendError(id, -32000, "session not found");
+        return;
+      }
+      sessions.set(targetId, { id: targetId, history: stored.history });
+      sendResult(id, { sessionId: targetId, history: stored.history });
+      return;
+    }
+
     if (method === "session/cancel") {
+      const params = (msg.params ?? {}) as { sessionId?: string };
+      const targetId = params.sessionId ?? [...sessions.keys()][0];
+      const session = targetId ? sessions.get(targetId) : undefined;
+      if (session?.abort) {
+        session.abort.abort();
+        session.abort = undefined;
+      }
       sendResult(id, {});
       return;
     }
@@ -155,10 +182,23 @@ export function startNativeAcpStdioServer(): void {
 
         if (shouldUseLlm(config)) {
           await warmMcp();
-          const out = await runLlmAgentLoop(ctx, config, text, {
-            history: session.history,
-          });
-          session.history = out.messages.filter((m) => m.role !== "system");
+          session.abort = new AbortController();
+          try {
+            const out = await runLlmAgentLoop(ctx, config, text, {
+              history: session.history,
+              signal: session.abort.signal,
+            });
+            session.history = out.messages.filter((m) => m.role !== "system");
+            saveSession({
+              id: sessionId,
+              workspaceRoot,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              history: session.history,
+            });
+          } finally {
+            session.abort = undefined;
+          }
         } else if (mode !== "plan") {
           // Deterministic path also handles plan/verify; skip double-plan when already written.
           runDeterministicTurn(ctx, text);

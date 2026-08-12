@@ -88,7 +88,12 @@ export async function runLlmAgentLoop(
   ctx: AgentContext,
   config: WanwuConfig,
   prompt: string,
-  opts?: { fetchImpl?: FetchLike; maxTurns?: number; history?: ChatMessage[] },
+  opts?: {
+    fetchImpl?: FetchLike;
+    maxTurns?: number;
+    history?: ChatMessage[];
+    signal?: AbortSignal;
+  },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
   const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "6") || 6);
@@ -115,6 +120,9 @@ export async function runLlmAgentLoop(
   let turns = 0;
 
   for (let i = 0; i < maxTurns; i += 1) {
+    if (opts?.signal?.aborted) {
+      throw new Error("aborted");
+    }
     turns = i + 1;
     try {
       last = await completeChat({
@@ -164,6 +172,9 @@ export async function runLlmAgentLoop(
           status: "pending",
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
+        if (opts?.signal?.aborted) {
+          throw new Error("aborted");
+        }
         const result = await dispatchTool(ctx, mode, call.name, call.arguments);
         const isProposal = call.name === "Edit" && result.ok && Boolean(result.diff);
         sessionUpdate(ctx.sessionId, {
