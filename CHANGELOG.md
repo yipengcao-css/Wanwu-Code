@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **TUI 增强**：工具时间线（状态图标）、diff 渲染（红绿行）、`/history` 会话历史、`Ctrl+T` 循环切换模式、`/ask|/plan|/agent|/verify` 快捷切换
 - **真云端 MVP**：`wanwu cloud serve` 启动 HTTP runner；`submit/status/logs/diff --remote <url>` + `WANWU_CLOUD_TOKEN`；`HttpCloudClient`
 - **插件市场 MVP**：`wanwu plugin list/search/show/install/remove`；支持 skills 与 MCP 配置；sha256 校验 + 信任等级门控；`docs/PLUGINS.md`
 - **性能**：CLI 子命令懒加载（`wanwu help/doctor` 启动更快）；Glob/Grep 缓存 glob 正则；Shell 懒加载 Monaco/DiffReview；electron-builder 排除原始 monaco/typescript 依赖
