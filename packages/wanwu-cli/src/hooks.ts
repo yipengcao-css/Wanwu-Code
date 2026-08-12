@@ -10,6 +10,11 @@ export interface HookDef {
   command: string;
 }
 
+export interface HookContext {
+  toolName?: string;
+  toolArgs?: string;
+}
+
 export function loadHooks(cwd: string): HookDef[] {
   const file = join(cwd, ".wanwu", "hooks.toml");
   if (!existsSync(file)) {
@@ -31,14 +36,23 @@ export function loadHooks(cwd: string): HookDef[] {
     .map((h) => ({ event: h.event as HookEvent, command: String(h.command) }));
 }
 
-export function runHooks(cwd: string, event: HookEvent): { ok: boolean; outputs: string[] } {
+export function runHooks(
+  cwd: string,
+  event: HookEvent,
+  ctx?: HookContext,
+): { ok: boolean; outputs: string[] } {
   const hooks = loadHooks(cwd).filter((h) => h.event === event);
   const outputs: string[] = [];
   for (const h of hooks) {
     const result = spawnSync("bash", ["-lc", h.command], {
       cwd,
       encoding: "utf8",
-      env: { ...process.env, WANWU_HOOK_EVENT: event },
+      env: {
+        ...process.env,
+        WANWU_HOOK_EVENT: event,
+        ...(ctx?.toolName ? { WANWU_TOOL_NAME: ctx.toolName } : {}),
+        ...(ctx?.toolArgs ? { WANWU_TOOL_ARGS: ctx.toolArgs.slice(0, 4000) } : {}),
+      },
     });
     const text = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
     if (text) outputs.push(text);

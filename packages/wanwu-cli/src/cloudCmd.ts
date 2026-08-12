@@ -5,12 +5,14 @@ import {
   FileCloudClient,
   buildDockerRunnerImage,
   dockerAvailable,
+  isTaskRunning,
   listTasks,
   loadTask,
   openTaskPullRequest,
   orchestrateCloudTasks,
   runCloudTaskInDocker,
   runCloudTaskLocally,
+  startCloudTaskAsync,
 } from "@wanwu/cloud";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
@@ -48,12 +50,15 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       let runNow = false;
       let useDocker = false;
       let rebuild = false;
+      let asyncRun = false;
       for (let i = 0; i < rest.length; i += 1) {
         const a = rest[i];
         if (a === "-p" || a === "--prompt") {
           prompt = rest[++i] ?? "";
         } else if (a === "--run") {
           runNow = true;
+        } else if (a === "--async") {
+          asyncRun = true;
         } else if (a === "--docker") {
           useDocker = true;
           runNow = true;
@@ -72,6 +77,12 @@ export async function runCloudCommand(args: string[]): Promise<number> {
         const done = runCloudTaskInDocker({ repoRoot: cwd, taskId: task.id, rebuild });
         console.log(JSON.stringify(done, null, 2));
         return done.status === "succeeded" ? 0 : 1;
+      }
+      if (asyncRun) {
+        const task = await client.submit(prompt);
+        const handle = startCloudTaskAsync({ repoRoot: cwd, taskId: task.id });
+        console.log(JSON.stringify({ ...task, status: "running", pid: handle.pid }, null, 2));
+        return 0;
       }
       if (runNow) {
         const done = await client.submitAndRun(prompt);
@@ -142,7 +153,9 @@ export async function runCloudCommand(args: string[]): Promise<number> {
         console.error(`task not found: ${id}`);
         return 1;
       }
-      console.log(JSON.stringify(task, null, 2));
+      console.log(
+        JSON.stringify({ ...task, running: isTaskRunning(cwd, id) }, null, 2),
+      );
       return 0;
     }
     case "list": {
@@ -195,7 +208,7 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       console.log(`wanwu cloud — headless runner (review-first, no auto-merge)
 
 Usage:
-  wanwu cloud submit -p "..." [--run] [--docker] [--rebuild]
+  wanwu cloud submit -p "..." [--run] [--async] [--docker] [--rebuild]
   wanwu cloud orchestrate -p "A" -p "B" [--concurrency 2] [--pr|--pr-dry-run]
   wanwu cloud open-pr <taskId> [--dry-run]
   wanwu cloud run <taskId> [--docker]

@@ -66,7 +66,7 @@ export class WanwuChatPanel {
     const workspaceRoot = findExtensionWorkspaceRoot();
     const folder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? workspaceRoot;
     const useMock =
-      vscode.workspace.getConfiguration("wanwu").get<boolean>("useMockAcp") ??
+      vscode.workspace.getConfiguration("wanwu").get<boolean>("useMockAcp") === true ||
       process.env.WANWU_ACP_MOCK === "1";
     const child = startAcpProcess({
       cwd: folder,
