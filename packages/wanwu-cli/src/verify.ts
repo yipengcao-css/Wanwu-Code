@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { completeChat, hasProviderCredentials } from "@wanwu/providers";
 import { loadWanwuConfig } from "@wanwu/config";
 import { WorkflowMachine } from "@wanwu/workflow";
@@ -10,6 +12,65 @@ export interface VerifyResult {
   state: string;
   /** LLM reviewer summary when credentials are available. */
   review?: string;
+}
+
+export type VerifyStep = [string, string[]];
+
+/** Detect project type and return appropriate verify steps. */
+export function detectVerifySteps(cwd: string): VerifyStep[] {
+  const has = (p: string) => existsSync(join(cwd, p));
+
+  if (has("pnpm-lock.yaml") || has("pnpm-workspace.yaml")) {
+    return [
+      ["pnpm", ["typecheck"]],
+      ["pnpm", ["test"]],
+      ["pnpm", ["lint"]],
+    ];
+  }
+  if (has("package-lock.json") || has("npm-shrinkwrap.json")) {
+    return [
+      ["npm", ["run", "typecheck", "--if-present"]],
+      ["npm", ["test", "--if-present"]],
+      ["npm", ["run", "lint", "--if-present"]],
+    ];
+  }
+  if (has("yarn.lock")) {
+    return [
+      ["yarn", ["typecheck"]],
+      ["yarn", ["test"]],
+      ["yarn", ["lint"]],
+    ];
+  }
+  if (has("Cargo.toml")) {
+    return [
+      ["cargo", ["check"]],
+      ["cargo", ["test"]],
+      ["cargo", ["clippy", "--", "-D", "warnings"]],
+    ];
+  }
+  if (has("go.mod")) {
+    return [
+      ["go", ["build", "./..."]],
+      ["go", ["test", "./..."]],
+      ["go", ["vet", "./..."]],
+    ];
+  }
+  if (has("pyproject.toml") || has("requirements.txt") || has("setup.py")) {
+    return [
+      ["python", ["-m", "pytest"]],
+      ["python", ["-m", "mypy", "."]],
+    ];
+  }
+  if (has("package.json")) {
+    return [
+      ["npm", ["run", "typecheck", "--if-present"]],
+      ["npm", ["test", "--if-present"]],
+      ["npm", ["run", "lint", "--if-present"]],
+    ];
+  }
+
+  // Fallback: no recognized project type
+  return [["echo", ["no recognized project type; skipping verify"]]];
 }
 
 export function runVerify(
@@ -34,11 +95,7 @@ export function runVerifyDetailed(
   };
 
   emit(`[wanwu verify] workflow → ${wf.state} (isolated checker)`);
-  const steps: Array<[string, string[]]> = [
-    ["pnpm", ["typecheck"]],
-    ["pnpm", ["test"]],
-    ["pnpm", ["lint"]],
-  ];
+  const steps = detectVerifySteps(cwd);
 
   for (const [cmd, args] of steps) {
     emit(`[wanwu verify] $ ${cmd} ${args.join(" ")}`);
