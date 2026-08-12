@@ -2,7 +2,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PermissionMode, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
+import { runPlan } from "../plan.js";
+import { runVerifyDetailed } from "../verify.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
+import { detectMode, stripModeTags } from "./mode.js";
 import { toolBash, toolEdit, toolGlob, toolGrep, toolRead } from "./tools.js";
 
 export interface AgentContext {
@@ -10,14 +13,6 @@ export interface AgentContext {
   sessionId: string;
   permissionMode: PermissionMode;
   mode: WanwuMode;
-}
-
-function detectMode(prompt: string, fallback: WanwuMode): WanwuMode {
-  if (/\[MODE=plan\]/i.test(prompt)) return "plan";
-  if (/\[MODE=agent\]/i.test(prompt)) return "agent";
-  if (/\[MODE=ask\]/i.test(prompt)) return "ask";
-  if (/\[MODE=verify\]/i.test(prompt)) return "verify";
-  return fallback;
 }
 
 function memoryPreamble(workspaceRoot: string): string {
@@ -62,20 +57,51 @@ export function runDeterministicTurn(ctx: AgentContext, prompt: string): string 
   const nextId = (): string => `native-tool-${++toolSeq}`;
 
   if (mode === "plan") {
+    const task = stripModeTags(prompt) || "Untitled task";
+    const prevQuiet = process.env.WANWU_PLAN_QUIET;
+    process.env.WANWU_PLAN_QUIET = "1";
+    let planPath = "";
+    try {
+      planPath = runPlan(task, ctx.workspaceRoot);
+    } finally {
+      if (prevQuiet === undefined) delete process.env.WANWU_PLAN_QUIET;
+      else process.env.WANWU_PLAN_QUIET = prevQuiet;
+    }
     sessionUpdate(sid, {
       sessionUpdate: "agent_message_chunk",
       content: {
         type: "text",
         text:
           (mem ? `(loaded ${discoverMemory(ctx.workspaceRoot).length} memory file(s))\n\n` : "") +
-          "Plan only (no file edits):\n" +
-          "1. Explore relevant files with Read/Glob/Grep\n" +
-          "2. Draft a minimal patch plan\n" +
-          "3. After approval, switch to Agent mode and Verify\n" +
-          `Prompt: ${prompt.replace(/\[MODE=\w+\]/gi, "").trim().slice(0, 300)}`,
+          `已写入 Plan 工件：\n${planPath}\n\n` +
+          "下一步：审阅计划后切换到 Agent 模式执行，再用 Verify 验收。\n" +
+          `任务摘要：${task.slice(0, 300)}`,
       },
     });
     return "plan";
+  }
+
+  if (mode === "verify") {
+    sessionUpdate(sid, {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "text",
+        text: "正在运行隔离 Verify（typecheck → test → lint）…",
+      },
+    });
+    const result = runVerifyDetailed(ctx.workspaceRoot, { quiet: true });
+    const clip = result.log.slice(0, 6000);
+    sessionUpdate(sid, {
+      sessionUpdate: "agent_message_chunk",
+      content: {
+        type: "text",
+        text:
+          (result.code === 0
+            ? "Verify 通过：typecheck / test / lint 均成功。\n\n"
+            : `Verify 失败（exit=${result.code}，workflow=${result.state}）。\n\n`) + clip,
+      },
+    });
+    return result.code === 0 ? "verify_pass" : "verify_fail";
   }
 
   // Always try to orient with Glob or Read README
