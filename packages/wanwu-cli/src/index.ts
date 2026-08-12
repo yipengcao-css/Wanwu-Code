@@ -18,6 +18,7 @@ Usage:
   wanwu hooks <event>       Run hooks (PreToolUse|PostToolUse|Stop)
   wanwu cloud ...           Headless cloud runner (local/docker, review-first)
   wanwu parallel ...        Parallel worktree isolation demo
+  wanwu plugin ...          Plugin marketplace (skills / MCP)
   wanwu help                Show this help
 
 Env:
@@ -158,6 +159,10 @@ async function main(argv: string[]): Promise<number> {
     case "parallel": {
       const { runParallelCommand } = await import("./parallelCmd.js");
       return runParallelCommand(rest);
+    }
+    case "plugin": {
+      const { runPluginCommand } = await import("./plugin/cmd.js");
+      return await runPluginCommand(rest);
     }
     default:
       console.error(`Unknown command: ${cmd}`);
