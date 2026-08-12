@@ -7,7 +7,9 @@ CLI 命令名：**`wanwu`**
 
 ## 产品一句话
 
-> **自研 Electron 壳（Wanwu Lattice）** + Monaco 编辑内核 + wanwu-native Agent Runtime（ACP/MCP/Sandbox）+ Plan/Memory/Verify + 多 Agent / 云端异步。
+> **自研 Electron 壳（Wanwu Lattice）** + Monaco 编辑内核 + wanwu-native Agent Runtime（ACP/MCP/LSP）+ Plan/Memory/Verify + 多 Agent / 云端异步。
+
+当前能力：TUI / headless / ACP；OpenAI-compat + Anthropic tools；MCP stdio 工具面；Shell TS/JS LSP 诊断；mac 签名门控；权限 RPC + hooks 门禁。
 
 ## 已锁定决策
 
@@ -42,6 +44,7 @@ pnpm test
 pnpm typecheck
 
 # CLI（通过 pnpm 调用开发入口）
+pnpm wanwu              # TTY 下进入交互 TUI
 pnpm wanwu doctor
 pnpm wanwu inspect
 pnpm wanwu exec -p "列出 README 标题"
@@ -50,6 +53,7 @@ pnpm wanwu acp          # 默认 wanwu-native ACP；可切 grok 或 WANWU_ACP_CO
 pnpm build:cli          # 产出 dist-bin/wanwu.mjs
 pnpm wanwu parallel demo --cleanup
 pnpm wanwu cloud submit -p "异步任务" --run     # 本地 worktree runner
+pnpm wanwu cloud submit -p "异步任务" --async   # 后台任务
 pnpm wanwu cloud orchestrate -p "A" -p "B" --concurrency 2 --pr-dry-run
 pnpm wanwu cloud submit -p "异步任务" --docker  # Docker（嵌套 overlay 主机默认回退本地）
 WANWU_DOCKER_REQUIRE=1 pnpm wanwu cloud submit -p "强制容器" --docker  # CI 纯 Docker 门禁
@@ -91,10 +95,13 @@ node dist-bin/wanwu.mjs doctor
 - [架构](docs/ARCHITECTURE.md)
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
-- [Epic 2 Backlog（E2-E 已跳过；E2-F+ 完成）](docs/EPIC2_BACKLOG.md)
+- [Epic 2 Backlog](docs/EPIC2_BACKLOG.md)
 - [安装 CLI](docs/INSTALL.md)
 - [Cloud 编排](docs/CLOUD.md)
 - [多模型 Providers](docs/PROVIDERS.md)
+- [MCP 工具面](docs/MCP.md)
+- [Shell LSP](docs/LSP.md)
+- [签名分发](docs/SIGNING.md)
 - [设计系统 Wanwu Lattice](docs/DESIGN_SYSTEM.md)
 - [ACP 集成](docs/ACP_INTEGRATION.md)
 - [ADR 0001 Runtime 底座](docs/ADRs/0001-agent-runtime-base.md)
@@ -103,6 +110,7 @@ node dist-bin/wanwu.mjs doctor
 - [ADR 0005 自研 Electron 壳](docs/ADRs/0005-custom-electron-shell.md)
 - [推荐工作流](docs/WORKFLOW.md)
 - [完整实施计划](docs/PLAN.md)
+- [产品审核对照](docs/PRODUCT_AUDIT_2026-08-12.md)
 - [第三方声明](THIRD_PARTY_NOTICES)
 
 ## 设计原则（摘要）

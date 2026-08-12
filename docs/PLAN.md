@@ -1,10 +1,11 @@
 # Wanwu-Code：AI 时代 IDE 实施计划（Agent 可执行版）
 
 > 仓库：`yipengcao-css/Wanwu-Code`  
-> 现状：几乎空仓（仅 `README.md`）  
+> 现状：**v1.0 beta 已交付**；`apps/wanwu-shell` 为品牌整机，`apps/wanwu-ide`（Code-OSS）已退役  
 > 目标：融合开源 **Grok Build CLI**、**VS Code/Code-OSS**、**OpenAI Codex**、**Claude Code** 各自所长，打造 AI-native IDE 产品 **Wanwu-Code（万物 Code）**  
 > 本文件供后续 coding agent 直接按阶段执行。  
-> 用户已于 2026-08-10 批准计划并锁定 §11 决策；执行中。
+> 用户已于 2026-08-10 批准计划并锁定 §11 决策；执行中。  
+> **2026-08-12 更新**：对齐 ADR 0005 与已交付能力；原始 Phase 描述保留作历史参考。
 
 ---
 
@@ -13,14 +14,14 @@
 ### 产品一句话
 **Wanwu-Code = Code-OSS 级编辑器体验 + Grok Build 级 Agent Runtime（ACP/MCP/Sandbox）+ Claude Code 级 Plan/Memory/Verify 工作流 + Codex 级 多 Agent 并行与云端异步任务。**
 
-### 技术路线（已选定 · 用户 2026-08-10 确认）
+### 技术路线（已选定 · 用户 2026-08-10 确认；2026-08-12 对齐现状）
 1. **CLI 品牌**：二进制/命令名锁定为 `wanwu`（产品名 Wanwu-Code）。
-2. **IDE 集成优先 MVP**：先做 **VS Code Extension（ACP Client）**，快速验证产品闭环；再推进 **Code-OSS fork 的 Wanwu IDE Shell**。
-3. **Agent 内核**：允许桥接/复用开源 `xai-org/grok-build` ACP；以薄封装 `wanwu-agent` 起步（CLI + headless + ACP），按需再深度裁剪/vendor。
-4. **协议优先**：编辑器 ↔ Agent 统一走 **ACP**；外部工具走 **MCP**；语言智能继续走 **LSP**。
-5. **多模型对等**：Grok / OpenAI / Anthropic / Ollama / OpenAI-compatible 从第一天起对等接入（BYOK），不设单一默认厂商锁定；可有推荐预设但不绑定产品身份。
-6. **工作流内核**：强制支持 `Explore → Plan → Act → Verify → Commit`，以及 project memory（`WANWU.md` + 兼容 `AGENTS.md`/`CLAUDE.md`）。
-7. **「编译器」语义**：AI-native IDE + Agent Runtime（把自然语言意图编译为可验证代码变更），不是新语言编译器。
+2. **IDE 策略**：品牌整机为 **`apps/wanwu-shell` 自研 Electron**（ADR 0005）；VS Code / Cursor 扩展为可选宿主。~~先做扩展 MVP 再 Code-OSS fork~~ 已被 ADR 0005 取代。
+3. **Agent 内核**：默认 `wanwu-native` ACP（TS）；允许桥接/复用开源 `xai-org/grok-build` ACP。
+4. **协议优先**：编辑器 ↔ Agent 统一走 **ACP**；外部工具走 **MCP**（`docs/MCP.md`）；语言智能走 **LSP**（Shell TS/JS，`docs/LSP.md`）。
+5. **多模型对等**：Grok / OpenAI / Anthropic / Ollama / OpenAI-compatible 对等接入（BYOK）。
+6. **工作流内核**：`Explore → Plan → Act → Verify → Commit`；Plan 可由 LLM 生成；Verify 含独立评审。
+7. **「编译器」语义**：AI-native IDE + Agent Runtime，不是新语言编译器。
 
 ### MVP 定义（必须先做成）
 - `wanwu` CLI：交互 TUI（可后置）+ headless + ACP stdio
@@ -56,21 +57,21 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ apps/wanwu-ide (Code-OSS fork, Phase 4+)                        │
-│  - Editor / Terminal / SCM / Debug / Extensions                 │
+│ apps/wanwu-shell (自研 Electron, ADR 0005)                      │
+│  - Monaco / xterm / ACP chat / Diff Review / LSP markers        │
 └─────────────────────────────┬───────────────────────────────────┘
-                              │ ACP (JSON-RPC over stdio/WS)
+                              │ ACP (JSON-RPC over stdio)
 ┌─────────────────────────────▼───────────────────────────────────┐
-│ extensions/wanwu-vscode (MVP ACP Client)                        │
+│ extensions/wanwu-vscode (可选宿主 ACP Client)                   │
 │  - Chat/Plan UI, Diff Review, Permission Gate, Session Manager  │
 └─────────────────────────────┬───────────────────────────────────┘
                               │ spawn / connect
 ┌─────────────────────────────▼───────────────────────────────────┐
-│ packages/wanwu-agent  (fork/adapt grok-build patterns)          │
-│  Runtime: Session · AgentBuilder · ToolRegistry · Actors         │
-│  Modes: TUI | Headless | ACP | Leader                            │
-│  Ext: MCP · Skills · Hooks · Plugins · Memory                    │
-│  Safety: Permission Policy → Workspace Boundary → OS Sandbox     │
+│ packages/wanwu-cli (wanwu-native Agent Runtime)                 │
+│  Runtime: Session · ToolRegistry · Permissions · Hooks           │
+│  Modes: TUI | Headless | ACP                                     │
+│  Ext: MCP · Skills · Hooks · Memory                              │
+│  Safety: Permission Policy → Workspace Boundary → minimal env    │
 └───────────────┬─────────────────────────┬───────────────────────┘
                 │                         │
         ┌───────▼────────┐        ┌───────▼────────┐
@@ -102,30 +103,36 @@ Wanwu-Code/
 │   ├── COMPETITIVE_ANALYSIS.md
 │   ├── ROADMAP.md
 │   ├── ACP_INTEGRATION.md
+│   ├── MCP.md / LSP.md / SIGNING.md
 │   └── ADRs/
 │       ├── 0001-agent-runtime-base.md
-│       ├── 0002-ide-strategy-extension-first.md
-│       └── 0003-multi-model-provider.md
+│       ├── 0002-ide-strategy-extension-first.md  # 部分被 0005 取代
+│       ├── 0003-multi-model-provider.md
+│       └── 0005-custom-electron-shell.md
 ├── packages/
 │   ├── wanwu-protocol/            # ACP/MCP 共享类型（TS）
 │   ├── wanwu-workflow/            # Plan/Act/Verify 状态机（TS）
 │   ├── wanwu-config/              # config schema + merge 规则
-│   └── wanwu-cloud/               # Phase 5 stub
-├── crates/                        # Rust agent runtime（从 grok-build 策略引入）
+│   ├── wanwu-providers/           # 多模型 BYOK
+│   ├── wanwu-acp-client/          # 共享 ACP client
+│   ├── wanwu-cloud/               # worktree / docker / async runner
+│   └── wanwu-cli/                 # wanwu-native agent + TUI + ACP server
+├── crates/                        # Rust agent runtime（预留）
 │   └── README.md                  # 说明 vendor/submodule 策略
 ├── extensions/
-│   └── wanwu-vscode/              # MVP VS Code / Cursor 兼容扩展
+│   └── wanwu-vscode/              # 可选 VS Code / Cursor 扩展
 ├── apps/
-│   └── wanwu-ide/                 # Phase 4+ Code-OSS fork 占位
+│   ├── wanwu-shell/               # 品牌整机（自研 Electron）
+│   └── wanwu-ide/                 # DEPRECATED：旧 Code-OSS 路径
 ├── examples/
 │   └── failing-test-demo/         # E2E 演示工程
 ├── scripts/
 │   ├── bootstrap.sh
 │   ├── smoke-acp.sh
-│   └── package-extension.sh
+│   └── build-shell-dist.sh
 └── .github/workflows/
     ├── ci.yml
-    └── release-extension.yml
+    └── release.yml
 ```
 
 ---
@@ -301,20 +308,19 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 
 ---
 
-### Phase 6 — Wanwu IDE Shell（VS Code 精髓的“整机”）
-**路径**：`apps/wanwu-ide/`（Code-OSS fork 或构建脚本拉取）
+### Phase 6 — Wanwu IDE Shell（已改道：自研 Electron）
+**路径**：`apps/wanwu-shell/`（ADR 0005）；`apps/wanwu-ide/`（Code-OSS）已退役
 
-**策略**
-1. 先不维护完整 Electron fork 历史；用脚本拉取 Code-OSS 指定 tag + 应用 patch 系列。
-2. 预装 `wanwu-vscode` 为内置扩展；默认布局突出 Agent + Diff + Terminal。
-3. 品牌替换：产品名、图标、通知、默认 keymap（`Ctrl/Cmd+I` 呼出 Wanwu）。
-4. 保留扩展市场兼容策略（说明与 VS Marketplace 的关系/风险）。
+**策略（已执行）**
+1. 不维护 Code-OSS fork；自研 Electron + Monaco + xterm。
+2. 内置 ACP chat、Diff Review、权限弹窗、TS/JS LSP markers。
+3. 品牌：Wanwu Lattice UI；`Ctrl/Cmd+I` 呼出 Agent。
+4. 扩展市场兼容由可选 VS Code 扩展承担。
 
 **验收标准**
-- [x] 拉取/品牌/预装扩展脚本就绪（`apps/wanwu-ide/scripts/*`）
-- [x] 本地能启动 Wanwu IDE（Code-OSS compile + `.build/electron/wanwu-code`；xvfb/`launch.sh`）
-- [x] 内置 Agent 扩展已安装到 `code-oss/extensions/wanwu-code`
-- [x] 上游编译含 git/typescript 等内置扩展（0 errors）；完整交互回归可在桌面环境继续
+- [x] `pnpm shell:dev` / `pnpm shell` 可启动
+- [x] `pnpm shell:dist` 产出三平台安装包
+- [x] mac 签名/公证密钥门控（`docs/SIGNING.md`）
 
 ---
 
@@ -386,8 +392,8 @@ Idle → Explore → PlanDraft → PlanApproved → Acting → Verifying → Don
 active_provider = "openai"       # xai | openai | anthropic | ollama | custom
 model = "gpt-5"
 permission_mode = "ask"          # ask | accept-edits | accept-all
-sandbox = "workspace"            # off | workspace | strict
-acp_backend = "grok"             # grok | wanwu-native（后期）
+sandbox = "workspace"            # off | workspace | strict（当前以 workspace 边界 + 最小 env 为主）
+acp_backend = "wanwu-native"     # wanwu-native | grok
 
 [providers.xai]
 api_key_env = "XAI_API_KEY"

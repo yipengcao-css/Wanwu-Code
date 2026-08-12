@@ -112,7 +112,8 @@
 | 5c | 签名分发（mac notarize 门控） | **完成（#11）** |
 | 6 | P0 安全修复（Edit propose / Bash 门控 / env / realpath） | **完成（#12）** |
 | 7 | P1 Agent 质量（权限 RPC / Anthropic tools / LLM Plan / Verify review / skills） | **完成（#13）** |
-| 8 | P2 体验/生态（TUI / 扩展真实 ACP / hooks 上下文 / cloud async） | **本分支** |
+| 8 | P2 体验/生态（TUI / 扩展真实 ACP / hooks 上下文 / cloud async） | **完成（#14）** |
+| 9 | P3 文档叙事统一（PLAN/WANWU/ROADMAP/ADR 对齐） | **本分支** |
 
 ## 领取方式
 
