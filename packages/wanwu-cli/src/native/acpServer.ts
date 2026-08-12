@@ -6,13 +6,14 @@ import * as readline from "node:readline";
 import type { ChatMessage } from "@wanwu/providers";
 import { loadWanwuConfig } from "@wanwu/config";
 import { findWorkspaceRoot } from "../workspaceRoot.js";
-import { runPlan } from "../plan.js";
-import { runVerifyDetailed } from "../verify.js";
+import { runPlanAsync } from "../plan.js";
+import { runVerifyWithReview } from "../verify.js";
 import { runDeterministicTurn } from "./agentLoop.js";
 import { runLlmAgentLoop, shouldUseLlm } from "./llmAgentLoop.js";
 import type { JsonRpc } from "./jsonRpcStdio.js";
 import { sendError, sendResult, sessionUpdate } from "./jsonRpcStdio.js";
 import { detectMode, stripModeTags } from "./mode.js";
+import { resolvePermissionRequest } from "./permissions.js";
 
 type SessionState = {
   id: string;
@@ -39,6 +40,17 @@ export function startNativeAcpStdioServer(): void {
     try {
       msg = JSON.parse(line) as JsonRpc;
     } catch {
+      return;
+    }
+
+    // Client response to a session/request_permission we initiated.
+    if (
+      typeof msg.id === "number" &&
+      msg.method === undefined &&
+      (msg.result !== undefined || msg.error !== undefined)
+    ) {
+      const result = msg.result as { optionId?: string } | undefined;
+      resolvePermissionRequest(msg.id, result?.optionId ?? "deny");
       return;
     }
 
@@ -97,7 +109,7 @@ export function startNativeAcpStdioServer(): void {
           process.env.WANWU_PLAN_QUIET = "1";
           let planPath = "";
           try {
-            planPath = runPlan(stripModeTags(text) || "Untitled task", workspaceRoot);
+            planPath = await runPlanAsync(stripModeTags(text) || "Untitled task", workspaceRoot);
           } finally {
             if (prev === undefined) delete process.env.WANWU_PLAN_QUIET;
             else process.env.WANWU_PLAN_QUIET = prev;
@@ -115,21 +127,22 @@ export function startNativeAcpStdioServer(): void {
               text: "正在运行隔离 Verify（typecheck → test → lint）…\n",
             },
           });
-          const result = runVerifyDetailed(workspaceRoot, { quiet: true });
+          const result = await runVerifyWithReview(workspaceRoot, { quiet: true });
           sessionUpdate(sessionId, {
             sessionUpdate: "agent_message_chunk",
             content: {
               type: "text",
               text:
                 (result.code === 0 ? "Verify 通过。\n\n" : `Verify 失败（exit=${result.code}）。\n\n`) +
-                result.log.slice(0, 6000),
+                result.log.slice(0, 6000) +
+                (result.review ? `\n\n## 独立评审\n${result.review}` : ""),
             },
           });
           sendResult(id, { stopReason: result.code === 0 ? "end_turn" : "end_turn" });
           return;
         }
 
-        if (shouldUseLlm(config) && mode !== "verify") {
+        if (shouldUseLlm(config)) {
           const out = await runLlmAgentLoop(ctx, config, text, {
             history: session.history,
           });

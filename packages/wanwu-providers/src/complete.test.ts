@@ -112,4 +112,116 @@ describe("@wanwu/providers", () => {
       hasProviderCredentials(DEFAULT_CONFIG, { env: { OPENAI_API_KEY: "sk" } }),
     ).toBe(true);
   });
+
+  it("anthropic sends tools and parses tool_use", async () => {
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "anthropic",
+      model: "claude-sonnet-4",
+    });
+    let capturedBody: Record<string, unknown> | undefined;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      capturedBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const body = readFileSync(
+        path.join(fixtures, "anthropic-tool-round1.json"),
+        "utf8",
+      );
+      return new Response(body, {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    const res = await completeChat({
+      config,
+      env: { ANTHROPIC_API_KEY: "sk-ant-test" },
+      fetchImpl,
+      request: {
+        messages: [{ role: "user", content: "读取 README" }],
+        tools: [
+          {
+            name: "Read",
+            description: "Read a file",
+            parameters: {
+              type: "object",
+              properties: { path: { type: "string" } },
+              required: ["path"],
+            },
+          },
+        ],
+        toolChoice: "auto",
+      },
+    });
+
+    expect(res.provider).toBe("anthropic");
+    expect(res.toolCalls).toHaveLength(1);
+    expect(res.toolCalls?.[0]?.name).toBe("Read");
+    expect(JSON.parse(res.toolCalls?.[0]?.arguments ?? "{}")).toEqual({
+      path: "README.md",
+    });
+    expect(capturedBody?.tools).toBeDefined();
+    expect((capturedBody?.tools as unknown[])[0]).toMatchObject({
+      name: "Read",
+      input_schema: { type: "object" },
+    });
+  });
+
+  it("anthropic maps tool result messages to tool_result blocks", async () => {
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "anthropic",
+      model: "claude-sonnet-4",
+    });
+    let capturedBody: Record<string, unknown> | undefined;
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      capturedBody = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      const body = readFileSync(
+        path.join(fixtures, "anthropic-tool-round2.json"),
+        "utf8",
+      );
+      return new Response(body, {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    const res = await completeChat({
+      config,
+      env: { ANTHROPIC_API_KEY: "sk-ant-test" },
+      fetchImpl,
+      request: {
+        messages: [
+          { role: "user", content: "读取 README" },
+          {
+            role: "assistant",
+            content: "我先读取 README。",
+            toolCalls: [
+              { id: "toolu_01", name: "Read", arguments: '{"path":"README.md"}' },
+            ],
+          },
+          {
+            role: "tool",
+            toolCallId: "toolu_01",
+            name: "Read",
+            content: "# Wanwu-Code",
+          },
+        ],
+      },
+    });
+
+    expect(res.text).toContain("Wanwu-Code");
+    const messages = capturedBody?.messages as Array<{
+      role: string;
+      content: unknown;
+    }>;
+    const toolResultMsg = messages.find(
+      (m) =>
+        m.role === "user" &&
+        Array.isArray(m.content) &&
+        (m.content as Array<{ type?: string }>).some((b) => b.type === "tool_result"),
+    );
+    expect(toolResultMsg).toBeDefined();
+    const blocks = toolResultMsg?.content as Array<{ type: string; tool_use_id?: string }>;
+    expect(blocks.some((b) => b.type === "tool_result" && b.tool_use_id === "toolu_01")).toBe(
+      true,
+    );
+  });
 });

@@ -9,6 +9,7 @@ import {
 } from "@wanwu/providers";
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
+import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
@@ -42,6 +43,8 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     .filter(Boolean)
     .join("\n---\n");
 
+  const skills = renderSkillsForPrompt(discoverSkills(ctx.workspaceRoot));
+
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
     "Prefer Read/Glob/Grep before answering about files. Be concise.",
@@ -50,6 +53,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     mode === "plan" || mode === "ask"
       ? "Do NOT use Edit. Avoid destructive Bash."
       : "You may Edit/Bash when needed (permissions still apply).",
+    skills ? `Project skills:\n${skills}` : "",
     memory ? `Project memory:\n${memory}` : "",
   ]
     .filter(Boolean)
@@ -146,7 +150,7 @@ export async function runLlmAgentLoop(
           status: "pending",
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
-        const result = dispatchTool(ctx, mode, call.name, call.arguments);
+        const result = await dispatchTool(ctx, mode, call.name, call.arguments);
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
           toolCallId,

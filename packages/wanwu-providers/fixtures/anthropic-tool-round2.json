@@ -1,0 +1,10 @@
+{
+  "id": "msg_tool_2",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    { "type": "text", "text": "README 标题是 Wanwu-Code。" }
+  ],
+  "model": "claude-sonnet-4",
+  "stop_reason": "end_turn"
+}
