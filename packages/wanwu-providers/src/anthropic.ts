@@ -1,5 +1,89 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
-import type { ChatRequest, ChatResponse, FetchLike, ResolvedProvider } from "./types.js";
+import type {
+  ChatMessage,
+  ChatRequest,
+  ChatResponse,
+  FetchLike,
+  ResolvedProvider,
+  ToolCall,
+} from "./types.js";
+
+type AnthropicContentBlock =
+  | { type: "text"; text: string }
+  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
+  | { type: "tool_result"; tool_use_id: string; content: string };
+
+function toAnthropicMessages(messages: ChatMessage[]): Array<{
+  role: "user" | "assistant";
+  content: string | AnthropicContentBlock[];
+}> {
+  const out: Array<{ role: "user" | "assistant"; content: string | AnthropicContentBlock[] }> = [];
+
+  for (const m of messages) {
+    if (m.role === "system") continue;
+
+    if (m.role === "tool") {
+      // Anthropic expects tool_result inside a user message.
+      out.push({
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: m.toolCallId ?? "",
+            content: m.content,
+          },
+        ],
+      });
+      continue;
+    }
+
+    if (m.role === "assistant" && m.toolCalls?.length) {
+      const blocks: AnthropicContentBlock[] = [];
+      if (m.content.trim()) {
+        blocks.push({ type: "text", text: m.content });
+      }
+      for (const tc of m.toolCalls) {
+        let input: Record<string, unknown> = {};
+        try {
+          input = JSON.parse(tc.arguments || "{}") as Record<string, unknown>;
+        } catch {
+          input = {};
+        }
+        blocks.push({
+          type: "tool_use",
+          id: tc.id,
+          name: tc.name,
+          input,
+        });
+      }
+      out.push({ role: "assistant", content: blocks });
+      continue;
+    }
+
+    out.push({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content,
+    });
+  }
+
+  // Anthropic requires alternating user/assistant; merge consecutive same-role messages.
+  const merged: typeof out = [];
+  for (const msg of out) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.role === msg.role) {
+      const prevBlocks = Array.isArray(prev.content)
+        ? prev.content
+        : [{ type: "text" as const, text: prev.content }];
+      const msgBlocks = Array.isArray(msg.content)
+        ? msg.content
+        : [{ type: "text" as const, text: msg.content }];
+      prev.content = [...prevBlocks, ...msgBlocks];
+    } else {
+      merged.push(msg);
+    }
+  }
+  return merged;
+}
 
 export async function completeAnthropic(
   resolved: ResolvedProvider,
@@ -12,9 +96,23 @@ export async function completeAnthropic(
     .filter((m) => m.role === "system")
     .map((m) => m.content)
     .join("\n\n");
-  const messages = request.messages
-    .filter((m) => m.role !== "system")
-    .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content }));
+
+  const body: Record<string, unknown> = {
+    model,
+    max_tokens: request.maxTokens ?? 2048,
+    temperature: request.temperature ?? 0.2,
+    system: system || undefined,
+    messages: toAnthropicMessages(request.messages),
+  };
+
+  if (request.tools?.length) {
+    body.tools = request.tools.map((t) => ({
+      name: t.name,
+      description: t.description,
+      input_schema: t.parameters,
+    }));
+    body.tool_choice = request.toolChoice === "none" ? { type: "none" } : { type: "auto" };
+  }
 
   let res: Response;
   try {
@@ -25,13 +123,7 @@ export async function completeAnthropic(
         "x-api-key": resolved.apiKey ?? "",
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: request.maxTokens ?? 1024,
-        temperature: request.temperature ?? 0.2,
-        system: system || undefined,
-        messages,
-      }),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     throw mapNetworkError(resolved.id, err);
@@ -42,7 +134,13 @@ export async function completeAnthropic(
     throw mapHttpError(resolved.id, res.status, bodyText);
   }
 
-  let data: { content?: Array<{ type?: string; text?: string }> };
+  let data: {
+    content?: Array<
+      | { type?: "text"; text?: string }
+      | { type?: "tool_use"; id?: string; name?: string; input?: Record<string, unknown> }
+    >;
+    stop_reason?: string;
+  };
   try {
     data = JSON.parse(bodyText) as typeof data;
   } catch {
@@ -50,13 +148,31 @@ export async function completeAnthropic(
   }
 
   const text = (data.content ?? [])
-    .filter((c) => c.type === "text" || typeof c.text === "string")
-    .map((c) => c.text ?? "")
+    .filter((c) => c.type === "text" || typeof (c as { text?: string }).text === "string")
+    .map((c) => (c as { text?: string }).text ?? "")
     .join("");
 
-  if (!text.trim()) {
+  const toolCalls: ToolCall[] = (data.content ?? [])
+    .filter((c) => c.type === "tool_use")
+    .map((c, i) => {
+      const tu = c as { id?: string; name?: string; input?: Record<string, unknown> };
+      return {
+        id: tu.id ?? `toolu_${i}`,
+        name: tu.name ?? "",
+        arguments: JSON.stringify(tu.input ?? {}),
+      };
+    })
+    .filter((t) => t.name);
+
+  if (!text.trim() && toolCalls.length === 0) {
     throw mapHttpError(resolved.id, res.status, bodyText || "empty assistant content");
   }
 
-  return { text: text.trim(), provider: resolved.id, model, raw: data };
+  return {
+    text: text.trim(),
+    provider: resolved.id,
+    model,
+    toolCalls: toolCalls.length ? toolCalls : undefined,
+    raw: data,
+  };
 }

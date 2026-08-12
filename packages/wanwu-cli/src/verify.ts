@@ -1,4 +1,6 @@
 import { spawnSync } from "node:child_process";
+import { completeChat, hasProviderCredentials } from "@wanwu/providers";
+import { loadWanwuConfig } from "@wanwu/config";
 import { WorkflowMachine } from "@wanwu/workflow";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
@@ -6,6 +8,8 @@ export interface VerifyResult {
   code: number;
   log: string;
   state: string;
+  /** LLM reviewer summary when credentials are available. */
+  review?: string;
 }
 
 export function runVerify(
@@ -57,4 +61,50 @@ export function runVerifyDetailed(
   wf.send("verify_pass");
   emit(`[wanwu verify] PASSED; workflow → ${wf.state}`);
   return { code: 0, log: lines.join(""), state: wf.state };
+}
+
+/**
+ * Verify + independent LLM review of the current diff.
+ * The reviewer sees only the verify log and `git diff`, not the Act transcript.
+ */
+export async function runVerifyWithReview(
+  cwd: string = findWorkspaceRoot(),
+  opts?: { quiet?: boolean },
+): Promise<VerifyResult> {
+  const base = runVerifyDetailed(cwd, opts);
+  const { config } = loadWanwuConfig(cwd);
+  if (!hasProviderCredentials(config)) {
+    return base;
+  }
+
+  const diff = spawnSync("git", ["diff", "--stat", "HEAD"], {
+    cwd,
+    encoding: "utf8",
+  });
+  const diffText = `${diff.stdout ?? ""}\n${diff.stderr ?? ""}`.trim().slice(0, 4000);
+
+  try {
+    const res = await completeChat({
+      config,
+      request: {
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are Wanwu Verify, an independent reviewer. Given the gate log and diff stat, " +
+              "reply in Chinese with: 结论（通过/不通过）+ 主要风险 + 建议。Be concise.",
+          },
+          {
+            role: "user",
+            content: `Verify exit=${base.code}\n\nLog:\n${base.log.slice(-3000)}\n\nDiff stat:\n${diffText || "(no diff)"}`,
+          },
+        ],
+        temperature: 0.1,
+        maxTokens: 1024,
+      },
+    });
+    return { ...base, review: res.text };
+  } catch {
+    return base;
+  }
 }

@@ -1,0 +1,16 @@
+{
+  "id": "msg_tool_1",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    { "type": "text", "text": "我先读取 README。" },
+    {
+      "type": "tool_use",
+      "id": "toolu_01",
+      "name": "Read",
+      "input": { "path": "README.md" }
+    }
+  ],
+  "model": "claude-sonnet-4",
+  "stop_reason": "tool_use"
+}

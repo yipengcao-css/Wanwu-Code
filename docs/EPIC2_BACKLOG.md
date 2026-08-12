@@ -110,6 +110,8 @@
 | 5a | MCP 工具面 | **完成（#9）** |
 | 5b | LSP（Shell TS → Monaco markers） | **完成（#10）** |
 | 5c | 签名分发（mac notarize 门控） | **完成（#11）** |
+| 6 | P0 安全修复（Edit propose / Bash 门控 / env / realpath） | **完成（#12）** |
+| 7 | P1 Agent 质量（权限 RPC / Anthropic tools / LLM Plan / Verify review / skills） | **完成（#13）** |
 
 ## 领取方式
 

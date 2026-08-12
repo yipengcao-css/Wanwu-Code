@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { dispatchTool } from "./toolDispatch.js";
+import { dispatchTool, dispatchToolSync } from "./toolDispatch.js";
 
 describe("dispatchTool hooks", () => {
   it("blocks tool when PreToolUse hook fails", async () => {
@@ -50,11 +50,11 @@ describe("dispatchTool hooks", () => {
   });
 });
 
-describe("dispatchTool P0 safety", () => {
-  it("Edit proposes without writing to disk", () => {
+describe("dispatchTool P0/P1 safety", () => {
+  it("Edit proposes without writing to disk", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-edit-propose-"));
     writeFileSync(join(root, "a.txt"), "before", "utf8");
-    const result = dispatchTool(
+    const result = await dispatchTool(
       {
         workspaceRoot: root,
         sessionId: "s1",
@@ -71,9 +71,9 @@ describe("dispatchTool P0 safety", () => {
     expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("before");
   });
 
-  it("Edit is blocked in plan mode", () => {
+  it("Edit is blocked in plan mode", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-edit-plan-"));
-    const result = dispatchTool(
+    const result = await dispatchTool(
       {
         workspaceRoot: root,
         sessionId: "s1",
@@ -88,9 +88,9 @@ describe("dispatchTool P0 safety", () => {
     expect(result.text).toMatch(/blocked in mode=plan/);
   });
 
-  it("Bash blocked in ask mode for non-readonly commands", () => {
+  it("Bash blocked in ask mode for non-readonly commands", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-bash-ask-"));
-    const result = dispatchTool(
+    const result = await dispatchTool(
       {
         workspaceRoot: root,
         sessionId: "s1",
@@ -105,10 +105,10 @@ describe("dispatchTool P0 safety", () => {
     expect(result.text).toMatch(/blocked in mode=ask/);
   });
 
-  it("Bash allows readonly commands in ask mode", () => {
+  it("Bash allows readonly commands in ask mode", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-bash-ro-"));
     writeFileSync(join(root, "a.txt"), "hello", "utf8");
-    const result = dispatchTool(
+    const result = await dispatchTool(
       {
         workspaceRoot: root,
         sessionId: "s1",
@@ -121,5 +121,23 @@ describe("dispatchTool P0 safety", () => {
     );
     expect(result.ok).toBe(true);
     expect(result.text).toContain("hello");
+  });
+
+  it("dispatchToolSync Edit proposes without writing", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-sync-edit-"));
+    writeFileSync(join(root, "a.txt"), "before", "utf8");
+    const result = dispatchToolSync(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "accept-edits",
+        mode: "agent",
+      },
+      "agent",
+      "Edit",
+      JSON.stringify({ path: "a.txt", content: "after" }),
+    );
+    expect(result.ok).toBe(true);
+    expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("before");
   });
 });

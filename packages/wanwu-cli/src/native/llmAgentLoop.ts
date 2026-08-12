@@ -10,6 +10,7 @@ import {
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
+import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
@@ -47,6 +48,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     ?.listTools()
     .map((t) => t.qualifiedName)
     .slice(0, 40);
+  const skills = renderSkillsForPrompt(discoverSkills(ctx.workspaceRoot));
 
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
@@ -59,6 +61,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     mcpNames?.length
       ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`
       : "",
+    skills ? `Project skills:\n${skills}` : "",
     memory ? `Project memory:\n${memory}` : "",
   ]
     .filter(Boolean)
@@ -162,7 +165,10 @@ export async function runLlmAgentLoop(
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
         const result = await dispatchTool(ctx, mode, call.name, call.arguments);
+<<<<<<< HEAD
         const isProposal = call.name === "Edit" && result.ok && Boolean(result.diff);
+=======
+>>>>>>> origin/cursor/p1-agent-quality-628e
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
           toolCallId,
