@@ -7,6 +7,7 @@ import {
   type WanwuConfig,
 } from "@wanwu/config";
 import { hasProviderCredentials, resolveProvider } from "@wanwu/providers";
+import { loadMcpServers } from "./mcp/loadConfig.js";
 import { discoverMemory } from "./memory.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
@@ -144,6 +145,23 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
       level: "ok",
       code: "memory.found",
       message: `memory files: ${memory.map((m) => m.kind).join(", ")}`,
+    });
+  }
+
+  const mcp = loadMcpServers(cwd);
+  if (mcp.servers.length === 0) {
+    findings.push({
+      level: "ok",
+      code: "mcp.none",
+      message: "No MCP config (.wanwu/mcp.toml|json or .mcp.json) — optional",
+    });
+  } else {
+    findings.push({
+      level: "ok",
+      code: "mcp.servers",
+      message: `MCP ${mcp.servers.length} server(s) from ${mcp.source}: ${mcp.servers
+        .map((s) => s.name)
+        .join(", ")} (tools namespaced mcp__server__tool; treat as RCE surface)`,
     });
   }
 

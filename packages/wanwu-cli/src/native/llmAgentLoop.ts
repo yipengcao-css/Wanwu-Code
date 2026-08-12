@@ -9,6 +9,7 @@ import {
 } from "@wanwu/providers";
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
+import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
@@ -42,6 +43,11 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     .filter(Boolean)
     .join("\n---\n");
 
+  const mcpNames = peekMcpRegistry(ctx.workspaceRoot)
+    ?.listTools()
+    .map((t) => t.qualifiedName)
+    .slice(0, 40);
+
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
     "Prefer Read/Glob/Grep before answering about files. Be concise.",
@@ -50,6 +56,9 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     mode === "plan" || mode === "ask"
       ? "Do NOT use Edit. Avoid destructive Bash."
       : "You may Edit/Bash when needed (permissions still apply).",
+    mcpNames?.length
+      ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`
+      : "",
     memory ? `Project memory:\n${memory}` : "",
   ]
     .filter(Boolean)
@@ -83,6 +92,12 @@ export async function runLlmAgentLoop(
   const providerId = providerOverride();
   const toolsUsed: string[] = [];
 
+  await ensureMcpRegistry(ctx.workspaceRoot);
+  const tools = [
+    ...WANWU_TOOL_SPECS,
+    ...(peekMcpRegistry(ctx.workspaceRoot)?.listToolSpecs() ?? []),
+  ];
+
   const prior = (opts?.history ?? [])
     .filter((m) => m.role !== "system")
     .slice(-MAX_HISTORY_MESSAGES);
@@ -114,7 +129,7 @@ export async function runLlmAgentLoop(
           messages,
           temperature: 0.2,
           maxTokens: 2048,
-          tools: WANWU_TOOL_SPECS,
+          tools,
           toolChoice: "auto",
         },
       });
@@ -146,7 +161,7 @@ export async function runLlmAgentLoop(
           status: "pending",
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
-        const result = dispatchTool(ctx, mode, call.name, call.arguments);
+        const result = await dispatchTool(ctx, mode, call.name, call.arguments);
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
           toolCallId,
