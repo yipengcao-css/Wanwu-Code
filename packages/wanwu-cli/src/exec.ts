@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { loadWanwuConfig } from "@wanwu/config";
 import { ProviderError } from "@wanwu/providers";
 import { discoverMemory, renderMemoryForPrompt } from "./memory.js";
+import { resolveAttachments } from "./media/resolveAttachment.js";
 import { resolveAcpLaunch } from "./acpBridge.js";
 import { runDeterministicTurn } from "./native/agentLoop.js";
 import { runLlmAgentLoop, shouldUseLlm } from "./native/llmAgentLoop.js";
@@ -10,6 +11,7 @@ import { findWorkspaceRoot } from "./workspaceRoot.js";
 export interface ExecOptions {
   prompt: string;
   cwd?: string;
+  images?: string[];
 }
 
 /**
@@ -88,7 +90,12 @@ export async function runExec(options: ExecOptions): Promise<number> {
     try {
       if (shouldUseLlm(config)) {
         llm = true;
-        const out = await runLlmAgentLoop(ctx, config, options.prompt);
+        const attachments = options.images?.length
+          ? resolveAttachments(options.images)
+          : undefined;
+        const out = await runLlmAgentLoop(ctx, config, options.prompt, {
+          attachments,
+        });
         provider = out.provider as typeof provider;
         model = out.model;
         turns = out.turns;

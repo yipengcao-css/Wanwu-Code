@@ -10,6 +10,7 @@ import type {
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
   | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
   | { type: "tool_result"; tool_use_id: string; content: string };
 
@@ -30,7 +31,7 @@ function toAnthropicMessages(messages: ChatMessage[]): Array<{
           {
             type: "tool_result",
             tool_use_id: m.toolCallId ?? "",
-            content: m.content,
+            content: typeof m.content === "string" ? m.content : "",
           },
         ],
       });
@@ -39,8 +40,9 @@ function toAnthropicMessages(messages: ChatMessage[]): Array<{
 
     if (m.role === "assistant" && m.toolCalls?.length) {
       const blocks: AnthropicContentBlock[] = [];
-      if (m.content.trim()) {
-        blocks.push({ type: "text", text: m.content });
+      const text = typeof m.content === "string" ? m.content : "";
+      if (text.trim()) {
+        blocks.push({ type: "text", text });
       }
       for (const tc of m.toolCalls) {
         let input: Record<string, unknown> = {};
@@ -57,6 +59,29 @@ function toAnthropicMessages(messages: ChatMessage[]): Array<{
         });
       }
       out.push({ role: "assistant", content: blocks });
+      continue;
+    }
+
+    if (Array.isArray(m.content)) {
+      const blocks: AnthropicContentBlock[] = [];
+      for (const p of m.content) {
+        if (p.type === "text") {
+          blocks.push({ type: "text", text: p.text });
+        } else if (p.type === "image" && p.source.kind === "base64") {
+          blocks.push({
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: p.source.mediaType,
+              data: p.source.data,
+            },
+          });
+        }
+      }
+      out.push({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: blocks,
+      });
       continue;
     }
 

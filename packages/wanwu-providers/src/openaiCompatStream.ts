@@ -14,18 +14,38 @@ function toApiMessages(messages: ChatRequest["messages"]): unknown[] {
       return {
         role: "tool",
         tool_call_id: m.toolCallId,
-        content: m.content,
+        content: typeof m.content === "string" ? m.content : m.content,
       };
     }
     if (m.role === "assistant" && m.toolCalls?.length) {
       return {
         role: "assistant",
-        content: m.content || null,
+        content: typeof m.content === "string" ? m.content || null : m.content,
         tool_calls: m.toolCalls.map((t) => ({
           id: t.id,
           type: "function",
           function: { name: t.name, arguments: t.arguments },
         })),
+      };
+    }
+    if (Array.isArray(m.content)) {
+      return {
+        role: m.role,
+        content: m.content.map((p) => {
+          if (p.type === "text") return { type: "text", text: p.text };
+          if (p.type === "image" && p.source.kind === "base64") {
+            return {
+              type: "image_url",
+              image_url: {
+                url: `data:${p.source.mediaType};base64,${p.source.data}`,
+              },
+            };
+          }
+          if (p.type === "image" && p.source.kind === "url") {
+            return { type: "image_url", image_url: { url: p.source.url } };
+          }
+          return { type: "text", text: "" };
+        }),
       };
     }
     return { role: m.role, content: m.content };

@@ -96,6 +96,8 @@ export async function runLlmAgentLoop(
     signal?: AbortSignal;
     /** Stream assistant text deltas to ACP session updates. */
     stream?: boolean;
+    /** Multimodal attachments for the user prompt. */
+    attachments?: import("@wanwu/providers").ContentPart[];
   },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
@@ -113,10 +115,15 @@ export async function runLlmAgentLoop(
     .filter((m) => m.role !== "system")
     .slice(-MAX_HISTORY_MESSAGES);
 
+  const userContent =
+    opts?.attachments?.length
+      ? [{ type: "text" as const, text: prompt }, ...opts.attachments]
+      : prompt;
+
   const messages: ChatMessage[] = [
     { role: "system", content: buildSystem(ctx, mode) },
     ...prior,
-    { role: "user", content: prompt },
+    { role: "user", content: userContent },
   ];
 
   let last: ChatResponse | undefined;
