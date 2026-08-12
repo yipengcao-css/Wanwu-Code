@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Added
+- **Diff Review**：Shell 用 Monaco 并排 Diff 审阅 Agent 编辑（取代纯文本 modal）
+- **多会话 UI**：Agent Studio 会话轨 + `acp:newChat` / `acp:setSession`
+- **Hooks**：native `dispatchTool` 接入 PreToolUse / PostToolUse（失败可阻断）
 - **商业 UI**：引入 GitHub UI skills（frontend-design / ui-design-brain / effective-ui-design）；Welcome Gate + Settings 抽屉（BYOK）；Lattice token/焦点/reduced-motion 精修
 - `@wanwu/config`：`saveUserConfig` / `credentials.env`（密钥不进仓库）；Shell ACP 启动注入凭据
 - **Agent**：ACP session 跨 prompt 保留 LLM transcript；Plan 写入 `.wanwu/plans/*.plan.md`；Verify 跑隔离 typecheck/test/lint（stdout 静默，ACP 安全）

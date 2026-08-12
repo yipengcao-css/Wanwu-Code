@@ -90,6 +90,24 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     return client.prompt(sessionId, text);
   });
 
+  /** Start a fresh ACP session on the existing backend (keeps process; clears model history). */
+  ipcMain.handle("acp:newChat", async () => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
+    if (!client) throw new Error("ACP not ready");
+    sessionId = await client.newSession(root);
+    const win = getWin();
+    broadcast(win, "acp:session", { sessionId, cwd: root });
+    return { sessionId, cwd: root };
+  });
+
+  ipcMain.handle("acp:setSession", (_e, nextId: string) => {
+    if (!client) throw new Error("ACP not ready");
+    sessionId = nextId;
+    return { sessionId };
+  });
+
   ipcMain.handle("acp:respondPermission", (_e, id: number, optionId: string) => {
     if (!client) throw new Error("ACP not ready");
     client.respond(id, { optionId });

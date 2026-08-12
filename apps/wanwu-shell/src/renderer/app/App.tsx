@@ -7,6 +7,7 @@ import { MonacoPane, type EditorTab } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
+import { DiffReview } from "../agent/DiffReview";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
 import { WelcomeGate } from "../onboarding/WelcomeGate";
 
@@ -245,11 +246,10 @@ export function App() {
       ) : null}
 
       {edit ? (
-        <ConfirmModal
-          title={`接受编辑 · ${edit.path}`}
-          body={edit.after.slice(0, 4000)}
-          acceptLabel="写入文件"
-          rejectLabel="拒绝"
+        <DiffReview
+          path={edit.path}
+          before={edit.before}
+          after={edit.after}
           onAccept={() => {
             void (async () => {
               await window.wanwu.fs.write(edit.path, edit.after);

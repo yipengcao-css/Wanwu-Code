@@ -106,7 +106,7 @@
 | 1 | P0-1/2/3（ACP 随包 · node-pty · session reset） | **完成** |
 | 2 | 商业 UI + BYOK Settings / Welcome Gate | **完成（#6）** |
 | 3 | ACP 多轮会话上下文 + Plan/Verify 真工作流 | **完成（#7）** |
-| 4 | Diff Review / 会话历史 UI / Hooks 接入 native | 下一 |
+| 4 | Diff Review / 会话历史 UI / Hooks 接入 native | **本分支** |
 | 5 | 签名分发 · LSP · MCP | 后续 |
 
 ## 领取方式
