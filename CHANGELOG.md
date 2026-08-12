@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **真云端 MVP**：`wanwu cloud serve` 启动 HTTP runner；`submit/status/logs/diff --remote <url>` + `WANWU_CLOUD_TOKEN`；`HttpCloudClient`
 - **插件市场 MVP**：`wanwu plugin list/search/show/install/remove`；支持 skills 与 MCP 配置；sha256 校验 + 信任等级门控；`docs/PLUGINS.md`
 - **性能**：CLI 子命令懒加载（`wanwu help/doctor` 启动更快）；Glob/Grep 缓存 glob 正则；Shell 懒加载 Monaco/DiffReview；electron-builder 排除原始 monaco/typescript 依赖
 - **多语言 LSP**：Shell 支持 rust-analyzer / pyright / gopls / clangd / vscode-langservers（PATH 解析）；`.wanwu/lsp.toml|json` 可覆盖；`WANWU_LSP_<ID>_COMMAND` 环境变量

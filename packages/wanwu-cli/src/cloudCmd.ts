@@ -3,6 +3,7 @@ import { readFileSync, existsSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import {
   FileCloudClient,
+  HttpCloudClient,
   buildDockerRunnerImage,
   dockerAvailable,
   isTaskRunning,
@@ -39,10 +40,22 @@ function readPrompts(rest: string[]): { prompts: string[]; concurrency: number; 
   return { prompts: prompts.filter(Boolean), concurrency, openPr, prDryRun };
 }
 
+function readRemote(rest: string[]): { remote?: string; token?: string } {
+  const idx = rest.indexOf("--remote");
+  const remote = idx >= 0 ? rest[idx + 1] : process.env.WANWU_CLOUD_REMOTE;
+  const token = process.env.WANWU_CLOUD_TOKEN;
+  return { remote, token };
+}
+
 export async function runCloudCommand(args: string[]): Promise<number> {
   const cwd = findWorkspaceRoot();
-  const client = new FileCloudClient(cwd);
   const [sub, ...rest] = args;
+  const { remote, token } = readRemote(rest);
+
+  const client =
+    remote && token
+      ? new HttpCloudClient({ baseUrl: remote, token })
+      : new FileCloudClient(cwd);
 
   switch (sub) {
     case "submit": {
@@ -72,6 +85,15 @@ export async function runCloudCommand(args: string[]): Promise<number> {
         console.error("wanwu cloud submit requires -p/--prompt");
         return 2;
       }
+      if (remote) {
+        if (!token) {
+          console.error("WANWU_CLOUD_TOKEN is required for --remote");
+          return 2;
+        }
+        const task = await client.submit(prompt);
+        console.log(JSON.stringify(task, null, 2));
+        return 0;
+      }
       if (useDocker) {
         const task = await client.submit(prompt);
         const done = runCloudTaskInDocker({ repoRoot: cwd, taskId: task.id, rebuild });
@@ -85,7 +107,7 @@ export async function runCloudCommand(args: string[]): Promise<number> {
         return 0;
       }
       if (runNow) {
-        const done = await client.submitAndRun(prompt);
+        const done = await (client as FileCloudClient).submitAndRun(prompt);
         console.log(JSON.stringify(done, null, 2));
         return done.status === "succeeded" ? 0 : 1;
       }
@@ -142,11 +164,40 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       }
       return buildDockerRunnerImage(cwd);
     }
+    case "serve": {
+      const portIdx = rest.indexOf("--port");
+      const port = portIdx >= 0 ? Number(rest[portIdx + 1]) : undefined;
+      const token = process.env.WANWU_CLOUD_TOKEN;
+      if (!token) {
+        console.error("WANWU_CLOUD_TOKEN is required to serve");
+        return 2;
+      }
+      const { startCloudServer } = await import("@wanwu/cloud");
+      const dataDir = join(cwd, ".wanwu", "cloud-server");
+      startCloudServer({ port, token, dataDir });
+      console.log(`wanwu cloud server listening on :${port ?? 8787} (data=${dataDir})`);
+      return new Promise(() => {
+        /* keep alive */
+      });
+    }
     case "status": {
       const id = rest[0];
       if (!id) {
         console.error("wanwu cloud status <taskId>");
         return 2;
+      }
+      if (remote) {
+        if (!token) {
+          console.error("WANWU_CLOUD_TOKEN is required for --remote");
+          return 2;
+        }
+        const task = await client.get(id);
+        if (!task) {
+          console.error(`task not found: ${id}`);
+          return 1;
+        }
+        console.log(JSON.stringify(task, null, 2));
+        return 0;
       }
       const task = loadTask(cwd, id);
       if (!task) {
@@ -164,6 +215,15 @@ export async function runCloudCommand(args: string[]): Promise<number> {
     }
     case "logs": {
       const id = rest[0];
+      if (remote) {
+        if (!token) {
+          console.error("WANWU_CLOUD_TOKEN is required for --remote");
+          return 2;
+        }
+        const text = await (client as HttpCloudClient).logs(id);
+        process.stdout.write(text);
+        return 0;
+      }
       const task = id ? loadTask(cwd, id) : undefined;
       if (!task?.logPath || !existsSync(task.logPath)) {
         console.error("log not found");
@@ -174,6 +234,15 @@ export async function runCloudCommand(args: string[]): Promise<number> {
     }
     case "diff": {
       const id = rest[0];
+      if (remote) {
+        if (!token) {
+          console.error("WANWU_CLOUD_TOKEN is required for --remote");
+          return 2;
+        }
+        const text = await (client as HttpCloudClient).diff(id);
+        process.stdout.write(text);
+        return 0;
+      }
       const task = id ? loadTask(cwd, id) : undefined;
       if (!task?.diffPath || !existsSync(task.diffPath)) {
         console.error("review diff not found");
@@ -208,16 +277,17 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       console.log(`wanwu cloud — headless runner (review-first, no auto-merge)
 
 Usage:
-  wanwu cloud submit -p "..." [--run] [--async] [--docker] [--rebuild]
+  wanwu cloud submit -p "..." [--run] [--async] [--docker] [--rebuild] [--remote <url>]
   wanwu cloud orchestrate -p "A" -p "B" [--concurrency 2] [--pr|--pr-dry-run]
   wanwu cloud open-pr <taskId> [--dry-run]
   wanwu cloud run <taskId> [--docker]
   wanwu cloud docker-build
-  wanwu cloud status <taskId>
+  wanwu cloud status <taskId> [--remote <url>]
   wanwu cloud list
-  wanwu cloud logs <taskId>
-  wanwu cloud diff <taskId>
+  wanwu cloud logs <taskId> [--remote <url>]
+  wanwu cloud diff <taskId> [--remote <url>]
   wanwu cloud cleanup [--purge]
+  wanwu cloud serve [--port <port>]   # start remote runner (WANWU_CLOUD_TOKEN required)
 
 Notes:
   - Tasks run in isolated git worktrees; never merges to base branch.
