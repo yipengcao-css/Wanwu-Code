@@ -1,0 +1,13 @@
+{
+  "cli.help.startup_ms": 150,
+  "cli.doctor.startup_ms": 400,
+  "tool.glob.ms": 50,
+  "tool.grep.ms": 80,
+  "tool.read.ms": 10,
+  "acp.spawn_to_ready_ms": 3000,
+  "acp.initialize_ms": 500,
+  "acp.session_new_ms": 200,
+  "acp.prompt_end_turn_ms": 2000,
+  "artifact.cli_mjs_bytes": 524288,
+  "artifact.shell_dist_bytes": 20971520
+}

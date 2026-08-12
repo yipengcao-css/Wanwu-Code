@@ -119,7 +119,7 @@
 | 12 | 插件市场 MVP（skills / MCP 安装 + 信任门控） | **完成（#18）** |
 | 13 | 真云端（HTTP runner + token + snapshot） | **完成（#19）** |
 | 14 | TUI 增强（流式 / 工具时间线 / 历史） | **完成（#20）** |
-| 15 | benchmark 套件 | **PR #21** |
+| 15 | benchmark 套件 | **完成（#21）** |
 | 16 | 子代理并行（explore/coder/plan） | **PR #22** |
 
 ## 领取方式
