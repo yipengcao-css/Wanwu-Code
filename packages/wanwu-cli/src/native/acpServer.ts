@@ -111,6 +111,7 @@ export function startNativeAcpStdioServer(): void {
         sessionId,
         permissionMode: config.permissionMode,
         mode: config.defaultMode,
+        config,
       };
       try {
         // Plan/Verify are real workflow gates (not prompt candy).

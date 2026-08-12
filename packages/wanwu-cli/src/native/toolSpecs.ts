@@ -59,4 +59,28 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
       required: ["command"],
     },
   },
+  {
+    name: "Task",
+    description:
+      "Run isolated subagents in parallel. explore=read-only, plan=plan-only, coder=edit (propose-only).",
+    parameters: {
+      type: "object",
+      properties: {
+        agents: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              kind: { type: "string", enum: ["explore", "coder", "plan"] },
+              prompt: { type: "string" },
+              name: { type: "string" },
+            },
+            required: ["kind", "prompt"],
+          },
+        },
+        concurrency: { type: "number", description: "Max parallel subagents (1-4)" },
+      },
+      required: ["agents"],
+    },
+  },
 ];
