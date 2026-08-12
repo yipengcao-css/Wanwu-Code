@@ -14,6 +14,9 @@ import { parseSessionUpdate } from "./tui/sessionSink.js";
 import { renderStatusBar } from "./tui/statusBar.js";
 import { color, resolveTheme } from "./tui/theme.js";
 import { ToolTimeline } from "./tui/toolTimeline.js";
+import { composeFrame } from "./tui/layout.js";
+import { createScreenWriter, redrawFrame } from "./tui/screen.js";
+import { SessionView } from "./tui/sessionView.js";
 
 const BANNER = `
 ██╗    ██╗ █████╗ ███╗   ██╗██╗    ██╗██╗   ██╗
@@ -60,6 +63,9 @@ export async function runTui(): Promise<number> {
   let history: Array<{ role: string; content: string }> = [];
   const sessionLog = new SessionLog();
   const timeline = new ToolTimeline();
+  const view = new SessionView(timeline);
+  const screen = createScreenWriter();
+  const usePanes = process.stdout.isTTY && process.env.WANWU_TUI_SIMPLE !== "1";
 
   print(BANNER);
   print(`Wanwu TUI · workspace=${cwd}`);
@@ -86,6 +92,31 @@ export async function runTui(): Promise<number> {
     }
   });
 
+  function redraw(): void {
+    if (!usePanes) return;
+    const state = view.getState();
+    const cols = process.stdout.columns ?? 80;
+    const rows = process.stdout.rows ?? 24;
+    const lines = composeFrame(
+      state.chat,
+      state.tools,
+      state.status || renderStatusBar(
+        {
+          mode,
+          provider: config.activeProvider,
+          model: config.model,
+          llm: shouldUseLlm(config),
+          workspace: cwd,
+          toolsRunning: 0,
+        },
+        theme,
+      ),
+      promptLine(mode),
+      { cols, rows, rightRatio: cols >= 100 ? 0.3 : 0 },
+    );
+    redrawFrame(screen, lines);
+  }
+
   rl.prompt();
 
   rl.on("line", (line) => {
@@ -98,6 +129,11 @@ export async function runTui(): Promise<number> {
 
       if (input === "/exit" || input === "/quit") {
         rl.close();
+        return;
+      }
+      if (input === "/redraw") {
+        redraw();
+        rl.prompt();
         return;
       }
       if (input === "/help") {
@@ -227,14 +263,15 @@ export async function runTui(): Promise<number> {
           if (event) {
             if (event.type === "tool") {
               const line = timeline.upsert(event.toolCallId, event.title, event.status);
-              print(line);
+              view.addChat(line);
               turnTools.push({ title: event.title, status: event.status });
             } else if (event.type === "diff") {
-              print(renderDiff(event.path, event.before, event.after));
+              view.addChat(renderDiff(event.path, event.before, event.after));
             } else if (event.type === "text") {
               assistantText += event.text;
-              print(event.text);
+              view.addChat(event.text);
             }
+            if (usePanes) redraw();
             continue;
           }
           origWrite(raw);
