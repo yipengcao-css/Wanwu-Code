@@ -4,6 +4,7 @@ import { runPlanAsync } from "../../plan.js";
 import { emitSubagentComplete, emitSubagentStart } from "./emit.js";
 import { policyFor } from "./policy.js";
 import type { SubagentResult, SubagentRunOptions, SubagentSpec } from "./types.js";
+import { createSubagentWorktree } from "./worktree.js";
 
 let counter = 0;
 
@@ -17,8 +18,13 @@ export async function runSubagent(
 
   emitSubagentStart(opts.parentSessionId, id, spec.kind, name, spec.prompt);
 
+  // coder gets an isolated worktree; explore/plan stay in the main workspace
+  const useWorktree = spec.kind === "coder";
+  const wt = useWorktree ? createSubagentWorktree(opts.workspaceRoot, id) : undefined;
+  const effectiveRoot = wt?.path ?? opts.workspaceRoot;
+
   const ctx = {
-    workspaceRoot: opts.workspaceRoot,
+    workspaceRoot: effectiveRoot,
     sessionId: `${opts.parentSessionId}:${id}`,
     permissionMode: opts.permissionMode,
     mode: policy.mode,
@@ -56,6 +62,8 @@ export async function runSubagent(
       summary,
       toolsUsed: out.toolsUsed,
       history: out.messages.filter((m) => m.role !== "system"),
+      worktree: wt?.path,
+      branch: wt?.branch,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -69,6 +77,10 @@ export async function runSubagent(
       toolsUsed: [],
       history: [] as ChatMessage[],
       error: msg,
+      worktree: wt?.path,
+      branch: wt?.branch,
     };
+  } finally {
+    // Keep worktree for review; cleanup is explicit via parent/CLI.
   }
 }

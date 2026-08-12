@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **子代理 worktree 隔离**：coder 子代理在 `.wanwu/subagent-worktrees/` 独立运行；结果保留供 review
 - **通用 Verify**：按项目类型自动选择门禁（pnpm/npm/yarn/cargo/go/python）；无匹配时安全跳过
 - **TUI 主题与状态栏**：`WANWU_TUI_THEME=default|mono|highContrast`；`/status` 显示模式/provider/工作区
 - **权限规则文件**：`.wanwu/permissions.toml` 支持 `allow` / `ask` / `deny` 规则；覆盖内建策略；`gateToolCall` 优先匹配
