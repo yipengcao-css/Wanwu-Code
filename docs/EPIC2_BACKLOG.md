@@ -116,6 +116,11 @@
 | 9 | P3 文档叙事统一（PLAN/WANWU/ROADMAP/ADR 对齐） | **完成（#15）** |
 | 10 | 性能（CLI 懒加载 / Glob 缓存 / Shell 代码分割 / 打包瘦身） | **完成（#16）** |
 | 11 | 多语言 LSP（注册表 + 语言路由） | **完成（#17）** |
+| 12 | 插件市场 MVP（skills / MCP 安装 + 信任门控） | **PR #18** |
+| 13 | 真云端（HTTP runner + token + snapshot） | **PR #19** |
+| 14 | TUI 增强（流式 / 工具时间线 / 历史） | **PR #20** |
+| 15 | benchmark 套件 | **PR #21** |
+| 16 | 子代理并行（explore/coder/plan） | **本分支** |
 
 ## 领取方式
 
