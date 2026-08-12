@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **多模态输入**：`wanwu exec --image <path>` 附加图像；providers 支持 OpenAI/Anthropic 图像；`ContentPart` 类型与能力检测
 - **真云端快照**：`wanwu cloud submit --remote --snapshot` 上传 git archive/tar.gz；服务端解包 + 校验 sha256 + 运行；`jobGraph` DAG 校验/拓扑排序
 - **TUI 多 pane**：`composeFrame` 布局（chat + 工具时间线 + 状态栏）；`SessionView` 聚合；`WANWU_TUI_SIMPLE=1` 回退单行模式
 - **IDE 宿主文档**：`docs/IDE_HOSTS.md` 覆盖 Zed / JetBrains ACP 接入；`ACP_INTEGRATION.md` 更新
