@@ -5,6 +5,8 @@ import { peekMcpRegistry } from "../mcp/registry.js";
 import { assessToolCall } from "../permission.js";
 import type { AgentContext } from "./agentLoop.js";
 import { gateToolCall } from "./permissions.js";
+import { runSubagents } from "./subagents/pool.js";
+import type { SubagentSpec } from "./subagents/types.js";
 import { toolBash, toolEdit, toolGlob, toolGrep, toolRead, type ToolResult } from "./tools.js";
 
 async function withHooks(
@@ -136,6 +138,24 @@ export async function dispatchTool(
           return { ok: false, title: "Bash", text: gate.text ?? "Bash denied" };
         }
         return toolBash(ctx.workspaceRoot, command, ctx.permissionMode);
+      }
+      case "Task": {
+        if (!ctx.config) {
+          return { ok: false, title: "Task", text: "Task requires LLM config context" };
+        }
+        const agents = Array.isArray(args.agents) ? (args.agents as SubagentSpec[]) : [];
+        if (!agents.length) {
+          return { ok: false, title: "Task", text: "Task requires agents array" };
+        }
+        const concurrency = Number(args.concurrency ?? "2") || 2;
+        const result = await runSubagents(agents, {
+          parentSessionId: ctx.sessionId,
+          workspaceRoot: ctx.workspaceRoot,
+          permissionMode: ctx.permissionMode,
+          config: ctx.config,
+          concurrency,
+        });
+        return { ok: true, title: "Task", text: result.aggregateText };
       }
       default:
         return { ok: false, title: name, text: `unknown tool: ${name}` };
