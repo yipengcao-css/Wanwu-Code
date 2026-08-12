@@ -106,8 +106,12 @@
 | 1 | P0-1/2/3（ACP 随包 · node-pty · session reset） | **完成** |
 | 2 | 商业 UI + BYOK Settings / Welcome Gate | **完成（#6）** |
 | 3 | ACP 多轮会话上下文 + Plan/Verify 真工作流 | **完成（#7）** |
-| 4 | Diff Review / 会话历史 UI / Hooks 接入 native | **本分支** |
-| 5 | 签名分发 · LSP · MCP | 后续 |
+| 4 | Diff Review / 会话历史 UI / Hooks 接入 native | **完成（#8）** |
+| 5a | MCP 工具面 | **PR #9** |
+| 5b | LSP（Shell TS → Monaco markers） | **PR #10** |
+| 5c | 签名分发（mac notarize 门控） | **PR #11** |
+| 6 | P0 安全修复（Edit propose / Bash 门控 / env / realpath） | **PR #12** |
+| 7 | P1 Agent 质量（权限 RPC / Anthropic tools / LLM Plan / Verify review / skills） | **PR #13** |
 
 ## 领取方式
 
