@@ -13,6 +13,9 @@ export { isTaskRunning, startCloudTaskAsync, type AsyncRunHandle } from "./async
 export { runCloudTaskInContainer, type ContainerRunOptions } from "./containerRunner.js";
 export { HttpCloudClient, isTerminalStatus, type HttpCloudClientOptions, type RemoteTask } from "./remoteClient.js";
 export { startCloudServer, type CloudServerOptions } from "./server.js";
+export { createSnapshot, validateSnapshotSize, type SnapshotResult } from "./snapshot.js";
+export { unpackSnapshot, verifySnapshotSha256, type UnpackOptions } from "./snapshotUnpack.js";
+export { topoSortJobs, validateJobGraph, type CloudJobSpec, type JobGraphValidation } from "./jobGraph.js";
 export {
   buildDockerRunnerImage,
   dockerAvailable,

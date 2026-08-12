@@ -1,10 +1,11 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { FileCloudClient } from "./client.js";
 import { runCloudTaskLocally } from "./runner.js";
 import { loadTask } from "./store.js";
+import { unpackSnapshot, verifySnapshotSha256 } from "./snapshotUnpack.js";
 
 export interface CloudServerOptions {
   port?: number;
@@ -58,9 +59,9 @@ export function startCloudServer(opts: CloudServerOptions): ReturnType<typeof cr
 
     if (req.method === "POST" && url.pathname === "/v1/tasks") {
       const bodyText = await readBody(req);
-      let body: { prompt?: string };
+      let body: { prompt?: string; snapshotBase64?: string; snapshotSha256?: string };
       try {
-        body = JSON.parse(bodyText || "{}") as { prompt?: string };
+        body = JSON.parse(bodyText || "{}") as typeof body;
       } catch {
         return json(res, 400, { error: "invalid json" });
       }
@@ -71,6 +72,22 @@ export function startCloudServer(opts: CloudServerOptions): ReturnType<typeof cr
       const workspaceId = `ws_${randomBytes(4).toString("hex")}`;
       const repoRoot = join(dataDir, "workspaces", workspaceId);
       mkdirSync(repoRoot, { recursive: true });
+
+      if (body.snapshotBase64) {
+        const snapshotPath = join(dataDir, "uploads", `${workspaceId}.tar.gz`);
+        mkdirSync(join(dataDir, "uploads"), { recursive: true });
+        writeFileSync(snapshotPath, Buffer.from(body.snapshotBase64, "base64"));
+        if (body.snapshotSha256 && !verifySnapshotSha256(snapshotPath, body.snapshotSha256)) {
+          return json(res, 400, { error: "snapshot sha256 mismatch" });
+        }
+        try {
+          unpackSnapshot(snapshotPath, repoRoot);
+        } catch (err) {
+          return json(res, 400, {
+            error: err instanceof Error ? err.message : "unpack failed",
+          });
+        }
+      }
 
       const client = new FileCloudClient(repoRoot);
       const task = await client.submit(body.prompt);

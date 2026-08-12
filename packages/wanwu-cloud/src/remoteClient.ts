@@ -40,11 +40,17 @@ export class HttpCloudClient implements CloudClient {
     };
   }
 
-  async submit(prompt: string): Promise<CloudTask> {
+  async submit(prompt: string, opts?: { snapshotPath?: string; snapshotSha256?: string }): Promise<CloudTask> {
+    const body: Record<string, unknown> = { prompt };
+    if (opts?.snapshotPath) {
+      const { readFileSync } = await import("node:fs");
+      body.snapshotBase64 = readFileSync(opts.snapshotPath).toString("base64");
+      if (opts.snapshotSha256) body.snapshotSha256 = opts.snapshotSha256;
+    }
     const res = await this.fetchImpl(`${this.baseUrl}/v1/tasks`, {
       method: "POST",
       headers: this.headers(),
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       throw new Error(`remote submit failed: ${res.status}`);
