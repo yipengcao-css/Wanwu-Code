@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **子代理 worktree 隔离**：coder 子代理在 `.wanwu/subagent-worktrees/` 独立运行；结果保留供 review
+- **通用 Verify**：按项目类型自动选择门禁（pnpm/npm/yarn/cargo/go/python）；无匹配时安全跳过
+- **TUI 主题与状态栏**：`WANWU_TUI_THEME=default|mono|highContrast`；`/status` 显示模式/provider/工作区
+- **权限规则文件**：`.wanwu/permissions.toml` 支持 `allow` / `ask` / `deny` 规则；覆盖内建策略；`gateToolCall` 优先匹配
+- **云端容器执行**：`wanwu cloud run/submit --docker` 使用容器运行任务（`--network none`）；产出 `review.diff`；不自动合并
+- **流式 providers**：`streamChat` 支持 OpenAI-compat SSE 与 Anthropic SSE；`runLlmAgentLoop` 可通过 `WANWU_STREAM=1` 或 `stream: true` 启用文本增量输出
+- **会话管理**：ACP `session/load` 恢复历史；`session/cancel` 中止进行中的 LLM 回合；会话持久化到 `.wanwu/sessions/`
+- **真实 OS sandbox**：`config.sandbox` 接入 Bash 执行；Linux `bwrap` / macOS `sandbox-exec` / Docker 后端；`strict` 无网络；doctor 报告后端可用性
 - **子代理并行**：LLM 工具 `Task` 支持 `explore` / `coder` / `plan` 子代理；隔离上下文；并行聚合结果；coder 串行防编辑竞态
 - **benchmark 套件**：`pnpm bench` / `scripts/bench/run-all.mts`；CLI 启动、工具延迟、ACP 握手、产物大小；CI 软门控上传 `bench-results/latest.json`
 - **TUI 增强**：工具时间线（状态图标）、diff 渲染（红绿行）、`/history` 会话历史、`Ctrl+T` 循环切换模式、`/ask|/plan|/agent|/verify` 快捷切换
