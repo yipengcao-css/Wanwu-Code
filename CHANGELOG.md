@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **性能**：CLI 子命令懒加载（`wanwu help/doctor` 启动更快）；Glob/Grep 缓存 glob 正则；Shell 懒加载 Monaco/DiffReview；electron-builder 排除原始 monaco/typescript 依赖
 - **P3 文档对齐**：`WANWU.md` / `PLAN.md` / `ROADMAP.md` / ADR 0001-0002 与现状同步；README 能力表更新
 - **P2 体验/生态**：`wanwu` 默认进入交互 TUI（`/mode` `/plan` `/verify` `/doctor` `/inspect`）；VS Code 扩展默认关 mock 接真实 ACP；hooks 注入 `WANWU_TOOL_NAME` / `WANWU_TOOL_ARGS`；`wanwu cloud submit --async` 后台任务 + `status` 运行标记
 - **MCP 工具面**：`.wanwu/mcp.toml|json` / `.mcp.json` → stdio JSON-RPC client；工具名 `mcp__server__tool` 接入 LLM loop + `dispatchTool`（hooks 门禁）；`docs/MCP.md`

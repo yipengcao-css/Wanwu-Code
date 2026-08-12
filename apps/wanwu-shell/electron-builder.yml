@@ -7,6 +7,11 @@ directories:
 files:
   - dist/**/*
   - package.json
+  # Monaco is bundled by Vite into dist/renderer; don't ship raw monaco-editor/typescript in asar.
+  - "!node_modules/monaco-editor/**/*"
+  - "!node_modules/typescript/**/*"
+  - "!node_modules/typescript-language-server/**/*"
+  - "!node_modules/@monaco-editor/**/*"
 extraResources:
   # Staged by scripts/stage-shell-acp.sh before each platform build
   - from: resources/wanwu-cli
