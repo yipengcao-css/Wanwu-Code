@@ -1,30 +1,53 @@
-# Shell TypeScript LSP（MVP）
+# Shell LSP（多语言）
 
-Wanwu Shell 用 **typescript-language-server**（stdio LSP）为 `.ts/.tsx/.js/.jsx` 提供诊断，并写入 Monaco markers。这不是完整 VS Code 语言服务栈；多语言 / 补全 / 重构后续分期。
+Wanwu Shell 用 **stdio LSP** 为编辑器提供诊断，并写入 Monaco markers。默认支持 TS/JS；其他语言通过注册表 + PATH 解析接入。
+
+## 内置 server
+
+| Server | 语言 | 来源 |
+|---|---|---|
+| `typescript` | ts/tsx/js/jsx | 依赖 `typescript-language-server` |
+| `rust` | rust | PATH `rust-analyzer` |
+| `python` | python | PATH `pyright-langserver` |
+| `go` | go | PATH `gopls` |
+| `clangd` | c/cpp | PATH `clangd` |
+| `json` / `css` / `html` | json/css/html | PATH `vscode-*-language-server`（optIn） |
+
+## 工作区覆盖
+
+`.wanwu/lsp.toml` 或 `.wanwu/lsp.json` 可覆盖/新增 server：
+
+```toml
+[servers.typescript]
+command = "typescript-language-server"
+args = ["--stdio"]
+languages = ["typescript", "typescriptreact", "javascript", "javascriptreact"]
+
+[servers.my-python]
+command = "pylsp"
+args = []
+languages = ["python"]
+```
+
+同 `id` 覆盖内置；新 `id` 追加。
+
+## 环境变量覆盖
+
+- `WANWU_LSP_<ID>_COMMAND`：覆盖任意 server 启动命令（自动追加原 args）
+- `WANWU_TSSERVER_COMMAND`：TS 兼容旧变量
 
 ## 行为
 
-1. 打开 TS/JS 文件 → `textDocument/didOpen`
-2. 编辑防抖 300ms → `textDocument/didChange`
-3. 关闭标签 → `textDocument/didClose`
-4. 服务端 `publishDiagnostics` → 渲染进程 `monaco.editor.setModelMarkers(..., "wanwu-lsp", ...)`
-5. 切换工作区时销毁并重建 LSP 进程
-
-## 启动解析
-
-顺序：
-
-1. 环境变量 `WANWU_TSSERVER_COMMAND`（可含空格参数；自动追加 `--stdio`）
-2. `wanwu-shell` 依赖中的 `typescript-language-server`（`lib/cli.mjs`）
-3. 仓库 `node_modules/.bin/typescript-language-server`
-4. PATH 上的 `typescript-language-server`
-
-工作区需自带可用的 `typescript`（或使用 shell 依赖中的 TypeScript）。
+1. 打开文件 → 按 `languageId` 路由到 server → 懒启动 → `didOpen`
+2. 编辑防抖 300ms → `didChange`
+3. 关闭标签 → `didClose`
+4. `publishDiagnostics` → `monaco.editor.setModelMarkers(..., "wanwu-lsp", ...)`
+5. 切换工作区时销毁全部 LSP 进程
 
 ## 验证
 
 ```bash
 pnpm --filter wanwu-shell test
 pnpm --filter wanwu-shell typecheck
-# 手工：pnpm shell:dev → 打开含类型错误的 .ts → 编辑器红线
+# 手工：pnpm shell:dev → 打开 .rs/.py/.go（需本机装对应 server）
 ```

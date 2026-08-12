@@ -114,8 +114,8 @@
 | 7 | P1 Agent 质量（权限 RPC / Anthropic tools / LLM Plan / Verify review / skills） | **完成（#13）** |
 | 8 | P2 体验/生态（TUI / 扩展真实 ACP / hooks 上下文 / cloud async） | **完成（#14）** |
 | 9 | P3 文档叙事统一（PLAN/WANWU/ROADMAP/ADR 对齐） | **完成（#15）** |
-| 10 | 性能（CLI 懒加载 / Glob 缓存 / Shell 代码分割 / 打包瘦身） | **本分支** |
-| 11 | 多语言 LSP（注册表 + 语言路由） | 后续 |
+| 10 | 性能（CLI 懒加载 / Glob 缓存 / Shell 代码分割 / 打包瘦身） | **完成（#16）** |
+| 11 | 多语言 LSP（注册表 + 语言路由） | **完成（#17）** |
 
 ## 领取方式
 
