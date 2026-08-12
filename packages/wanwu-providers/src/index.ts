@@ -3,6 +3,7 @@ export {
   type ChatMessage,
   type ChatRequest,
   type ChatResponse,
+  type FetchLike,
   type ToolCall,
   type ToolSpec,
 } from "./types.js";

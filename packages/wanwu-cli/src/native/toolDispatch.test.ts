@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { dispatchTool } from "./toolDispatch.js";
 
 describe("dispatchTool hooks", () => {
-  it("blocks tool when PreToolUse hook fails", () => {
+  it("blocks tool when PreToolUse hook fails", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-hooks-"));
     mkdirSync(join(root, ".wanwu"), { recursive: true });
     writeFileSync(
@@ -15,7 +15,7 @@ describe("dispatchTool hooks", () => {
     );
     writeFileSync(join(root, "README.md"), "# hi\n", "utf8");
 
-    const result = dispatchTool(
+    const result = await dispatchTool(
       {
         workspaceRoot: root,
         sessionId: "s1",
@@ -31,10 +31,10 @@ describe("dispatchTool hooks", () => {
     expect(result.text).toMatch(/PreToolUse/);
   });
 
-  it("runs tool when no hooks configured", () => {
+  it("runs tool when no hooks configured", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-nohooks-"));
     writeFileSync(join(root, "a.txt"), "hello", "utf8");
-    const result = dispatchTool(
+    const result = await dispatchTool(
       {
         workspaceRoot: root,
         sessionId: "s1",

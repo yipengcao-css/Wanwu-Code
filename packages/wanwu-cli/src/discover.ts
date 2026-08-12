@@ -1,5 +1,6 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { mcpConfigCandidates } from "./mcp/loadConfig.js";
 
 export function discoverSkills(cwd: string): string[] {
   const dir = join(cwd, ".wanwu", "skills");
@@ -8,10 +9,5 @@ export function discoverSkills(cwd: string): string[] {
 }
 
 export function discoverMcpConfig(cwd: string): string[] {
-  const candidates = [
-    join(cwd, ".wanwu", "mcp.toml"),
-    join(cwd, ".wanwu", "mcp.json"),
-    join(cwd, ".mcp.json"),
-  ];
-  return candidates.filter((p) => existsSync(p));
+  return mcpConfigCandidates(cwd).filter((p) => existsSync(p));
 }

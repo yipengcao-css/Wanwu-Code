@@ -5,6 +5,7 @@
 import * as readline from "node:readline";
 import type { ChatMessage } from "@wanwu/providers";
 import { loadWanwuConfig } from "@wanwu/config";
+import { ensureMcpRegistry } from "../mcp/registry.js";
 import { findWorkspaceRoot } from "../workspaceRoot.js";
 import { runPlan } from "../plan.js";
 import { runVerifyDetailed } from "../verify.js";
@@ -26,12 +27,20 @@ export function startNativeAcpStdioServer(): void {
 
   const sessions = new Map<string, SessionState>();
   let sessionCounter = 0;
+  let mcpReady: Promise<void> | undefined;
 
   const rl = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
 
   rl.on("line", (line) => {
     void handleLine(line);
   });
+
+  function warmMcp(): Promise<void> {
+    if (!mcpReady) {
+      mcpReady = ensureMcpRegistry(workspaceRoot).then(() => undefined);
+    }
+    return mcpReady;
+  }
 
   async function handleLine(line: string): Promise<void> {
     if (!line.trim()) return;
@@ -50,6 +59,7 @@ export function startNativeAcpStdioServer(): void {
     const method = msg.method;
 
     if (method === "initialize") {
+      void warmMcp();
       sendResult(id, {
         protocolVersion: "0.1.0-wanwu-native",
         agentCapabilities: { loadSession: false },
@@ -129,7 +139,8 @@ export function startNativeAcpStdioServer(): void {
           return;
         }
 
-        if (shouldUseLlm(config) && mode !== "verify") {
+        if (shouldUseLlm(config)) {
+          await warmMcp();
           const out = await runLlmAgentLoop(ctx, config, text, {
             history: session.history,
           });
