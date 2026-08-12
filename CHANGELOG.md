@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **签名分发（mac）**：`afterSign` 公证钩子（`APPLE_*` / `CSC_*` 密钥门控）；`docs/SIGNING.md`；release `desktop-mac` job 上传 mac zip
 - **Diff Review**：Shell 用 Monaco 并排 Diff 审阅 Agent 编辑（取代纯文本 modal）
 - **多会话 UI**：Agent Studio 会话轨 + `acp:newChat` / `acp:setSession`
 - **Hooks**：native `dispatchTool` 接入 PreToolUse / PostToolUse（失败可阻断）

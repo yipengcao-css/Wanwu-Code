@@ -16,8 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # version from package.json packageManager field
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -58,6 +57,35 @@ jobs:
             - CLI native: linux-x64 / macos-x64 / macos-arm64 / win-x64
             - CLI portable: `wanwu-*.mjs` (Node ≥20)
             - VS Code extension VSIX
+            - Desktop mac zips: uploaded by `desktop-mac` job when available（签名见 `docs/SIGNING.md`）
             - Checksums: `SHA256SUMS`
 
             Install: see `docs/INSTALL.md`
+
+  desktop-mac:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build mac desktop zips
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WANWU_SHELL_TARGETS: mac
+        run: pnpm shell:dist
+      - name: Upload mac zips to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            apps/wanwu-shell/release/Wanwu-Code-*-mac-*.zip
+          fail_on_unmatched_files: false

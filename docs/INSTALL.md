@@ -80,15 +80,18 @@ pnpm shell:dist
 |---|---|
 | Linux | `Wanwu-Code-<ver>-linux-x64.AppImage`（另有 `.deb`） |
 | Windows | `Wanwu-Code-<ver>-win-x64.zip`（解压后运行 `Wanwu Code.exe`） |
-| macOS | `Wanwu-Code-<ver>-mac-x64.zip` / `…-mac-arm64.zip`（未签名） |
+| macOS | `Wanwu-Code-<ver>-mac-x64.zip` / `…-mac-arm64.zip`（有密钥时签名+公证，否则未签名） |
 
 安装包内嵌 **wanwu-cli ACP**（`resources/wanwu-cli/wanwu[.exe]` + `wanwu.mjs`），Agent 启动不再依赖本机 `pnpm`/`tsx` 或 monorepo 源码树。覆盖后端可用环境变量 `WANWU_ACP_COMMAND`。
 
 开发态：`pnpm shell:dev` / `pnpm shell`（自动确保 `dist-bin/wanwu.mjs`）。
 
+签名/公证密钥与 CI：见 [`docs/SIGNING.md`](SIGNING.md)。
+
 ### macOS 备注
 
-Linux 主机交叉产出的 mac zip **未签名**，Gatekeeper 可能拦截。在 Mac 上：
+- **已签名+公证**（Release 配置了 Apple Secrets）：直接打开即可。
+- **未签名**（Linux 交叉构建或未配置 Secrets）：Gatekeeper 可能拦截。在 Mac 上：
 
 ```bash
 codesign --sign - -f "Wanwu Code.app"
@@ -97,4 +100,4 @@ xattr -cr "Wanwu Code.app"
 
 ### Windows 备注
 
-当前默认产出 **zip 便携包**（本机 Linux 交叉构建 NSIS 依赖完整 wine 环境）。需要 `.exe` 安装器时请在 Windows 主机运行 `electron-builder --win nsis`。
+当前默认产出 **zip 便携包**（本机 Linux 交叉构建 NSIS 依赖完整 wine 环境；Authenticode 签名后置）。需要 `.exe` 安装器时请在 Windows 主机运行 `electron-builder --win nsis`。
