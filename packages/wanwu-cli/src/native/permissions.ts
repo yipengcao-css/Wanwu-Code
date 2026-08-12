@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import type { PermissionMode } from "@wanwu/config";
 import { assessBash, assessToolCall, type PermissionVerdict } from "../permission.js";
 import { loadPermissionsFile, matchPermissionRule } from "../permissionsFile.js";
+import { runHooks } from "../hooks.js";
 import { send } from "./jsonRpcStdio.js";
 
 type PermissionOptionId = "allow-once" | "allow-session" | "deny";
@@ -80,18 +81,31 @@ export async function gateToolCall(
   permissionMode: PermissionMode,
   workspaceRoot?: string,
 ): Promise<GateResult> {
+  const hookCtx = { toolName, toolArgs: input };
   // Workspace rules override built-in policy.
   if (workspaceRoot) {
     const file = loadPermissionsFile(workspaceRoot);
     const rule = matchPermissionRule(file, toolName, input);
     if (rule) {
       if (rule.action === "deny") {
+        if (workspaceRoot) {
+          runHooks(workspaceRoot, "ToolCallDenied", {
+            ...hookCtx,
+            denyReason: rule.reason ?? rule.pattern,
+          });
+        }
         return {
           allow: false,
           text: `Blocked by workspace rule: ${rule.reason ?? rule.pattern}`,
         };
       }
       if (rule.action === "allow") {
+        if (workspaceRoot) {
+          runHooks(workspaceRoot, "ToolCallApproved", {
+            ...hookCtx,
+            permissionChoice: "allow-rule",
+          });
+        }
         return { allow: true };
       }
       // ask → fall through to prompt
@@ -103,7 +117,19 @@ export async function gateToolCall(
           requiresPrompt: true,
         });
         if (choice === "deny") {
+          if (workspaceRoot) {
+            runHooks(workspaceRoot, "ToolCallDenied", {
+              ...hookCtx,
+              denyReason: rule.reason ?? rule.pattern,
+            });
+          }
           return { allow: false, text: `Denied by user: ${rule.reason ?? rule.pattern}` };
+        }
+        if (workspaceRoot) {
+          runHooks(workspaceRoot, "ToolCallApproved", {
+            ...hookCtx,
+            permissionChoice: choice,
+          });
         }
         return { allow: true };
       } catch (err) {
@@ -119,6 +145,12 @@ export async function gateToolCall(
       : assessToolCall(toolName, input, permissionMode);
 
   if (!verdict.allow && !verdict.requiresPrompt) {
+    if (workspaceRoot) {
+      runHooks(workspaceRoot, "ToolCallDenied", {
+        ...hookCtx,
+        denyReason: verdict.reason,
+      });
+    }
     return {
       allow: false,
       text: `Blocked by permission: ${verdict.reason}`,
@@ -129,7 +161,19 @@ export async function gateToolCall(
     try {
       const choice = await requestPermission(toolName, input, verdict);
       if (choice === "deny") {
+        if (workspaceRoot) {
+          runHooks(workspaceRoot, "ToolCallDenied", {
+            ...hookCtx,
+            denyReason: verdict.reason,
+          });
+        }
         return { allow: false, text: `Denied by user: ${verdict.reason}` };
+      }
+      if (workspaceRoot) {
+        runHooks(workspaceRoot, "ToolCallApproved", {
+          ...hookCtx,
+          permissionChoice: choice,
+        });
       }
       return { allow: true };
     } catch (err) {
@@ -138,5 +182,11 @@ export async function gateToolCall(
     }
   }
 
+  if (workspaceRoot) {
+    runHooks(workspaceRoot, "ToolCallApproved", {
+      ...hookCtx,
+      permissionChoice: "auto",
+    });
+  }
   return { allow: true };
 }
