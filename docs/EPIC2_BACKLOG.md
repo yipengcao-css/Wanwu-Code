@@ -121,6 +121,10 @@
 | 14 | TUI 增强（流式 / 工具时间线 / 历史） | **完成（#20）** |
 | 15 | benchmark 套件 | **完成（#21）** |
 | 16 | 子代理并行（explore/coder/plan） | **完成（#22）** |
+| 17 | 真实 OS sandbox（bwrap/Seatbelt/Docker） | **本分支** |
+| 18 | 会话 cancel / resume / compact | 后续 |
+| 19 | 流式 providers（SSE） | 后续 |
+| 20 | 云端容器执行 + diff apply | 后续 |
 
 ## 领取方式
 

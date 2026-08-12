@@ -137,7 +137,12 @@ export async function dispatchTool(
         if (!gate.allow) {
           return { ok: false, title: "Bash", text: gate.text ?? "Bash denied" };
         }
-        return toolBash(ctx.workspaceRoot, command, ctx.permissionMode);
+        return toolBash(
+          ctx.workspaceRoot,
+          command,
+          ctx.permissionMode,
+          ctx.config?.sandbox ?? "workspace",
+        );
       }
       case "Task": {
         if (!ctx.config) {
@@ -236,7 +241,12 @@ export function dispatchToolSync(
         };
         break;
       }
-      result = toolBash(ctx.workspaceRoot, command, ctx.permissionMode);
+      result = toolBash(
+        ctx.workspaceRoot,
+        command,
+        ctx.permissionMode,
+        ctx.config?.sandbox ?? "workspace",
+      );
       break;
     }
     default:
