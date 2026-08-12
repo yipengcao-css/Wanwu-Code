@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **插件市场 MVP**：`wanwu plugin list/search/show/install/remove`；支持 skills 与 MCP 配置；sha256 校验 + 信任等级门控；`docs/PLUGINS.md`
 - **性能**：CLI 子命令懒加载（`wanwu help/doctor` 启动更快）；Glob/Grep 缓存 glob 正则；Shell 懒加载 Monaco/DiffReview；electron-builder 排除原始 monaco/typescript 依赖
 - **多语言 LSP**：Shell 支持 rust-analyzer / pyright / gopls / clangd / vscode-langservers（PATH 解析）；`.wanwu/lsp.toml|json` 可覆盖；`WANWU_LSP_<ID>_COMMAND` 环境变量
 - **P3 文档对齐**：`WANWU.md` / `PLAN.md` / `ROADMAP.md` / ADR 0001-0002 与现状同步；README 能力表更新
