@@ -108,8 +108,16 @@ async function main(argv: string[]): Promise<number> {
         console.error("wanwu exec requires -p/--prompt");
         return 2;
       }
+      const images: string[] = [];
+      for (let i = 0; i < rest.length; i += 1) {
+        if (rest[i] === "--image" || rest[i] === "--attach") {
+          const value = rest[i + 1];
+          if (value) images.push(value);
+          i += 1;
+        }
+      }
       const { runExec } = await import("./exec.js");
-      return await runExec({ prompt });
+      return await runExec({ prompt, images: images.length ? images : undefined });
     }
     case "plan": {
       const prompt = readPrompt(rest);

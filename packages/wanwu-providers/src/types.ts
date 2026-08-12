@@ -10,7 +10,7 @@ export interface ToolCall {
 
 export interface ChatMessage {
   role: ChatRole;
-  content: string;
+  content: string | import("./content.js").ContentPart[];
   toolCallId?: string;
   name?: string;
   toolCalls?: ToolCall[];
