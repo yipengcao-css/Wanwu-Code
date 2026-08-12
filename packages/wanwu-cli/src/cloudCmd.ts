@@ -87,7 +87,19 @@ export async function runCloudCommand(args: string[]): Promise<number> {
           console.error("WANWU_CLOUD_TOKEN is required for --remote");
           return 2;
         }
-        const task = await client.submit(prompt);
+        let snapshotPath: string | undefined;
+        let snapshotSha256: string | undefined;
+        if (rest.includes("--snapshot")) {
+          const { createSnapshot, validateSnapshotSize } = await import("@wanwu/cloud");
+          const snap = createSnapshot(cwd, join(cwd, ".wanwu", "cloud-uploads"));
+          validateSnapshotSize(snap.bytes);
+          snapshotPath = snap.path;
+          snapshotSha256 = snap.sha256;
+        }
+        const task = await (client as HttpCloudClient).submit(prompt, {
+          snapshotPath,
+          snapshotSha256,
+        });
         console.log(JSON.stringify(task, null, 2));
         return 0;
       }
