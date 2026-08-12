@@ -1,15 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { OrbitBar, type WanwuMode } from "../layout/OrbitBar";
 import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
-import { MonacoPane, type EditorTab, type MarkerDiag } from "../editor/MonacoPane";
+import type { EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
-import { DiffReview } from "../agent/DiffReview";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
 import { WelcomeGate } from "../onboarding/WelcomeGate";
+
+const MonacoPane = lazy(() =>
+  import("../editor/MonacoPane").then((m) => ({ default: m.MonacoPane })),
+);
+const DiffReview = lazy(() =>
+  import("../agent/DiffReview").then((m) => ({ default: m.DiffReview })),
+);
 
 function isTsLike(path: string): boolean {
   return /\.(tsx?|jsx?|mjs|cjs)$/i.test(path);
@@ -206,23 +212,25 @@ export function App() {
         />
         <section className="editor-pane">
           {root ? (
-            <MonacoPane
-              tabs={tabs}
-              activePath={activePath}
-              diagnostics={diagnostics}
-              onSelect={setActivePath}
-              onChange={onChange}
-              onClose={(p) => {
-                setTabs((prev) => prev.filter((t) => t.path !== p));
-                if (activePath === p) setActivePath(null);
-                setDiagnostics((prev) => {
-                  const next = { ...prev };
-                  delete next[p];
-                  return next;
-                });
-                if (isTsLike(p)) void window.wanwu.lsp.didClose(p);
-              }}
-            />
+            <Suspense fallback={<div className="empty">加载编辑器…</div>}>
+              <MonacoPane
+                tabs={tabs}
+                activePath={activePath}
+                diagnostics={diagnostics}
+                onSelect={setActivePath}
+                onChange={onChange}
+                onClose={(p) => {
+                  setTabs((prev) => prev.filter((t) => t.path !== p));
+                  if (activePath === p) setActivePath(null);
+                  setDiagnostics((prev) => {
+                    const next = { ...prev };
+                    delete next[p];
+                    return next;
+                  });
+                  if (isTsLike(p)) void window.wanwu.lsp.didClose(p);
+                }}
+              />
+            </Suspense>
           ) : (
             <WelcomeGate
               onOpenFolder={() => void openFolder()}
@@ -293,24 +301,26 @@ export function App() {
       ) : null}
 
       {edit ? (
-        <DiffReview
-          path={edit.path}
-          before={edit.before}
-          after={edit.after}
-          onAccept={() => {
-            void (async () => {
-              await window.wanwu.fs.write(edit.path, edit.after);
-              setTabs((prev) => {
-                const others = prev.filter((t) => t.path !== edit.path);
-                return [...others, { path: edit.path, content: edit.after, dirty: false }];
-              });
-              setActivePath(edit.path);
-              setEdit(null);
-              setStatus(`已接受编辑 · ${edit.path}`);
-            })();
-          }}
-          onReject={() => setEdit(null)}
-        />
+        <Suspense fallback={null}>
+          <DiffReview
+            path={edit.path}
+            before={edit.before}
+            after={edit.after}
+            onAccept={() => {
+              void (async () => {
+                await window.wanwu.fs.write(edit.path, edit.after);
+                setTabs((prev) => {
+                  const others = prev.filter((t) => t.path !== edit.path);
+                  return [...others, { path: edit.path, content: edit.after, dirty: false }];
+                });
+                setActivePath(edit.path);
+                setEdit(null);
+                setStatus(`已接受编辑 · ${edit.path}`);
+              })();
+            }}
+            onReject={() => setEdit(null)}
+          />
+        </Suspense>
       ) : null}
     </div>
   );

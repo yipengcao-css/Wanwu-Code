@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-import { runAcpProxy } from "./acpBridge.js";
-import { runCloudCommand } from "./cloudCmd.js";
-import { printDoctor, runDoctor } from "./doctor.js";
-import { runExec } from "./exec.js";
-import { runHooks } from "./hooks.js";
-import { runInspect } from "./inspect.js";
-import { writebackMemory } from "./memoryWriteback.js";
-import { runParallelCommand } from "./parallelCmd.js";
-import { runPlan } from "./plan.js";
-import { assessBash } from "./permission.js";
-import { runTui } from "./tui.js";
-import { runVerify } from "./verify.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
 function usage(): never {
@@ -85,30 +73,40 @@ async function main(argv: string[]): Promise<number> {
     case undefined:
       // No subcommand: launch TUI when attached to a terminal, else help.
       if (process.stdin.isTTY && process.stdout.isTTY) {
+        const { runTui } = await import("./tui.js");
         return await runTui();
       }
       usage();
       break;
-    case "tui":
+    case "tui": {
+      const { runTui } = await import("./tui.js");
       return await runTui();
+    }
     case "help":
     case "-h":
     case "--help":
       usage();
       break;
-    case "doctor":
+    case "doctor": {
+      const { printDoctor, runDoctor } = await import("./doctor.js");
       return printDoctor(runDoctor());
-    case "inspect":
+    }
+    case "inspect": {
+      const { runInspect } = await import("./inspect.js");
       runInspect();
       return 0;
-    case "acp":
+    }
+    case "acp": {
+      const { runAcpProxy } = await import("./acpBridge.js");
       return await runAcpProxy();
+    }
     case "exec": {
       const prompt = readPrompt(rest);
       if (!prompt) {
         console.error("wanwu exec requires -p/--prompt");
         return 2;
       }
+      const { runExec } = await import("./exec.js");
       return await runExec({ prompt });
     }
     case "plan": {
@@ -117,17 +115,21 @@ async function main(argv: string[]): Promise<number> {
         console.error("wanwu plan requires -p/--prompt");
         return 2;
       }
+      const { runPlan } = await import("./plan.js");
       runPlan(prompt);
       return 0;
     }
-    case "verify":
+    case "verify": {
+      const { runVerify } = await import("./verify.js");
       return runVerify();
+    }
     case "memory-writeback": {
       const note = readPrompt(rest);
       if (!note) {
         console.error("wanwu memory-writeback requires -p/--prompt <note>");
         return 2;
       }
+      const { writebackMemory } = await import("./memoryWriteback.js");
       writebackMemory({ note, yes: hasFlag(rest, "--yes") });
       return 0;
     }
@@ -137,20 +139,26 @@ async function main(argv: string[]): Promise<number> {
         console.error("wanwu check-perm requires -p/--prompt <bash>");
         return 2;
       }
+      const { assessBash } = await import("./permission.js");
       const verdict = assessBash(prompt, "ask");
       console.log(JSON.stringify(verdict, null, 2));
       return verdict.allow ? 0 : 1;
     }
     case "hooks": {
       const event = (rest[0] ?? "PostToolUse") as "PreToolUse" | "PostToolUse" | "Stop";
+      const { runHooks } = await import("./hooks.js");
       const result = runHooks(findWorkspaceRoot(), event);
       for (const line of result.outputs) console.log(line);
       return result.ok ? 0 : 1;
     }
-    case "cloud":
+    case "cloud": {
+      const { runCloudCommand } = await import("./cloudCmd.js");
       return await runCloudCommand(rest);
-    case "parallel":
+    }
+    case "parallel": {
+      const { runParallelCommand } = await import("./parallelCmd.js");
       return runParallelCommand(rest);
+    }
     default:
       console.error(`Unknown command: ${cmd}`);
       usage();

@@ -19,7 +19,10 @@ export interface ToolResult {
   diff?: { path: string; before: string; after: string };
 }
 
-function walkFiles(root: string, dir: string, out: string[], max = 500): void {
+const WALK_MAX = 500;
+const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "out", ".next", "coverage", "target"]);
+
+function walkFiles(root: string, dir: string, out: string[], max = WALK_MAX): void {
   if (out.length >= max) return;
   let entries: string[];
   try {
@@ -28,7 +31,7 @@ function walkFiles(root: string, dir: string, out: string[], max = 500): void {
     return;
   }
   for (const name of entries) {
-    if (name === "node_modules" || name === ".git" || name === "dist" || name === "out") continue;
+    if (SKIP_DIRS.has(name)) continue;
     const full = join(dir, name);
     let st;
     try {
@@ -45,17 +48,18 @@ function walkFiles(root: string, dir: string, out: string[], max = 500): void {
   }
 }
 
-function matchGlob(relPath: string, pattern: string): boolean {
-  const path = relPath.replace(/\\/g, "/");
+const globCache = new Map<string, RegExp>();
+
+function globToRegExp(pattern: string): RegExp {
+  const cached = globCache.get(pattern);
+  if (cached) return cached;
   const pat = pattern.replace(/\\/g, "/");
-  // Escape regex specials except our glob tokens
   let reSrc = "";
   for (let i = 0; i < pat.length; ) {
     if (pat[i] === "*" && pat[i + 1] === "*") {
       reSrc += ".*";
       i += 2;
       if (pat[i] === "/") {
-        // '**/' also matches zero directories
         i += 1;
       }
       continue;
@@ -75,7 +79,15 @@ function matchGlob(relPath: string, pattern: string): boolean {
     else reSrc += ch;
     i += 1;
   }
-  return new RegExp(`^${reSrc}$`).test(path);
+  const re = new RegExp(`^${reSrc}$`);
+  if (globCache.size > 200) globCache.clear();
+  globCache.set(pattern, re);
+  return re;
+}
+
+function matchGlob(relPath: string, pattern: string): boolean {
+  const path = relPath.replace(/\\/g, "/");
+  return globToRegExp(pattern).test(path);
 }
 
 export function toolRead(workspaceRoot: string, pathArg: string): ToolResult {
@@ -100,7 +112,7 @@ export function toolGlob(workspaceRoot: string, pattern: string): ToolResult {
   const files: string[] = [];
   walkFiles(workspaceRoot, workspaceRoot, files);
   const pat = pattern.trim() || "**/*";
-  const hits = files.filter((f) => matchGlob(f.replace(/\\/g, "/"), pat.replace(/\\/g, "/")));
+  const hits = files.filter((f) => matchGlob(f, pat));
   return {
     ok: true,
     title: "Glob",
@@ -117,9 +129,7 @@ export function toolGrep(workspaceRoot: string, pattern: string, globPat = "**/*
   }
   const files: string[] = [];
   walkFiles(workspaceRoot, workspaceRoot, files);
-  const filtered = files.filter((f) =>
-    matchGlob(f.replace(/\\/g, "/"), globPat.replace(/\\/g, "/")),
-  );
+  const filtered = files.filter((f) => matchGlob(f, globPat));
   const lines: string[] = [];
   for (const rel of filtered.slice(0, 200)) {
     try {
