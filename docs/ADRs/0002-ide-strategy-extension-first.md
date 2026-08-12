@@ -2,7 +2,7 @@
 
 ## 状态
 
-已接受（2026-08-10）
+已接受（2026-08-10）；**2026-08-12 部分被 [ADR 0005](./0005-custom-electron-shell.md) 取代**：品牌整机改为 `apps/wanwu-shell` 自研 Electron；扩展降为可选宿主。
 
 ## 背景
 
@@ -13,6 +13,8 @@
 1. **MVP 只做** `extensions/wanwu-vscode`（ACP Client）。
 2. 通过扩展验证：聊天、Plan/Act/Verify、Diff Review、权限、配置统一。
 3. **Phase 6** 再启动 `apps/wanwu-ide`（Code-OSS 拉取 + patch + 预装扩展）。
+
+> **更新（2026-08-12）**：Code-OSS 路径已退役；品牌整机由 `apps/wanwu-shell` 承担（见 ADR 0005）。扩展仍作为可选宿主维护。
 
 ## 后果
 
