@@ -61,8 +61,8 @@
       "properties": {
         "wanwu.useMockAcp": {
           "type": "boolean",
-          "default": true,
-          "description": "Use the built-in mock ACP server (recommended until grok is installed)."
+          "default": false,
+          "description": "Use the built-in mock ACP server (development only; default connects to real wanwu acp)."
         }
       }
     }

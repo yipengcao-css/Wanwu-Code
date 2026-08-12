@@ -9,6 +9,7 @@ import { writebackMemory } from "./memoryWriteback.js";
 import { runParallelCommand } from "./parallelCmd.js";
 import { runPlan } from "./plan.js";
 import { assessBash } from "./permission.js";
+import { runTui } from "./tui.js";
 import { runVerify } from "./verify.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
@@ -16,6 +17,8 @@ function usage(): never {
   console.log(`wanwu — Wanwu-Code CLI
 
 Usage:
+  wanwu                     Start interactive TUI (default when no command)
+  wanwu tui                 Start interactive TUI
   wanwu doctor              Check config, providers, grok ACP bridge, memory
   wanwu inspect             Print merged config + memory/skills/hooks/mcp (JSON)
   wanwu acp                 Start ACP server (bridges to Grok Build by default)
@@ -80,6 +83,14 @@ async function main(argv: string[]): Promise<number> {
 
   switch (cmd) {
     case undefined:
+      // No subcommand: launch TUI when attached to a terminal, else help.
+      if (process.stdin.isTTY && process.stdout.isTTY) {
+        return await runTui();
+      }
+      usage();
+      break;
+    case "tui":
+      return await runTui();
     case "help":
     case "-h":
     case "--help":

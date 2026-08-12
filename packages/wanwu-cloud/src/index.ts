@@ -9,6 +9,7 @@ export {
   type StoredTask,
 } from "./store.js";
 export { runCloudTaskLocally, worktreePath } from "./runner.js";
+export { isTaskRunning, startCloudTaskAsync, type AsyncRunHandle } from "./asyncRunner.js";
 export {
   buildDockerRunnerImage,
   dockerAvailable,

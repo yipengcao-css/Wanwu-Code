@@ -10,9 +10,13 @@ import { toolBash, toolEdit, toolGlob, toolGrep, toolRead, type ToolResult } fro
 async function withHooks(
   ctx: AgentContext,
   name: string,
+  argsJson: string,
   run: () => ToolResult | Promise<ToolResult>,
 ): Promise<ToolResult> {
-  const pre = runHooks(ctx.workspaceRoot, "PreToolUse");
+  const pre = runHooks(ctx.workspaceRoot, "PreToolUse", {
+    toolName: name,
+    toolArgs: argsJson,
+  });
   if (!pre.ok) {
     return {
       ok: false,
@@ -21,7 +25,10 @@ async function withHooks(
     };
   }
   const result = await run();
-  const post = runHooks(ctx.workspaceRoot, "PostToolUse");
+  const post = runHooks(ctx.workspaceRoot, "PostToolUse", {
+    toolName: name,
+    toolArgs: argsJson,
+  });
   if (!post.ok) {
     return {
       ok: false,
@@ -82,7 +89,7 @@ export async function dispatchTool(
 
   const writeBlocked = mode === "plan" || mode === "ask" || mode === "verify";
 
-  return withHooks(ctx, name, async () => {
+  return withHooks(ctx, name, argsJson, async () => {
     if (name.startsWith("mcp__")) {
       // MCP servers are user-configured RCE surface — always gated by hooks above.
       return dispatchMcp(ctx, name, args);
@@ -152,7 +159,10 @@ export function dispatchToolSync(
     return { ok: false, title: name, text: `invalid JSON arguments: ${argsJson}` };
   }
   const writeBlocked = mode === "plan" || mode === "ask" || mode === "verify";
-  const pre = runHooks(ctx.workspaceRoot, "PreToolUse");
+  const pre = runHooks(ctx.workspaceRoot, "PreToolUse", {
+    toolName: name,
+    toolArgs: argsJson,
+  });
   if (!pre.ok) {
     return {
       ok: false,
