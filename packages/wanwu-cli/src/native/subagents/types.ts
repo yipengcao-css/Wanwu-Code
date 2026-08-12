@@ -34,6 +34,9 @@ export interface SubagentResult {
   /** Never merged into parent history */
   history: ChatMessage[];
   error?: string;
+  /** Isolated worktree path for coder subagents */
+  worktree?: string;
+  branch?: string;
 }
 
 export interface SubagentBatchResult {
