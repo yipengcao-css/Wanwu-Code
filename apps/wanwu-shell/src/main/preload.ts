@@ -14,6 +14,8 @@ export type WanwuBridge = {
   };
   acp: {
     ensure: () => Promise<{ sessionId?: string; cwd?: string }>;
+    newChat: () => Promise<{ sessionId?: string; cwd?: string }>;
+    setSession: (sessionId: string) => Promise<{ sessionId?: string }>;
     prompt: (text: string) => Promise<unknown>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
@@ -84,6 +86,8 @@ const bridge: WanwuBridge = {
   },
   acp: {
     ensure: () => ipcRenderer.invoke("acp:ensure"),
+    newChat: () => ipcRenderer.invoke("acp:newChat"),
+    setSession: (sessionId) => ipcRenderer.invoke("acp:setSession", sessionId),
     prompt: (text) => ipcRenderer.invoke("acp:prompt", text),
     respondPermission: (id, optionId) => ipcRenderer.invoke("acp:respondPermission", id, optionId),
     dispose: () => ipcRenderer.invoke("acp:dispose"),
