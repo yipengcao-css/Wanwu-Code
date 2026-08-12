@@ -165,10 +165,7 @@ export async function runLlmAgentLoop(
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
         const result = await dispatchTool(ctx, mode, call.name, call.arguments);
-<<<<<<< HEAD
         const isProposal = call.name === "Edit" && result.ok && Boolean(result.diff);
-=======
->>>>>>> origin/cursor/p1-agent-quality-628e
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
           toolCallId,
