@@ -11,6 +11,8 @@ import { findWorkspaceRoot } from "./workspaceRoot.js";
 import { renderDiff } from "./tui/renderDiff.js";
 import { SessionLog } from "./tui/sessionLog.js";
 import { parseSessionUpdate } from "./tui/sessionSink.js";
+import { renderStatusBar } from "./tui/statusBar.js";
+import { color, resolveTheme } from "./tui/theme.js";
 import { ToolTimeline } from "./tui/toolTimeline.js";
 
 const BANNER = `
@@ -44,14 +46,16 @@ function print(text: string): void {
   process.stdout.write(`${text}\n`);
 }
 
-function promptLine(mode: string): string {
-  return `\n\x1b[36mwanwu\x1b[0m [\x1b[33m${mode}\x1b[0m] \x1b[32m❯\x1b[0m `;
-}
-
 export async function runTui(): Promise<number> {
   const cwd = findWorkspaceRoot();
   const { config } = loadWanwuConfig(cwd);
+  const theme = resolveTheme();
   let mode = config.defaultMode;
+
+  function promptLine(current: string): string {
+    return `\n${color(theme, "prompt", "wanwu")} [${color(theme, "mode", current)}] ${color(theme, "accent", "❯")} `;
+  }
+
   const sessionId = `tui-${Date.now()}`;
   let history: Array<{ role: string; content: string }> = [];
   const sessionLog = new SessionLog();
@@ -60,7 +64,7 @@ export async function runTui(): Promise<number> {
   print(BANNER);
   print(`Wanwu TUI · workspace=${cwd}`);
   print(`provider=${config.activeProvider}/${config.model} · permission=${config.permissionMode} · sandbox=${config.sandbox}`);
-  print(`llm=${shouldUseLlm(config) ? "on" : "deterministic"} · memory=${discoverMemory(cwd).length} · skills=${discoverSkills(cwd).length}`);
+  print(`llm=${shouldUseLlm(config) ? "on" : "deterministic"} · memory=${discoverMemory(cwd).length} · skills=${discoverSkills(cwd).length} · theme=${theme.name}`);
   print(HELP);
 
   const rl = readline.createInterface({
@@ -120,6 +124,23 @@ export async function runTui(): Promise<number> {
       if (["/ask", "/plan", "/agent", "/verify"].includes(input)) {
         mode = input.slice(1) as typeof mode;
         print(`mode → ${mode}`);
+        rl.prompt();
+        return;
+      }
+      if (input === "/status") {
+        print(
+          renderStatusBar(
+            {
+              mode,
+              provider: config.activeProvider,
+              model: config.model,
+              llm: shouldUseLlm(config),
+              workspace: cwd,
+              toolsRunning: 0,
+            },
+            theme,
+          ),
+        );
         rl.prompt();
         return;
       }
