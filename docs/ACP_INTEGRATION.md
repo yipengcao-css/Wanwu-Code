@@ -15,6 +15,7 @@
 | `wanwu acp` | Agent 入口（默认 **wanwu-native**；可桥接 `grok`） |
 | `apps/wanwu-shell` | Client（品牌整机；随包 ACP） |
 | `apps/wanwu-ide` | ~~Client~~（已退役） |
+| Zed / JetBrains | Client（外部配置，见 `docs/IDE_HOSTS.md`） |
 
 ## 拓扑
 
