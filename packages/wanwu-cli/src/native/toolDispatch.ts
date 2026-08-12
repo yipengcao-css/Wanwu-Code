@@ -2,6 +2,7 @@ import type { WanwuMode } from "@wanwu/config";
 import { runHooks } from "../hooks.js";
 import { parseQualifiedMcpTool } from "../mcp/loadConfig.js";
 import { peekMcpRegistry } from "../mcp/registry.js";
+import { assessToolCall } from "../permission.js";
 import type { AgentContext } from "./agentLoop.js";
 import { toolBash, toolEdit, toolGlob, toolGrep, toolRead, type ToolResult } from "./tools.js";
 
@@ -35,6 +36,9 @@ async function withHooks(
   }
   return result;
 }
+
+const READONLY_BASH =
+  /^(\s)*(ls|pwd|cat|head|tail|rg|grep|find|echo|node -v|pnpm -v|git status|git diff|git log)\b/i;
 
 async function dispatchMcp(
   ctx: AgentContext,
@@ -93,7 +97,7 @@ export async function dispatchTool(
           String(args.pattern ?? ""),
           args.glob ? String(args.glob) : "**/*",
         );
-      case "Edit":
+      case "Edit": {
         if (writeBlocked) {
           return {
             ok: false,
@@ -101,19 +105,32 @@ export async function dispatchTool(
             text: `Edit blocked in mode=${mode}`,
           };
         }
-        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
-          apply: true,
-        });
-      case "Bash":
-        if (
-          writeBlocked &&
-          !/^(\s)*(ls|pwd|cat|head|tail|rg|grep|find|echo|node -v|pnpm -v)/i.test(
-            String(args.command ?? ""),
-          )
-        ) {
-          // allow mild readonly-ish; still pass through assessBash
+        const verdict = assessToolCall("Edit", String(args.path ?? ""), ctx.permissionMode);
+        if (!verdict.allow) {
+          return {
+            ok: false,
+            title: "Edit",
+            text: `Blocked by permission: ${verdict.reason}${
+              verdict.requiresPrompt ? " (requires confirmation)" : ""
+            }`,
+          };
         }
-        return toolBash(ctx.workspaceRoot, String(args.command ?? ""), ctx.permissionMode);
+        // Propose only — the Shell DiffReview decides whether to persist.
+        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
+          apply: false,
+        });
+      }
+      case "Bash": {
+        const command = String(args.command ?? "");
+        if (writeBlocked && !READONLY_BASH.test(command)) {
+          return {
+            ok: false,
+            title: "Bash",
+            text: `Bash blocked in mode=${mode} (only read-only commands allowed)`,
+          };
+        }
+        return toolBash(ctx.workspaceRoot, command, ctx.permissionMode);
+      }
       default:
         return { ok: false, title: name, text: `unknown tool: ${name}` };
     }

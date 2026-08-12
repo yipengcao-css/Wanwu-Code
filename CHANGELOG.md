@@ -6,6 +6,7 @@
 - **MCP 工具面**：`.wanwu/mcp.toml|json` / `.mcp.json` → stdio JSON-RPC client；工具名 `mcp__server__tool` 接入 LLM loop + `dispatchTool`（hooks 门禁）；`docs/MCP.md`
 - **Shell LSP（TS/JS）**：stdio `typescript-language-server` → Monaco markers；`docs/LSP.md`；`WANWU_TSSERVER_COMMAND` 可覆盖
 - **签名分发（mac）**：`afterSign` 公证钩子（`APPLE_*` / `CSC_*` 密钥门控）；`docs/SIGNING.md`；release `desktop-mac` job 上传 mac zip
+- **P0 安全修复**：Edit 改为 propose-then-apply（Shell 接受才落盘）；Plan/Ask 真正拦截非只读 Bash；Bash 默认最小 env（剥离 `*_API_KEY` 等，`WANWU_BASH_ENV=full` 可恢复）；workspace 路径 realpath 校验
 - **Diff Review**：Shell 用 Monaco 并排 Diff 审阅 Agent 编辑（取代纯文本 modal）
 - **多会话 UI**：Agent Studio 会话轨 + `acp:newChat` / `acp:setSession`
 - **Hooks**：native `dispatchTool` 接入 PreToolUse / PostToolUse（失败可阻断）
