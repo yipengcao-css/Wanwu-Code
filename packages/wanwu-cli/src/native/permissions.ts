@@ -1,6 +1,7 @@
 import { randomInt } from "node:crypto";
 import type { PermissionMode } from "@wanwu/config";
 import { assessBash, assessToolCall, type PermissionVerdict } from "../permission.js";
+import { loadPermissionsFile, matchPermissionRule } from "../permissionsFile.js";
 import { send } from "./jsonRpcStdio.js";
 
 type PermissionOptionId = "allow-once" | "allow-session" | "deny";
@@ -77,7 +78,41 @@ export async function gateToolCall(
   toolName: "Bash" | "Edit",
   input: string,
   permissionMode: PermissionMode,
+  workspaceRoot?: string,
 ): Promise<GateResult> {
+  // Workspace rules override built-in policy.
+  if (workspaceRoot) {
+    const file = loadPermissionsFile(workspaceRoot);
+    const rule = matchPermissionRule(file, toolName, input);
+    if (rule) {
+      if (rule.action === "deny") {
+        return {
+          allow: false,
+          text: `Blocked by workspace rule: ${rule.reason ?? rule.pattern}`,
+        };
+      }
+      if (rule.action === "allow") {
+        return { allow: true };
+      }
+      // ask → fall through to prompt
+      try {
+        const choice = await requestPermission(toolName, input, {
+          allow: false,
+          risk: "medium",
+          reason: rule.reason ?? rule.pattern,
+          requiresPrompt: true,
+        });
+        if (choice === "deny") {
+          return { allow: false, text: `Denied by user: ${rule.reason ?? rule.pattern}` };
+        }
+        return { allow: true };
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return { allow: false, text: `Permission request failed: ${msg}` };
+      }
+    }
+  }
+
   const verdict =
     toolName === "Bash"
       ? assessBash(input, permissionMode)

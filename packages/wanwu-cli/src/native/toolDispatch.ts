@@ -115,7 +115,12 @@ export async function dispatchTool(
             text: `Edit blocked in mode=${mode}`,
           };
         }
-        const gate = await gateToolCall("Edit", String(args.path ?? ""), ctx.permissionMode);
+        const gate = await gateToolCall(
+          "Edit",
+          String(args.path ?? ""),
+          ctx.permissionMode,
+          ctx.workspaceRoot,
+        );
         if (!gate.allow) {
           return { ok: false, title: "Edit", text: gate.text ?? "Edit denied" };
         }
@@ -133,7 +138,7 @@ export async function dispatchTool(
             text: `Bash blocked in mode=${mode} (only read-only commands allowed)`,
           };
         }
-        const gate = await gateToolCall("Bash", command, ctx.permissionMode);
+        const gate = await gateToolCall("Bash", command, ctx.permissionMode, ctx.workspaceRoot);
         if (!gate.allow) {
           return { ok: false, title: "Bash", text: gate.text ?? "Bash denied" };
         }

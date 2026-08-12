@@ -125,6 +125,7 @@
 | 18 | 会话 cancel / resume / compact | **完成（#24）** |
 | 19 | 流式 providers（SSE） | **完成（#25）** |
 | 20 | 云端容器执行 + diff apply | **完成（#26）** |
+| 21 | 权限规则文件（allow/ask/deny） | **完成（#27）** |
 
 ## 领取方式
 
