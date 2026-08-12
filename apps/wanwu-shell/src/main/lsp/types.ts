@@ -22,3 +22,15 @@ export type LspLaunchPlan = {
   command: string;
   args: string[];
 };
+
+export type LspServerDef = {
+  id: string;
+  command: string;
+  args: string[];
+  /** LSP languageIds this server handles */
+  languages: string[];
+  /** Optional env for the spawned server */
+  env?: Record<string, string>;
+  /** If true, only used when explicitly enabled in workspace config */
+  optIn?: boolean;
+};

@@ -1,61 +1,33 @@
 import { ipcMain, type BrowserWindow } from "electron";
-import { resolveTsLspLaunch } from "../lsp/resolveTsLsp.js";
-import { TsLspClient } from "../lsp/tsLspClient.js";
-import { isTsLike } from "../lsp/uri.js";
+import { LspSessionManager } from "../lsp/sessionManager.js";
+import { hasLspMapping } from "../lsp/uri.js";
 
-let client: TsLspClient | undefined;
-let clientRoot: string | undefined;
-let starting: Promise<TsLspClient | undefined> | undefined;
+let manager: LspSessionManager | undefined;
+let managerRoot: string | undefined;
 
 function broadcast(win: BrowserWindow | null, channel: string, payload: unknown): void {
   win?.webContents.send(channel, payload);
 }
 
-async function ensureClient(
+function ensureManager(
   root: string,
   getWin: () => BrowserWindow | null,
-): Promise<TsLspClient | undefined> {
-  if (client && clientRoot === root) return client;
-  if (client && clientRoot !== root) {
-    disposeLsp();
-  }
-  if (starting) return starting;
-
-  starting = (async () => {
-    const launch = resolveTsLspLaunch();
-    if (!launch) {
-      broadcast(getWin(), "lsp:error", "未找到 typescript-language-server");
-      return undefined;
-    }
-    const c = new TsLspClient({
-      workspaceRoot: root,
-      launch,
-      onDiagnostics: (payload) => broadcast(getWin(), "lsp:diagnostics", payload),
-      onError: (message) => broadcast(getWin(), "lsp:error", message),
-    });
-    try {
-      await c.start();
-      client = c;
-      clientRoot = root;
-      return c;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      broadcast(getWin(), "lsp:error", `LSP 启动失败：${msg}`);
-      c.dispose();
-      return undefined;
-    } finally {
-      starting = undefined;
-    }
-  })();
-
-  return starting;
+): LspSessionManager {
+  if (manager && managerRoot === root) return manager;
+  disposeLsp();
+  manager = new LspSessionManager({
+    workspaceRoot: root,
+    onDiagnostics: (payload) => broadcast(getWin(), "lsp:diagnostics", payload),
+    onError: (message) => broadcast(getWin(), "lsp:error", message),
+  });
+  managerRoot = root;
+  return manager;
 }
 
 export function disposeLsp(): void {
-  client?.dispose();
-  client = undefined;
-  clientRoot = undefined;
-  starting = undefined;
+  manager?.dispose();
+  manager = undefined;
+  managerRoot = undefined;
 }
 
 export function onWorkspaceRootChangedForLsp(prev: string | null, next: string): void {
@@ -69,30 +41,26 @@ export function registerLspIpc(
   ipcMain.handle("lsp:ensure", async () => {
     const root = getRoot();
     if (!root) return { ok: false, reason: "no-workspace" };
-    const c = await ensureClient(root, getWin);
-    return { ok: Boolean(c) };
+    const m = ensureManager(root, getWin);
+    return { ok: true, servers: m.listServers().map((s) => s.id) };
   });
 
   ipcMain.handle("lsp:didOpen", async (_e, relPath: string, text: string) => {
     const root = getRoot();
-    if (!root || !isTsLike(relPath)) return false;
-    const c = await ensureClient(root, getWin);
-    if (!c) return false;
-    await c.didOpen(relPath, text);
-    return true;
+    if (!root || !hasLspMapping(relPath)) return false;
+    const m = ensureManager(root, getWin);
+    return m.didOpen(relPath, text);
   });
 
   ipcMain.handle("lsp:didChange", async (_e, relPath: string, text: string) => {
     const root = getRoot();
-    if (!root || !client || !isTsLike(relPath)) return false;
-    await client.didChange(relPath, text);
-    return true;
+    if (!root || !manager || !hasLspMapping(relPath)) return false;
+    return manager.didChange(relPath, text);
   });
 
   ipcMain.handle("lsp:didClose", async (_e, relPath: string) => {
-    if (!client || !isTsLike(relPath)) return false;
-    await client.didClose(relPath);
-    return true;
+    if (!manager || !hasLspMapping(relPath)) return false;
+    return manager.didClose(relPath);
   });
 
   ipcMain.handle("lsp:dispose", async () => {
