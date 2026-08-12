@@ -109,7 +109,7 @@
 | 4 | Diff Review / 会话历史 UI / Hooks 接入 native | **完成（#8）** |
 | 5a | MCP 工具面 | **完成（#9）** |
 | 5b | LSP（Shell TS → Monaco markers） | **完成（#10）** |
-| 5c | 签名分发（mac notarize 门控） | **PR #11** |
+| 5c | 签名分发（mac notarize 门控） | **完成（#11）** |
 
 ## 领取方式
 

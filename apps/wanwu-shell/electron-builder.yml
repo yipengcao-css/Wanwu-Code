@@ -16,6 +16,7 @@ extraMetadata:
 asar: true
 asarUnpack:
   - node_modules/node-pty/**/*
+afterSign: scripts/afterSign-notarize.cjs
 linux:
   target:
     - AppImage
@@ -30,6 +31,11 @@ mac:
   target:
     - zip
   category: public.app-category.developer-tools
-  identity: null
+  # identity omitted: electron-builder uses CSC_LINK / keychain when present.
+  # scripts/build-shell-dist.sh sets CSC_IDENTITY_AUTO_DISCOVERY=false for unsigned builds.
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   artifactName: ${productName}-${version}-mac-${arch}.${ext}
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}

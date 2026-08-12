@@ -12,7 +12,7 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/main/pathSandbox.test.ts && tsx src/main/acpLaunch.test.ts && tsx src/main/acpSession.test.ts && tsx src/main/shellResolve.test.ts && tsx src/main/lsp/uri.test.ts && tsx src/main/lsp/resolveTsLsp.test.ts",
+    "test": "tsx src/main/pathSandbox.test.ts && tsx src/main/acpLaunch.test.ts && tsx src/main/acpSession.test.ts && tsx src/main/shellResolve.test.ts && tsx src/main/lsp/uri.test.ts && tsx src/main/lsp/resolveTsLsp.test.ts && node scripts/afterSign-notarize.test.cjs",
     "dist": "bash ../../scripts/build-shell-dist.sh",
     "dist:builder": "electron-builder --config electron-builder.yml"
   },
@@ -30,6 +30,7 @@
     "typescript-language-server": "^5.0.0"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.0.1",
     "@electron/packager": "^20.2.1",
     "@types/node": "^22.15.21",
     "@types/react": "^18.3.20",
