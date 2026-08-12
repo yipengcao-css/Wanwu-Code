@@ -4,10 +4,14 @@ import { discoverMemory } from "./memory.js";
 import { discoverSkills } from "./skills.js";
 import { runDeterministicTurn } from "./native/agentLoop.js";
 import { runLlmAgentLoop, shouldUseLlm } from "./native/llmAgentLoop.js";
-import { detectMode, stripModeTags } from "./native/mode.js";
+import { MODE_CYCLE, detectMode, nextMode, stripModeTags } from "./native/mode.js";
 import { runPlanAsync } from "./plan.js";
 import { runVerifyWithReview } from "./verify.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
+import { renderDiff } from "./tui/renderDiff.js";
+import { SessionLog } from "./tui/sessionLog.js";
+import { parseSessionUpdate } from "./tui/sessionSink.js";
+import { ToolTimeline } from "./tui/toolTimeline.js";
 
 const BANNER = `
 ██╗    ██╗ █████╗ ███╗   ██╗██╗    ██╗██╗   ██╗
@@ -21,12 +25,17 @@ const BANNER = `
 const HELP = `命令：
   /help          显示帮助
   /mode <ask|plan|agent|verify>  切换模式
+  /ask /plan /agent /verify      快速切换模式
   /plan <task>   生成 Plan 工件
   /verify        运行 Verify 门禁 + 独立评审
   /doctor        运行 doctor
   /inspect       打印配置/记忆/skills/mcp
+  /history [n]   显示最近 n 轮会话
   /clear         清屏
   /exit          退出
+
+快捷键：
+  Ctrl+T         循环切换模式（ask → plan → agent → verify）
 
 直接输入自然语言即可与 Agent 对话。
 `;
@@ -45,6 +54,8 @@ export async function runTui(): Promise<number> {
   let mode = config.defaultMode;
   const sessionId = `tui-${Date.now()}`;
   let history: Array<{ role: string; content: string }> = [];
+  const sessionLog = new SessionLog();
+  const timeline = new ToolTimeline();
 
   print(BANNER);
   print(`Wanwu TUI · workspace=${cwd}`);
@@ -57,6 +68,18 @@ export async function runTui(): Promise<number> {
     output: process.stdout,
     terminal: true,
     prompt: promptLine(mode),
+  });
+
+  // Ctrl+T cycles mode
+  readline.emitKeypressEvents(process.stdin);
+  if (process.stdin.isTTY) process.stdin.setRawMode(true);
+  process.stdin.on("keypress", (_str: string, key: { ctrl?: boolean; name?: string }) => {
+    if (key?.ctrl && key.name === "t") {
+      mode = nextMode(mode);
+      print(`\nmode → ${mode}`);
+      rl.setPrompt(promptLine(mode));
+      rl.prompt();
+    }
   });
 
   rl.prompt();
@@ -85,12 +108,18 @@ export async function runTui(): Promise<number> {
       }
       if (input.startsWith("/mode ")) {
         const next = input.slice(6).trim();
-        if (["ask", "plan", "agent", "verify"].includes(next)) {
+        if (MODE_CYCLE.includes(next as never)) {
           mode = next as typeof mode;
           print(`mode → ${mode}`);
         } else {
           print(`未知 mode: ${next}`);
         }
+        rl.prompt();
+        return;
+      }
+      if (["/ask", "/plan", "/agent", "/verify"].includes(input)) {
+        mode = input.slice(1) as typeof mode;
+        print(`mode → ${mode}`);
         rl.prompt();
         return;
       }
@@ -103,6 +132,24 @@ export async function runTui(): Promise<number> {
       if (input === "/inspect") {
         const { runInspect } = await import("./inspect.js");
         runInspect(cwd);
+        rl.prompt();
+        return;
+      }
+      if (input.startsWith("/history")) {
+        const n = Number(input.split(/\s+/)[1] ?? "10") || 10;
+        const turns = sessionLog.list(n);
+        if (!turns.length) {
+          print("（暂无历史）");
+        } else {
+          for (const t of turns) {
+            print(`\x1b[90m#${t.id} [${t.mode}] ${t.ts}\x1b[0m`);
+            print(`  user: ${t.user.slice(0, 120)}`);
+            if (t.assistant) print(`  assistant: ${t.assistant.slice(0, 120)}`);
+            if (t.tools.length) {
+              print(`  tools: ${t.tools.map((x) => `${x.title}(${x.status})`).join(", ")}`);
+            }
+          }
+        }
         rl.prompt();
         return;
       }
@@ -135,35 +182,29 @@ export async function runTui(): Promise<number> {
         mode,
       };
 
+      timeline.clear();
+      const turnTools: Array<{ title: string; status: string }> = [];
+      let assistantText = "";
+
       // Intercept stdout to pretty-print ACP session updates
       const origWrite = process.stdout.write.bind(process.stdout);
       process.stdout.write = ((chunk: string | Uint8Array) => {
         const s = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
         for (const raw of s.split("\n")) {
           if (!raw.trim()) continue;
-          try {
-            const msg = JSON.parse(raw) as {
-              method?: string;
-              params?: {
-                update?: {
-                  sessionUpdate?: string;
-                  content?: { type?: string; text?: string };
-                  title?: string;
-                  status?: string;
-                };
-              };
-            };
-            if (msg.method === "session/update") {
-              const u = msg.params?.update;
-              if (u?.sessionUpdate === "tool_call") {
-                print(`\x1b[90m[tool:${u.title}] ${u.status}\x1b[0m`);
-              } else if (u?.content?.text) {
-                print(u.content.text);
-              }
-              continue;
+          const event = parseSessionUpdate(raw);
+          if (event) {
+            if (event.type === "tool") {
+              const line = timeline.upsert(event.toolCallId, event.title, event.status);
+              print(line);
+              turnTools.push({ title: event.title, status: event.status });
+            } else if (event.type === "diff") {
+              print(renderDiff(event.path, event.before, event.after));
+            } else if (event.type === "text") {
+              assistantText += event.text;
+              print(event.text);
             }
-          } catch {
-            /* not json */
+            continue;
           }
           origWrite(raw);
         }
@@ -176,10 +217,19 @@ export async function runTui(): Promise<number> {
             history: history as never,
           });
           history = out.messages.filter((m) => m.role !== "system") as never;
-          if (out.text) print(`\n${out.text}`);
+          if (out.text) {
+            assistantText += out.text;
+            print(`\n${out.text}`);
+          }
         } else {
           runDeterministicTurn(ctx, stripModeTags(input));
         }
+        sessionLog.add({
+          mode: effectiveMode,
+          user: input,
+          assistant: assistantText || undefined,
+          tools: turnTools,
+        });
       } catch (err) {
         print(`\x1b[31mError: ${err instanceof Error ? err.message : String(err)}\x1b[0m`);
       } finally {
