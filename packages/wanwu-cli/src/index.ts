@@ -19,6 +19,7 @@ Usage:
   wanwu cloud ...           Headless cloud runner (local/docker, review-first)
   wanwu parallel ...        Parallel worktree isolation demo
   wanwu plugin ...          Plugin marketplace (skills / MCP)
+  wanwu mcp-config ...      Interactive MCP server configuration
   wanwu help                Show this help
 
 Env:
@@ -163,6 +164,10 @@ async function main(argv: string[]): Promise<number> {
     case "plugin": {
       const { runPluginCommand } = await import("./plugin/cmd.js");
       return await runPluginCommand(rest);
+    }
+    case "mcp-config": {
+      const { runMcpConfigCommand } = await import("./mcp/configCmd.js");
+      return await runMcpConfigCommand(rest);
     }
     default:
       console.error(`Unknown command: ${cmd}`);
