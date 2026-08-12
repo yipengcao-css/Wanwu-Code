@@ -123,6 +123,16 @@ export async function runTui(): Promise<number> {
         rl.prompt();
         return;
       }
+      if (input === "/mcp") {
+        const { loadMcpServers } = await import("./mcp/loadConfig.js");
+        const { servers, source } = loadMcpServers(cwd);
+        print(`MCP source: ${source ?? "(none)"}`);
+        for (const s of servers) {
+          print(`  ${s.name}: ${s.command} ${s.args.join(" ")}`);
+        }
+        rl.prompt();
+        return;
+      }
       if (input === "/doctor") {
         const { runDoctor, printDoctor } = await import("./doctor.js");
         printDoctor(runDoctor());
