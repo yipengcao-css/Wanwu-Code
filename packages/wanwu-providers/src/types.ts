@@ -29,6 +29,14 @@ export interface ChatRequest {
   maxTokens?: number;
   tools?: ToolSpec[];
   toolChoice?: "auto" | "none";
+  /** Enable SSE streaming when the provider supports it. */
+  stream?: boolean;
+}
+
+export interface StreamChunk {
+  text?: string;
+  toolCalls?: ToolCall[];
+  done: boolean;
 }
 
 export interface ChatResponse {
@@ -86,4 +94,12 @@ export interface CompleteChatOptions {
   providerId?: ProviderId;
   fetchImpl?: FetchLike;
   env?: NodeJS.ProcessEnv;
+}
+
+export interface StreamChatOptions extends CompleteChatOptions {
+  onChunk?: (chunk: StreamChunk) => void;
+}
+
+export interface StreamChatOptions extends CompleteChatOptions {
+  onChunk?: (chunk: StreamChunk) => void;
 }

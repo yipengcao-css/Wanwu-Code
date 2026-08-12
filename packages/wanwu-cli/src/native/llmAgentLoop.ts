@@ -3,6 +3,7 @@ import {
   completeChat,
   hasProviderCredentials,
   ProviderError,
+  streamChat,
   type ChatMessage,
   type ChatResponse,
   type FetchLike,
@@ -88,7 +89,14 @@ export async function runLlmAgentLoop(
   ctx: AgentContext,
   config: WanwuConfig,
   prompt: string,
-  opts?: { fetchImpl?: FetchLike; maxTurns?: number; history?: ChatMessage[] },
+  opts?: {
+    fetchImpl?: FetchLike;
+    maxTurns?: number;
+    history?: ChatMessage[];
+    signal?: AbortSignal;
+    /** Stream assistant text deltas to ACP session updates. */
+    stream?: boolean;
+  },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
   const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "6") || 6);
@@ -117,25 +125,55 @@ export async function runLlmAgentLoop(
   for (let i = 0; i < maxTurns; i += 1) {
     turns = i + 1;
     try {
-      last = await completeChat({
-        config,
-        providerId,
-        fetchImpl: opts?.fetchImpl,
-        env: {
-          ...process.env,
-          // fixture / injected fetch paths still need resolveProvider credentials
-          OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
-          ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
-          XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
-        },
-        request: {
-          messages,
-          temperature: 0.2,
-          maxTokens: 2048,
-          tools,
-          toolChoice: "auto",
-        },
-      });
+      const useStream = opts?.stream ?? process.env.WANWU_STREAM === "1";
+      if (useStream) {
+        last = await streamChat({
+          config,
+          providerId,
+          fetchImpl: opts?.fetchImpl,
+          env: {
+            ...process.env,
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
+            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
+            XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
+          },
+          request: {
+            messages,
+            temperature: 0.2,
+            maxTokens: 2048,
+            tools,
+            toolChoice: "auto",
+          },
+          onChunk: (chunk) => {
+            if (chunk.text) {
+              sessionUpdate(ctx.sessionId, {
+                sessionUpdate: "agent_message_chunk",
+                content: { type: "text", text: chunk.text },
+              });
+            }
+          },
+        });
+      } else {
+        last = await completeChat({
+          config,
+          providerId,
+          fetchImpl: opts?.fetchImpl,
+          env: {
+            ...process.env,
+            // fixture / injected fetch paths still need resolveProvider credentials
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
+            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
+            XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
+          },
+          request: {
+            messages,
+            temperature: 0.2,
+            maxTokens: 2048,
+            tools,
+            toolChoice: "auto",
+          },
+        });
+      }
     } catch (err) {
       if (err instanceof ProviderError) {
         const text = `Provider error (${err.provider}/${err.code}): ${err.message}\nHint: ${err.hint}`;
@@ -189,7 +227,7 @@ export async function runLlmAgentLoop(
       continue;
     }
 
-    if (last.text) {
+    if (last.text && !(opts?.stream ?? process.env.WANWU_STREAM === "1")) {
       sessionUpdate(ctx.sessionId, {
         sessionUpdate: "agent_message_chunk",
         content: { type: "text", text: last.text },
