@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **IDE 宿主文档**：`docs/IDE_HOSTS.md` 覆盖 Zed / JetBrains ACP 接入；`ACP_INTEGRATION.md` 更新
 - **MCP 对话式配置**：`wanwu mcp-config list/add/remove`；TUI `/mcp` 查看已配置 server
 - **子代理 worktree 隔离**：coder 子代理在 `.wanwu/subagent-worktrees/` 独立运行；结果保留供 review
 - **通用 Verify**：按项目类型自动选择门禁（pnpm/npm/yarn/cargo/go/python）；无匹配时安全跳过
