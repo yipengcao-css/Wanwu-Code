@@ -32,7 +32,7 @@
 |---|---|---|
 | 编辑器 ↔ Agent | **ACP**（JSON-RPC over stdio） | 会话、流式更新、工具权限、diff |
 | Agent ↔ 外部工具 | **MCP** | 数据库、浏览器、内部 API 等 |
-| 编辑器语言能力 | Monaco 内置 + 后续 LSP（分期） | 高亮/诊断（MVP 以 Monaco 为主） |
+| 编辑器语言能力 | Monaco + Shell TS/JS LSP（见 `docs/LSP.md`） | 诊断 markers；多语言后续分期 |
 
 ## 设计原则
 

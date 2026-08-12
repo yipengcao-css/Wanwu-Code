@@ -9,6 +9,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerFsIpc } from "./ipc/fs.js";
 import { disposeAcp, onWorkspaceRootChanged, registerAcpIpc } from "./ipc/acp.js";
+import {
+  disposeLsp,
+  onWorkspaceRootChangedForLsp,
+  registerLspIpc,
+} from "./ipc/lsp.js";
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
 
@@ -85,6 +90,7 @@ app.whenReady().then(() => {
     (r) => {
       const prev = workspaceRoot;
       onWorkspaceRootChanged(prev, r);
+      onWorkspaceRootChangedForLsp(prev, r);
       workspaceRoot = r;
       // Terminal cwd is bound at spawn time; force restart on workspace switch.
       disposeTerm();
@@ -93,6 +99,10 @@ app.whenReady().then(() => {
   );
   registerSettingsIpc(() => workspaceRoot);
   registerAcpIpc(
+    () => workspaceRoot,
+    () => mainWindow,
+  );
+  registerLspIpc(
     () => workspaceRoot,
     () => mainWindow,
   );
@@ -118,6 +128,7 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   disposeAcp();
+  disposeLsp();
   disposeTerm();
   globalShortcut.unregisterAll();
   if (process.platform !== "darwin") app.quit();

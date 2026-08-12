@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { OrbitBar, type WanwuMode } from "../layout/OrbitBar";
 import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
-import { MonacoPane, type EditorTab } from "../editor/MonacoPane";
+import { MonacoPane, type EditorTab, type MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
@@ -11,12 +11,17 @@ import { DiffReview } from "../agent/DiffReview";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
 import { WelcomeGate } from "../onboarding/WelcomeGate";
 
+function isTsLike(path: string): boolean {
+  return /\.(tsx?|jsx?|mjs|cjs)$/i.test(path);
+}
+
 export function App() {
   const initial = loadLayout();
   const [root, setRoot] = useState<string | null>(null);
   const [mode, setMode] = useState<WanwuMode>("agent");
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<Record<string, MarkerDiag[]>>({});
   const [termOpen, setTermOpen] = useState(initial.termOpen);
   const [filesW, setFilesW] = useState(initial.filesW);
   const [agentW, setAgentW] = useState(initial.agentW);
@@ -24,6 +29,7 @@ export function App() {
   const [status, setStatus] = useState("就绪 · Wanwu Lattice");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
+  const changeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const [perm, setPerm] = useState<{
     id: number;
     toolName: string;
@@ -91,8 +97,27 @@ export function App() {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setDiagnostics({});
+      void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
     });
+  }, []);
+
+  useEffect(() => {
+    const offDiag = window.wanwu.lsp.onDiagnostics((payload) => {
+      setDiagnostics((prev) => ({ ...prev, [payload.path]: payload.diagnostics }));
+      const errs = payload.diagnostics.filter((d) => d.severity === "error").length;
+      if (errs > 0) {
+        setStatus(`LSP · ${payload.path} · ${errs} error(s)`);
+      }
+    });
+    const offErr = window.wanwu.lsp.onError((text) => {
+      setStatus(text.slice(0, 120));
+    });
+    return () => {
+      offDiag();
+      offErr();
+    };
   }, []);
 
   const openFolder = useCallback(async () => {
@@ -101,6 +126,8 @@ export function App() {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setDiagnostics({});
+      void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
     }
   }, []);
@@ -112,11 +139,24 @@ export function App() {
       return [...prev, { path: rel, content, dirty: false }];
     });
     setActivePath(rel);
+    if (isTsLike(rel)) {
+      void window.wanwu.lsp.didOpen(rel, content);
+    }
   }, []);
 
   const onChange = useCallback((path: string, value: string) => {
     setTabs((prev) =>
       prev.map((t) => (t.path === path ? { ...t, content: value, dirty: true } : t)),
+    );
+    if (!isTsLike(path)) return;
+    const prev = changeTimers.current.get(path);
+    if (prev) clearTimeout(prev);
+    changeTimers.current.set(
+      path,
+      setTimeout(() => {
+        void window.wanwu.lsp.didChange(path, value);
+        changeTimers.current.delete(path);
+      }, 300),
     );
   }, []);
 
@@ -169,11 +209,18 @@ export function App() {
             <MonacoPane
               tabs={tabs}
               activePath={activePath}
+              diagnostics={diagnostics}
               onSelect={setActivePath}
               onChange={onChange}
               onClose={(p) => {
                 setTabs((prev) => prev.filter((t) => t.path !== p));
                 if (activePath === p) setActivePath(null);
+                setDiagnostics((prev) => {
+                  const next = { ...prev };
+                  delete next[p];
+                  return next;
+                });
+                if (isTsLike(p)) void window.wanwu.lsp.didClose(p);
               }}
             />
           ) : (

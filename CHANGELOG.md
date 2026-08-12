@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Shell LSP（TS/JS）**：stdio `typescript-language-server` → Monaco markers；`docs/LSP.md`；`WANWU_TSSERVER_COMMAND` 可覆盖
 - **Diff Review**：Shell 用 Monaco 并排 Diff 审阅 Agent 编辑（取代纯文本 modal）
 - **多会话 UI**：Agent Studio 会话轨 + `acp:newChat` / `acp:setSession`
 - **Hooks**：native `dispatchTool` 接入 PreToolUse / PostToolUse（失败可阻断）
