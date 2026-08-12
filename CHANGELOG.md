@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **流式 providers**：`streamChat` 支持 OpenAI-compat SSE 与 Anthropic SSE；`runLlmAgentLoop` 可通过 `WANWU_STREAM=1` 或 `stream: true` 启用文本增量输出
 - **会话管理**：ACP `session/load` 恢复历史；`session/cancel` 中止进行中的 LLM 回合；会话持久化到 `.wanwu/sessions/`
 - **真实 OS sandbox**：`config.sandbox` 接入 Bash 执行；Linux `bwrap` / macOS `sandbox-exec` / Docker 后端；`strict` 无网络；doctor 报告后端可用性
 - **子代理并行**：LLM 工具 `Task` 支持 `explore` / `coder` / `plan` 子代理；隔离上下文；并行聚合结果；coder 串行防编辑竞态
