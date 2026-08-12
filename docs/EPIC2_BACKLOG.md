@@ -121,6 +121,15 @@
 | 14 | TUI 增强（流式 / 工具时间线 / 历史） | **完成（#20）** |
 | 15 | benchmark 套件 | **完成（#21）** |
 | 16 | 子代理并行（explore/coder/plan） | **完成（#22）** |
+| 17 | 真实 OS sandbox（bwrap/Seatbelt/Docker） | **PR #23** |
+| 18 | 会话 cancel / resume / compact | **PR #24** |
+| 19 | 流式 providers（SSE） | **PR #25** |
+| 20 | 云端容器执行 + diff apply | **PR #26** |
+| 21 | 权限规则文件（allow/ask/deny） | **PR #27** |
+| 22 | TUI 升级（主题 / 状态栏） | **PR #28** |
+| 23 | 通用 Verify（检测项目类型） | **PR #29** |
+| 24 | 子代理 worktree 隔离 | **PR #30** |
+| 25 | MCP 对话式配置 | **本分支** |
 
 ## 领取方式
 
