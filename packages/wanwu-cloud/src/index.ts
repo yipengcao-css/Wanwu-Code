@@ -10,6 +10,7 @@ export {
 } from "./store.js";
 export { runCloudTaskLocally, worktreePath } from "./runner.js";
 export { isTaskRunning, startCloudTaskAsync, type AsyncRunHandle } from "./asyncRunner.js";
+export { runCloudTaskInContainer, type ContainerRunOptions } from "./containerRunner.js";
 export { HttpCloudClient, isTerminalStatus, type HttpCloudClientOptions, type RemoteTask } from "./remoteClient.js";
 export { startCloudServer, type CloudServerOptions } from "./server.js";
 export {
