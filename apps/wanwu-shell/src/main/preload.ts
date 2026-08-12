@@ -64,6 +64,30 @@ export type WanwuBridge = {
       sources: string[];
     }>;
   };
+  lsp: {
+    ensure: () => Promise<{ ok: boolean; reason?: string }>;
+    didOpen: (path: string, text: string) => Promise<boolean>;
+    didChange: (path: string, text: string) => Promise<boolean>;
+    didClose: (path: string) => Promise<boolean>;
+    dispose: () => Promise<boolean>;
+    onDiagnostics: (
+      cb: (payload: {
+        path: string;
+        uri: string;
+        diagnostics: Array<{
+          message: string;
+          severity: "error" | "warning" | "info" | "hint";
+          startLine: number;
+          startCharacter: number;
+          endLine: number;
+          endCharacter: number;
+          source?: string;
+          code?: string | number;
+        }>;
+      }) => void,
+    ) => () => void;
+    onError: (cb: (text: string) => void) => () => void;
+  };
 };
 
 function on(channel: string, cb: (...args: unknown[]) => void): () => void {
@@ -112,6 +136,15 @@ const bridge: WanwuBridge = {
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     save: (patch) => ipcRenderer.invoke("settings:save", patch),
+  },
+  lsp: {
+    ensure: () => ipcRenderer.invoke("lsp:ensure"),
+    didOpen: (path, text) => ipcRenderer.invoke("lsp:didOpen", path, text),
+    didChange: (path, text) => ipcRenderer.invoke("lsp:didChange", path, text),
+    didClose: (path) => ipcRenderer.invoke("lsp:didClose", path),
+    dispose: () => ipcRenderer.invoke("lsp:dispose"),
+    onDiagnostics: (cb) => on("lsp:diagnostics", (p) => cb(p as never)),
+    onError: (cb) => on("lsp:error", (t) => cb(String(t))),
   },
 };
 

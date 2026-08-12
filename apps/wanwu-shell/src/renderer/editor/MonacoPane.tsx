@@ -1,4 +1,5 @@
-import Editor, { loader } from "@monaco-editor/react";
+import { useEffect, useRef } from "react";
+import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
@@ -24,6 +25,16 @@ export type EditorTab = {
   dirty: boolean;
 };
 
+export type MarkerDiag = {
+  message: string;
+  severity: "error" | "warning" | "info" | "hint";
+  startLine: number;
+  startCharacter: number;
+  endLine: number;
+  endCharacter: number;
+  source?: string;
+};
+
 function languageFor(path: string): string {
   if (path.endsWith(".ts") || path.endsWith(".tsx")) return "typescript";
   if (path.endsWith(".js") || path.endsWith(".jsx") || path.endsWith(".mjs")) return "javascript";
@@ -38,14 +49,57 @@ function languageFor(path: string): string {
   return "plaintext";
 }
 
+function toMonacoSeverity(s: MarkerDiag["severity"]): monaco.MarkerSeverity {
+  switch (s) {
+    case "error":
+      return monaco.MarkerSeverity.Error;
+    case "warning":
+      return monaco.MarkerSeverity.Warning;
+    case "info":
+      return monaco.MarkerSeverity.Info;
+    case "hint":
+      return monaco.MarkerSeverity.Hint;
+    default:
+      return monaco.MarkerSeverity.Error;
+  }
+}
+
 export function MonacoPane(props: {
   tabs: EditorTab[];
   activePath: string | null;
+  diagnostics: Record<string, MarkerDiag[]>;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
 }) {
   const active = props.tabs.find((t) => t.path === props.activePath);
+  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  useEffect(() => {
+    const ed = editorRef.current;
+    const path = active?.path;
+    if (!ed || !path) return;
+    const model = ed.getModel();
+    if (!model) return;
+    const diags = props.diagnostics[path] ?? [];
+    monaco.editor.setModelMarkers(
+      model,
+      "wanwu-lsp",
+      diags.map((d) => ({
+        message: d.message,
+        severity: toMonacoSeverity(d.severity),
+        startLineNumber: d.startLine + 1,
+        startColumn: d.startCharacter + 1,
+        endLineNumber: d.endLine + 1,
+        endColumn: Math.max(d.endCharacter + 1, d.startCharacter + 1),
+        source: d.source ?? "typescript",
+      })),
+    );
+  }, [active?.path, props.diagnostics, active?.content]);
+
+  const onMount: OnMount = (editor) => {
+    editorRef.current = editor;
+  };
 
   if (props.tabs.length === 0) {
     return (
@@ -82,6 +136,7 @@ export function MonacoPane(props: {
             path={active.path}
             language={languageFor(active.path)}
             value={active.content}
+            onMount={onMount}
             onChange={(v) => props.onChange(active.path, v ?? "")}
             options={{
               fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",

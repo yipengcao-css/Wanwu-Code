@@ -107,9 +107,9 @@
 | 2 | 商业 UI + BYOK Settings / Welcome Gate | **完成（#6）** |
 | 3 | ACP 多轮会话上下文 + Plan/Verify 真工作流 | **完成（#7）** |
 | 4 | Diff Review / 会话历史 UI / Hooks 接入 native | **完成（#8）** |
-| 5a | MCP 工具面（stdio client + toolDispatch） | **进行中** |
-| 5b | LSP（Shell TS → Monaco markers） | 后续 |
-| 5c | 签名分发（mac notarize 门控） | 后续 |
+| 5a | MCP 工具面 | **完成（#9）** |
+| 5b | LSP（Shell TS → Monaco markers） | **完成（#10）** |
+| 5c | 签名分发（mac notarize 门控） | **PR #11** |
 
 ## 领取方式
 

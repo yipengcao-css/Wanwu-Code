@@ -4,6 +4,7 @@
 
 ### Added
 - **MCP 工具面**：`.wanwu/mcp.toml|json` / `.mcp.json` → stdio JSON-RPC client；工具名 `mcp__server__tool` 接入 LLM loop + `dispatchTool`（hooks 门禁）；`docs/MCP.md`
+- **Shell LSP（TS/JS）**：stdio `typescript-language-server` → Monaco markers；`docs/LSP.md`；`WANWU_TSSERVER_COMMAND` 可覆盖
 - **Diff Review**：Shell 用 Monaco 并排 Diff 审阅 Agent 编辑（取代纯文本 modal）
 - **多会话 UI**：Agent Studio 会话轨 + `acp:newChat` / `acp:setSession`
 - **Hooks**：native `dispatchTool` 接入 PreToolUse / PostToolUse（失败可阻断）
