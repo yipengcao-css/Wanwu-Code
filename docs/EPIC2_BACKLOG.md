@@ -135,7 +135,7 @@
 | 28 | 真云端快照 + 编排 | **完成（#34）** |
 | 29 | 多模态输入 | **完成（#35）** |
 | 30 | 丰富 hooks 生命周期 | **完成（#36）** |
-| 31 | IDE 深度集成（VS Code 内联 / JetBrains / Zed scaffold） | **本分支** |
+| 31 | IDE 深度集成（VS Code 内联 / JetBrains / Zed scaffold） | **完成（#37）** |
 
 ## 领取方式
 
