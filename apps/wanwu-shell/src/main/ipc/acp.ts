@@ -9,6 +9,7 @@ import {
 } from "@wanwu/acp-client";
 import { resolveShellAcpLaunch } from "../acpLaunch.js";
 import { shouldResetAcpSession } from "../acpSession.js";
+import { acpCredentialEnv } from "./settings.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +40,7 @@ function startNativeAcp(cwd: string): AcpClient {
     cwd: plan.spawnCwd,
     env: {
       ...process.env,
+      ...acpCredentialEnv(),
       ...plan.env,
     },
     stdio: ["pipe", "pipe", "pipe"],

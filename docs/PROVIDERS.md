@@ -38,6 +38,15 @@ base_url = "https://api.deepseek.com"
 default_model = "deepseek-chat"
 ```
 
+### Desktop（Wanwu Shell）
+
+应用内 **模型设置**（Ctrl/Cmd+,）写入：
+
+- `~/.wanwu/config.toml` — provider / model / base_url（无密钥）
+- `~/.wanwu/credentials.env` — `OPENAI_API_KEY=…` 等（文件权限 0600，**禁止提交仓库**）
+
+保存后会 dispose 当前 ACP，下次 Agent 回合自动带上凭据。
+
 ## 环境变量速查
 
 | Env | 作用 |

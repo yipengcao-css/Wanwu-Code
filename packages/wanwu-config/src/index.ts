@@ -75,3 +75,12 @@ export {
   userConfigPath,
   type LoadedConfig,
 } from "./load.js";
+
+export {
+  saveUserConfig,
+  saveUserCredentials,
+  loadUserCredentials,
+  hasStoredCredential,
+  type UserSettingsPatch,
+  type CredentialPatch,
+} from "./save.js";

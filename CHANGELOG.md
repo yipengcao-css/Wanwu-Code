@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Added
+- **商业 UI**：引入 GitHub UI skills（frontend-design / ui-design-brain / effective-ui-design）；Welcome Gate + Settings 抽屉（BYOK）；Lattice token/焦点/reduced-motion 精修
+- `@wanwu/config`：`saveUserConfig` / `credentials.env`（密钥不进仓库）；Shell ACP 启动注入凭据
 - **P0-1**：Wanwu Shell 安装包随附 `wanwu-cli` ACP（`resources/wanwu-cli`）；启动改为原生二进制 / `wanwu.mjs`，不再依赖 `pnpm`/`tsx` 与 monorepo 根
 - **P0-2**：Wanwu Shell 集成终端改用 `node-pty` 真 PTY；Windows 解析 `pwsh`→`powershell`→`cmd`，去掉 `SHELL||/bin/bash` 写死
 - **P0-3**：切换工作区时销毁并重建 ACP session（打破单例、重置 `WANWU_WORKSPACE_ROOT`）；终端随工作区重启

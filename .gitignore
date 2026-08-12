@@ -19,6 +19,8 @@ target/
 .wanwu/settings.toml
 .wanwu/worktrees/
 .wanwu/cloud-tasks/
+.wanwu/credentials.env
+**/.wanwu/credentials.env
 extensions/wanwu-vscode/*.vsix
 dist-bin/
 apps/wanwu-ide/code-oss/

@@ -7,6 +7,8 @@ import { MonacoPane, type EditorTab } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
+import { SettingsDrawer } from "../settings/SettingsDrawer";
+import { WelcomeGate } from "../onboarding/WelcomeGate";
 
 export function App() {
   const initial = loadLayout();
@@ -19,6 +21,8 @@ export function App() {
   const [agentW, setAgentW] = useState(initial.agentW);
   const [termH, setTermH] = useState(initial.termH);
   const [status, setStatus] = useState("就绪 · Wanwu Lattice");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [perm, setPerm] = useState<{
     id: number;
     toolName: string;
@@ -40,6 +44,7 @@ export function App() {
     void window.wanwu.workspace.getRoot().then((r) => {
       if (r) setRoot(r);
     });
+    void window.wanwu.settings.get().then((s) => setHasApiKey(s.hasApiKey));
   }, []);
 
   useEffect(() => {
@@ -55,13 +60,16 @@ export function App() {
     };
   }, []);
 
-  // Renderer-local hotkeys (backup for before-input-event)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key.toLowerCase() === "i" && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus();
+      }
+      if (e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen(true);
       }
       if (e.key === "`") {
         e.preventDefault();
@@ -89,7 +97,6 @@ export function App() {
   const openFolder = useCallback(async () => {
     const dir = await window.wanwu.workspace.openDialog();
     if (dir) {
-      // Main process disposes ACP/term on root change; renderer state via onChanged + local sync.
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
@@ -135,6 +142,7 @@ export function App() {
         onOpenFolder={() => void openFolder()}
         onToggleTerminal={() => setTermOpen((v) => !v)}
         onSave={() => void saveActive()}
+        onOpenSettings={() => setSettingsOpen(true)}
         workspaceLabel={root ? root.split(/[\\/]/).filter(Boolean).slice(-2).join("/") : "未打开工作区"}
       />
       <div className="workspace">
@@ -144,8 +152,7 @@ export function App() {
             <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
           ) : (
             <div className="empty">
-              打开一个文件夹开始。
-              <br />
+              <p>尚未打开工作区。</p>
               <button className="btn primary" style={{ marginTop: 12 }} onClick={() => void openFolder()}>
                 打开文件夹
               </button>
@@ -157,16 +164,24 @@ export function App() {
           onDrag={(d) => setFilesW((w) => Math.min(420, Math.max(160, w + d)))}
         />
         <section className="editor-pane">
-          <MonacoPane
-            tabs={tabs}
-            activePath={activePath}
-            onSelect={setActivePath}
-            onChange={onChange}
-            onClose={(p) => {
-              setTabs((prev) => prev.filter((t) => t.path !== p));
-              if (activePath === p) setActivePath(null);
-            }}
-          />
+          {root ? (
+            <MonacoPane
+              tabs={tabs}
+              activePath={activePath}
+              onSelect={setActivePath}
+              onChange={onChange}
+              onClose={(p) => {
+                setTabs((prev) => prev.filter((t) => t.path !== p));
+                if (activePath === p) setActivePath(null);
+              }}
+            />
+          ) : (
+            <WelcomeGate
+              onOpenFolder={() => void openFolder()}
+              onOpenSettings={() => setSettingsOpen(true)}
+              hasApiKey={hasApiKey}
+            />
+          )}
         </section>
         <SplitHandle
           orientation="vertical"
@@ -196,10 +211,21 @@ export function App() {
         </>
       ) : null}
       <footer className="status">
-        <span className="status-dot" />
+        <span className={`status-dot${hasApiKey === false ? " warn" : ""}`} />
         <span>{status}</span>
-        <span style={{ marginLeft: "auto" }}>Ctrl/Cmd+I Agent · Ctrl/Cmd+` Terminal · 拖拽分栏可调</span>
+        <span className="status-hotkeys">
+          Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端
+        </span>
       </footer>
+
+      <SettingsDrawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={(s) => {
+          setHasApiKey(s.hasApiKey);
+          setStatus(`已更新模型 · ${s.activeProvider}/${s.model}`);
+        }}
+      />
 
       {perm ? (
         <ConfirmModal
@@ -220,9 +246,9 @@ export function App() {
 
       {edit ? (
         <ConfirmModal
-          title={`Edit · ${edit.path}`}
+          title={`接受编辑 · ${edit.path}`}
           body={edit.after.slice(0, 4000)}
-          acceptLabel="接受并写入"
+          acceptLabel="写入文件"
           rejectLabel="拒绝"
           onAccept={() => {
             void (async () => {
