@@ -129,7 +129,7 @@ export function startNativeAcpStdioServer(): void {
           return;
         }
 
-        if (shouldUseLlm(config) && mode !== "verify") {
+        if (shouldUseLlm(config)) {
           const out = await runLlmAgentLoop(ctx, config, text, {
             history: session.history,
           });

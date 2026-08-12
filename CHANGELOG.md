@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **P0 安全修复**：Edit 改为 propose-then-apply（Shell 接受才落盘）；Plan/Ask 真正拦截非只读 Bash；Bash 默认最小 env（剥离 `*_API_KEY` 等，`WANWU_BASH_ENV=full` 可恢复）；workspace 路径 realpath 校验
 - **Diff Review**：Shell 用 Monaco 并排 Diff 审阅 Agent 编辑（取代纯文本 modal）
 - **多会话 UI**：Agent Studio 会话轨 + `acp:newChat` / `acp:setSession`
 - **Hooks**：native `dispatchTool` 接入 PreToolUse / PostToolUse（失败可阻断）

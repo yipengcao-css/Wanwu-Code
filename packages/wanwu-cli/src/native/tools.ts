@@ -170,6 +170,22 @@ export function toolEdit(
   }
 }
 
+const SECRET_ENV_PATTERN =
+  /(_API_KEY|_API_SECRET|_TOKEN|_SECRET|_PASSWORD|_PRIVATE_KEY|AWS_SECRET|CREDENTIALS)$/i;
+
+/** Strip obvious credential env vars before spawning Bash. */
+export function minimalBashEnv(
+  base: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [k, v] of Object.entries(base)) {
+    if (v === undefined) continue;
+    if (SECRET_ENV_PATTERN.test(k)) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
 export function toolBash(
   workspaceRoot: string,
   command: string,
@@ -185,12 +201,14 @@ export function toolBash(
       }`,
     };
   }
+  const env =
+    process.env.WANWU_BASH_ENV === "full" ? process.env : minimalBashEnv();
   const result = spawnSync(command, {
     cwd: workspaceRoot,
     encoding: "utf8",
     shell: true,
     timeout: 60_000,
-    env: process.env,
+    env,
   });
   const out = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
   const code = result.status ?? 1;

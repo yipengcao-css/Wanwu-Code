@@ -147,11 +147,12 @@ export async function runLlmAgentLoop(
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
         const result = dispatchTool(ctx, mode, call.name, call.arguments);
+        const isProposal = call.name === "Edit" && result.ok && Boolean(result.diff);
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
           toolCallId,
           title: call.name,
-          status: result.ok ? "completed" : "failed",
+          status: result.ok ? (isProposal ? "pending" : "completed") : "failed",
           content: {
             type: result.diff ? "diff" : "text",
             text: result.text.slice(0, 8000),
