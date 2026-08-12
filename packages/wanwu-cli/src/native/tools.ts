@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -8,8 +7,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import type { PermissionMode } from "@wanwu/config";
+import type { PermissionMode, SandboxMode } from "@wanwu/config";
 import { assessBash } from "../permission.js";
+import { runSandboxed } from "./sandbox/runSandboxed.js";
 import { PathSandboxError, assertInsideWorkspace, isDirectory } from "./workspacePaths.js";
 
 export interface ToolResult {
@@ -200,6 +200,7 @@ export function toolBash(
   workspaceRoot: string,
   command: string,
   permissionMode: PermissionMode,
+  sandbox: SandboxMode = "workspace",
 ): ToolResult {
   const verdict = assessBash(command, permissionMode);
   if (!verdict.allow) {
@@ -213,13 +214,20 @@ export function toolBash(
   }
   const env =
     process.env.WANWU_BASH_ENV === "full" ? process.env : minimalBashEnv();
-  const result = spawnSync(command, {
-    cwd: workspaceRoot,
-    encoding: "utf8",
-    shell: true,
-    timeout: 60_000,
+  const result = runSandboxed({
+    workspaceRoot,
+    command,
+    mode: sandbox,
     env,
+    timeout: 60_000,
   });
+  if (result.error) {
+    return {
+      ok: false,
+      title: "Bash",
+      text: `Sandbox error: ${result.error}`,
+    };
+  }
   const out = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
   const code = result.status ?? 1;
   return {

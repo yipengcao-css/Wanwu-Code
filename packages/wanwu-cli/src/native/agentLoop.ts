@@ -141,7 +141,12 @@ export function runDeterministicTurn(ctx: AgentContext, prompt: string): string 
       : null);
   if (bashMatch?.[1]) {
     const cmd = String(bashMatch[1]).trim();
-    const b = toolBash(ctx.workspaceRoot, cmd, ctx.permissionMode);
+    const b = toolBash(
+      ctx.workspaceRoot,
+      cmd,
+      ctx.permissionMode,
+      ctx.config?.sandbox ?? "workspace",
+    );
     emitTool(sid, nextId(), "Bash", b.ok ? "completed" : "failed", {
       type: "text",
       text: `$ ${cmd}\n${b.text}`,

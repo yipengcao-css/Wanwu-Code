@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **真实 OS sandbox**：`config.sandbox` 接入 Bash 执行；Linux `bwrap` / macOS `sandbox-exec` / Docker 后端；`strict` 无网络；doctor 报告后端可用性
 - **子代理并行**：LLM 工具 `Task` 支持 `explore` / `coder` / `plan` 子代理；隔离上下文；并行聚合结果；coder 串行防编辑竞态
 - **benchmark 套件**：`pnpm bench` / `scripts/bench/run-all.mts`；CLI 启动、工具延迟、ACP 握手、产物大小；CI 软门控上传 `bench-results/latest.json`
 - **TUI 增强**：工具时间线（状态图标）、diff 渲染（红绿行）、`/history` 会话历史、`Ctrl+T` 循环切换模式、`/ask|/plan|/agent|/verify` 快捷切换

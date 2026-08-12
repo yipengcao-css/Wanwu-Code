@@ -9,6 +9,8 @@ import {
 import { hasProviderCredentials, resolveProvider } from "@wanwu/providers";
 import { loadMcpServers } from "./mcp/loadConfig.js";
 import { discoverMemory } from "./memory.js";
+import { detectSandboxBackend, sandboxBackendLabel } from "./native/sandbox/detect.js";
+import { resolveSandboxPolicy } from "./native/sandbox/policy.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 
 export interface DoctorFinding {
@@ -165,10 +167,12 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
     });
   }
 
+  const sandboxBackend = detectSandboxBackend();
+  const sandboxPolicy = resolveSandboxPolicy(config.sandbox, sandboxBackend);
   findings.push({
-    level: "ok",
+    level: sandboxPolicy.enforce ? "ok" : config.sandbox === "off" ? "ok" : "warn",
     code: "safety",
-    message: `permissionMode=${config.permissionMode} sandbox=${config.sandbox}`,
+    message: `permissionMode=${config.permissionMode} sandbox=${config.sandbox} backend=${sandboxBackendLabel(sandboxBackend)}${sandboxPolicy.reason ? ` (${sandboxPolicy.reason})` : ""}`,
   });
 
   return findings;
