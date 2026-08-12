@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **IDE 深度集成**：VS Code 内联 diff（`vscode.diff` + WorkspaceEdit）；Quick Fix「用 Wanwu 修复」；Problems 桥接；ACP client 支持 `session/load` / `session/cancel`
 - **丰富 hooks 生命周期**：SessionStart/SessionEnd/UserPromptSubmit/ToolCallApproved/ToolCallDenied/SubagentStart/SubagentEnd/Error；`.wanwu/hooks/*.sh` 按事件前缀发现
 - **多模态输入**：`wanwu exec --image <path>` 附加图像；providers 支持 OpenAI/Anthropic 图像；`ContentPart` 类型与能力检测
 - **真云端快照**：`wanwu cloud submit --remote --snapshot` 上传 git archive/tar.gz；服务端解包 + 校验 sha256 + 运行；`jobGraph` DAG 校验/拓扑排序

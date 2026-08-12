@@ -146,6 +146,18 @@ export class AcpClient extends EventEmitter {
     return result.sessionId ?? "unknown";
   }
 
+  async loadSession(sessionId: string): Promise<{ sessionId: string; history?: unknown[] }> {
+    const result = (await this.request("session/load", { sessionId })) as {
+      sessionId?: string;
+      history?: unknown[];
+    };
+    return { sessionId: result.sessionId ?? sessionId, history: result.history };
+  }
+
+  async cancelSession(sessionId?: string): Promise<void> {
+    await this.request("session/cancel", sessionId ? { sessionId } : {});
+  }
+
   async prompt(sessionId: string, text: string): Promise<unknown> {
     return this.request("session/prompt", { sessionId, prompt: text, text });
   }
@@ -162,31 +174,25 @@ function extractText(params: unknown): string | undefined {
   if (!params || typeof params !== "object") return undefined;
   const p = params as Record<string, unknown>;
   const update = p.update as Record<string, unknown> | undefined;
-  const content = (update?.content ?? p.content) as Record<string, unknown> | undefined;
-  if (content && typeof content.text === "string" && update?.sessionUpdate !== "tool_call") {
-    return content.text;
-  }
-  return undefined;
+  const content = update?.content as Record<string, unknown> | undefined;
+  const text = content?.text;
+  return typeof text === "string" ? text : undefined;
 }
 
-function extractTool(
-  params: unknown,
-): { title: string; status: string; detail?: string } | undefined {
+function extractTool(params: unknown): { title: string; status: string; detail?: string } | undefined {
   if (!params || typeof params !== "object") return undefined;
   const p = params as Record<string, unknown>;
   const update = p.update as Record<string, unknown> | undefined;
-  if (!update || update.sessionUpdate !== "tool_call") return undefined;
+  if (update?.sessionUpdate !== "tool_call") return undefined;
+  const title = update.title;
+  const status = update.status;
   const content = update.content as Record<string, unknown> | undefined;
-  const detail =
-    typeof content?.text === "string"
-      ? content.text
-      : typeof content?.path === "string"
-        ? String(content.path)
-        : undefined;
+  const detail = content?.text;
+  if (typeof title !== "string" || typeof status !== "string") return undefined;
   return {
-    title: String(update.title ?? "tool"),
-    status: String(update.status ?? "pending"),
-    detail,
+    title,
+    status,
+    detail: typeof detail === "string" ? detail.slice(0, 200) : undefined,
   };
 }
 
@@ -194,12 +200,14 @@ function extractEdit(params: unknown): AcpEditProposal | undefined {
   if (!params || typeof params !== "object") return undefined;
   const p = params as Record<string, unknown>;
   const update = p.update as Record<string, unknown> | undefined;
-  const content = update?.content as Record<string, unknown> | undefined;
-  if (!content || content.type !== "diff") return undefined;
-  if (typeof content.path !== "string") return undefined;
-  return {
-    path: content.path,
-    before: String(content.before ?? ""),
-    after: String(content.after ?? ""),
-  };
+  if (update?.sessionUpdate !== "tool_call") return undefined;
+  const content = update.content as Record<string, unknown> | undefined;
+  if (content?.type !== "diff") return undefined;
+  const path = content.path;
+  const before = content.before;
+  const after = content.after;
+  if (typeof path !== "string" || typeof before !== "string" || typeof after !== "string") {
+    return undefined;
+  }
+  return { path, before, after };
 }

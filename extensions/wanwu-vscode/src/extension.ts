@@ -4,9 +4,20 @@ import { WanwuChatPanel } from "./ui/chatPanel";
 import { SessionManager } from "./ui/sessionManager";
 import { askToolPermission } from "./ui/permissionModal";
 import { reviewSingleFileDiff } from "./ui/diffReview";
+import { WanwuFixActionProvider } from "./providers/fixActions";
+import { WanwuProblemsBridge } from "./providers/problemsBridge";
 import { findExtensionWorkspaceRoot } from "./workspaceRoot";
 
 export function activate(context: vscode.ExtensionContext): void {
+  const problemsBridge = new WanwuProblemsBridge();
+  context.subscriptions.push(problemsBridge);
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      { scheme: "file" },
+      new WanwuFixActionProvider(),
+      { providedCodeActionKinds: WanwuFixActionProvider.providedCodeActionKinds },
+    ),
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand("wanwu.newChat", () => {
       WanwuChatPanel.show(context);
@@ -64,6 +75,15 @@ export function activate(context: vscode.ExtensionContext): void {
         "已启动 `wanwu verify`，并打开 Chat（可将 Mode 设为 Verify）。",
       );
     }),
+    vscode.commands.registerCommand(
+      "wanwu.fixWithProblem",
+      async (_uri: vscode.Uri, diagnostic: vscode.Diagnostic) => {
+        WanwuChatPanel.show(context);
+        await vscode.window.showInformationMessage(
+          `已打开 Wanwu Chat。请描述要修复的问题：${diagnostic.message.slice(0, 80)}`,
+        );
+      },
+    ),
   );
 }
 
