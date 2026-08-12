@@ -21,7 +21,8 @@
     "shell:dev": "pnpm --filter wanwu-shell dev",
     "build:cli:native": "bash scripts/build-cli-native.sh",
     "install:cli:local": "WANWU_INSTALL_FROM=local bash scripts/install.sh",
-    "shell:dist": "bash scripts/build-shell-dist.sh"
+    "shell:dist": "bash scripts/build-shell-dist.sh",
+    "bench": "tsx scripts/bench/run-all.mts"
   },
   "devDependencies": {
     "@yao-pkg/pkg": "^6.22.0",

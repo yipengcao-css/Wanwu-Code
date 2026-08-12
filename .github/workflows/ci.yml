@@ -46,6 +46,14 @@ jobs:
           pnpm wanwu check-perm -p 'pnpm test'
       - name: Build CLI bundle
         run: pnpm build:cli
+      - name: Bench (record)
+        run: pnpm exec tsx scripts/bench/run-all.mts --ci
+        continue-on-error: true
+      - name: Upload bench results
+        uses: actions/upload-artifact@v4
+        with:
+          name: wanwu-bench
+          path: bench-results/latest.json
       - name: Package VSIX
         run: pnpm package:extension
       - name: Upload VSIX
