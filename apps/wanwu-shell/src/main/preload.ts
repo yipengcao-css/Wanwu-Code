@@ -19,6 +19,14 @@ export type WanwuBridge = {
       language?: string;
       path?: string;
     }) => Promise<{ text: string; model?: string; error?: string }>;
+    inlineEdit: (req: {
+      instruction: string;
+      selection: string;
+      language?: string;
+      path?: string;
+      before?: string;
+      after?: string;
+    }) => Promise<{ text: string; model?: string; error?: string }>;
   };
   acp: {
     ensure: () => Promise<{ sessionId?: string; cwd?: string }>;
@@ -121,6 +129,7 @@ const bridge: WanwuBridge = {
   },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),
+    inlineEdit: (req) => ipcRenderer.invoke("ai:inlineEdit", req),
   },
   acp: {
     ensure: () => ipcRenderer.invoke("acp:ensure"),
