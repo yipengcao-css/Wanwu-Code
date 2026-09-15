@@ -16,6 +16,7 @@ import { sendError, sendResult, sessionUpdate } from "./jsonRpcStdio.js";
 import { detectMode, stripModeTags } from "./mode.js";
 import { resolvePermissionRequest } from "./permissions.js";
 import { loadSession, saveSession } from "./sessionStore.js";
+import { runHooks } from "../hooks.js";
 
 type SessionState = {
   id: string;
@@ -86,6 +87,7 @@ export function startNativeAcpStdioServer(): void {
     if (method === "session/new" || method === "newSession") {
       const sessionId = `wanwu-native-${++sessionCounter}`;
       sessions.set(sessionId, { id: sessionId, history: [] });
+      runHooks(workspaceRoot, "SessionStart", { sessionId, sessionSource: "new" });
       sendResult(id, { sessionId });
       return;
     }
@@ -103,6 +105,7 @@ export function startNativeAcpStdioServer(): void {
         return;
       }
       sessions.set(targetId, { id: targetId, history: stored.history });
+      runHooks(workspaceRoot, "SessionStart", { sessionId: targetId, sessionSource: "load" });
       sendResult(id, { sessionId: targetId, history: stored.history });
       return;
     }
@@ -136,6 +139,7 @@ export function startNativeAcpStdioServer(): void {
       const session = sessions.get(sessionId)!;
       const text = params.prompt ?? params.text ?? "";
       const mode = detectMode(text, config.defaultMode);
+      runHooks(workspaceRoot, "UserPromptSubmit", { sessionId, prompt: text, mode });
       const ctx = {
         workspaceRoot,
         sessionId,
@@ -214,6 +218,11 @@ export function startNativeAcpStdioServer(): void {
         }
         sendResult(id, { stopReason: "end_turn" });
       } catch (err) {
+        runHooks(workspaceRoot, "Error", {
+          sessionId,
+          errorMessage: err instanceof Error ? err.message : String(err),
+          errorSource: "session/prompt",
+        });
         sendError(id, -32001, err instanceof Error ? err.message : String(err));
       }
       return;
@@ -221,6 +230,22 @@ export function startNativeAcpStdioServer(): void {
 
     sendError(id, -32601, `Method not found: ${method}`);
   }
+
+  // Best-effort SessionEnd for all live sessions on shutdown (fires once).
+  let ended = false;
+  const onExit = (): void => {
+    if (ended) return;
+    ended = true;
+    for (const s of sessions.keys()) {
+      try {
+        runHooks(workspaceRoot, "SessionEnd", { sessionId: s });
+      } catch {
+        /* shutdown must not throw */
+      }
+    }
+  };
+  process.on("exit", onExit);
+  rl.on("close", onExit);
 
   process.stderr.write(
     `[wanwu-native] ready workspace=${workspaceRoot} llm=${shouldUseLlm(config) ? "on" : "deterministic"}\n`,

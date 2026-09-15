@@ -162,6 +162,7 @@ export async function dispatchTool(
           String(args.path ?? ""),
           ctx.permissionMode,
           ctx.workspaceRoot,
+          ctx.sessionId,
         );
         if (!gate.allow) {
           return { ok: false, title: "Edit", text: gate.text ?? "Edit denied", applied: false };
@@ -186,6 +187,7 @@ export async function dispatchTool(
           String(args.path ?? ""),
           ctx.permissionMode,
           ctx.workspaceRoot,
+          ctx.sessionId,
         );
         if (!gate.allow) {
           return { ok: false, title: "Write", text: gate.text ?? "Write denied", applied: false };
@@ -207,7 +209,7 @@ export async function dispatchTool(
             text: `Bash blocked in mode=${mode} (only read-only commands allowed)`,
           };
         }
-        const gate = await gateToolCall("Bash", command, ctx.permissionMode, ctx.workspaceRoot);
+        const gate = await gateToolCall("Bash", command, ctx.permissionMode, ctx.workspaceRoot, ctx.sessionId);
         if (!gate.allow) {
           return { ok: false, title: "Bash", text: gate.text ?? "Bash denied" };
         }
@@ -244,7 +246,7 @@ export async function dispatchTool(
       }
       case "WebFetch": {
         const url = String(args.url ?? "");
-        const gate = await gateToolCall("WebFetch", url, ctx.permissionMode, ctx.workspaceRoot);
+        const gate = await gateToolCall("WebFetch", url, ctx.permissionMode, ctx.workspaceRoot, ctx.sessionId);
         if (!gate.allow) {
           return { ok: false, title: "WebFetch", text: gate.text ?? "WebFetch denied" };
         }
@@ -253,7 +255,7 @@ export async function dispatchTool(
       }
       case "WebSearch": {
         const query = String(args.query ?? "");
-        const gate = await gateToolCall("WebSearch", query, ctx.permissionMode, ctx.workspaceRoot);
+        const gate = await gateToolCall("WebSearch", query, ctx.permissionMode, ctx.workspaceRoot, ctx.sessionId);
         if (!gate.allow) {
           return { ok: false, title: "WebSearch", text: gate.text ?? "WebSearch denied" };
         }

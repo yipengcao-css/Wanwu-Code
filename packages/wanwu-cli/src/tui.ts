@@ -8,6 +8,7 @@ import { MODE_CYCLE, detectMode, nextMode, stripModeTags } from "./native/mode.j
 import { runPlanAsync } from "./plan.js";
 import { runVerifyWithReview } from "./verify.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
+import { runHooks } from "./hooks.js";
 import { listWorkspaceFiles } from "./native/tools.js";
 import { renderDiff } from "./tui/renderDiff.js";
 import { SessionLog } from "./tui/sessionLog.js";
@@ -70,6 +71,7 @@ export async function runTui(): Promise<number> {
   }
 
   const sessionId = `tui-${Date.now()}`;
+  runHooks(cwd, "SessionStart", { sessionId, sessionSource: "new" });
   let history: Array<{ role: string; content: string }> = [];
   const sessionLog = new SessionLog();
   const timeline = new ToolTimeline();
@@ -282,6 +284,7 @@ export async function runTui(): Promise<number> {
       }
 
       const effectiveMode = detectMode(input, mode);
+      runHooks(cwd, "UserPromptSubmit", { sessionId, prompt: input, mode: effectiveMode });
       const ctx = {
         workspaceRoot: cwd,
         sessionId,
@@ -350,6 +353,7 @@ export async function runTui(): Promise<number> {
   });
 
   rl.on("close", () => {
+    runHooks(cwd, "SessionEnd", { sessionId });
     print("\n再见。");
     process.exit(0);
   });

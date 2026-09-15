@@ -11,6 +11,7 @@ import {
 } from "@wanwu/providers";
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
+import { runHooks } from "../hooks.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { discoverRules, renderRulesForPrompt } from "../rules.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
@@ -261,6 +262,11 @@ export async function runLlmAgentLoop(
         });
       }
     } catch (err) {
+      runHooks(ctx.workspaceRoot, "Error", {
+        sessionId: ctx.sessionId,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        errorSource: "llm-loop",
+      });
       if (err instanceof ProviderError) {
         const text = `Provider error (${err.provider}/${err.code}): ${err.message}\nHint: ${err.hint}`;
         sessionUpdate(ctx.sessionId, {
