@@ -13,11 +13,8 @@
 pnpm install
 # 若 pnpm 忽略了 electron / node-pty 的 install 脚本：
 #   node node_modules/electron/install.js
-<<<<<<< HEAD
-# 首次会自动 pnpm build:cli → dist-bin/wanwu.mjs（ACP 后端）
-=======
 #   pnpm --filter wanwu-shell rebuild:native
->>>>>>> 5a30db1 (feat(shell): use node-pty and platform shell resolution)
+# 首次会自动 pnpm build:cli → dist-bin/wanwu.mjs（ACP 后端）
 pnpm --filter wanwu-shell dev
 # 或
 pnpm shell:dev
