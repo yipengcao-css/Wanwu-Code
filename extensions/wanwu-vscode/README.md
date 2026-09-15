@@ -4,12 +4,11 @@ MVP 脸面：作为 **ACP Client** 连接 `wanwu acp`（可桥接开源 Grok Bui
 
 ## 当前状态
 
-Phase 3 初版：
-
-- `Wanwu: New Chat` 打开 Webview，支持 Ask / Plan / Agent / Verify
-- 内置 ACP Client（JSON-RPC over stdio）
-- 默认 `wanwu.useMockAcp=true`，对接 `packages/wanwu-cli` 的 mock ACP
-- 安装 grok 后可关闭 mock，走 `wanwu acp` → Grok Build 桥接
+- `Wanwu: New Chat` 打开 Webview，支持 Ask / Plan / Agent / Verify，多会话
+- 内置 ACP Client（JSON-RPC over stdio），支持 `session/load` / `session/cancel`
+- **默认对接真实 `wanwu acp`**（`wanwu.useMockAcp` 默认 `false`；mock 仅供开发冒烟）
+- Quick Fix「用 Wanwu 修复」：诊断（文件/行号/消息）自动带入 Agent 会话并发起修复
+- Diff 审阅：`vscode.diff` 内联视图 + WorkspaceEdit 落盘
 
 ## 开发
 

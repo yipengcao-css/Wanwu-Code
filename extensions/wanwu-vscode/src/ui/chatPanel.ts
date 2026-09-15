@@ -42,6 +42,13 @@ export class WanwuChatPanel {
     this.panel.reveal(vscode.ViewColumn.Beside);
   }
 
+  /** Send a pre-filled prompt programmatically (e.g. Quick Fix with diagnostic). */
+  async sendPrefilled(text: string, mode: WanwuMode = "agent"): Promise<void> {
+    this.reveal();
+    await this.panel.webview.postMessage({ type: "user", text });
+    await this.handleSend(text, mode);
+  }
+
   /** Open a new parallel session panel (or reuse singleton when forceNew=false). */
   static show(context: vscode.ExtensionContext, opts?: { forceNew?: boolean }): WanwuChatPanel {
     if (!opts?.forceNew && WanwuChatPanel.current && !WanwuChatPanel.current.disposed) {

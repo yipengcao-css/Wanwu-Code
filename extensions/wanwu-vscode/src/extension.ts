@@ -5,12 +5,9 @@ import { SessionManager } from "./ui/sessionManager";
 import { askToolPermission } from "./ui/permissionModal";
 import { reviewSingleFileDiff } from "./ui/diffReview";
 import { WanwuFixActionProvider } from "./providers/fixActions";
-import { WanwuProblemsBridge } from "./providers/problemsBridge";
 import { findExtensionWorkspaceRoot } from "./workspaceRoot";
 
 export function activate(context: vscode.ExtensionContext): void {
-  const problemsBridge = new WanwuProblemsBridge();
-  context.subscriptions.push(problemsBridge);
   context.subscriptions.push(
     vscode.languages.registerCodeActionsProvider(
       { scheme: "file" },
@@ -77,11 +74,22 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand(
       "wanwu.fixWithProblem",
-      async (_uri: vscode.Uri, diagnostic: vscode.Diagnostic) => {
-        WanwuChatPanel.show(context);
-        await vscode.window.showInformationMessage(
-          `已打开 Wanwu Chat。请描述要修复的问题：${diagnostic.message.slice(0, 80)}`,
-        );
+      async (uri: vscode.Uri, diagnostic: vscode.Diagnostic) => {
+        const panel = WanwuChatPanel.show(context);
+        const prompt = [
+          `修复这个诊断问题：`,
+          ``,
+          `文件：${uri.fsPath}`,
+          `位置：第 ${diagnostic.range.start.line + 1} 行`,
+          `严重级：${vscode.DiagnosticSeverity[diagnostic.severity]}`,
+          `消息：${diagnostic.message}`,
+          diagnostic.source ? `来源：${diagnostic.source}` : "",
+          ``,
+          `请先 Read 文件理解上下文，再用 Edit 做最小修复。`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+        await panel.sendPrefilled(prompt, "agent");
       },
     ),
   );
