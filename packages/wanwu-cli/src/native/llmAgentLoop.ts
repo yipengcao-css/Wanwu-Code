@@ -14,7 +14,9 @@ import { discoverMemory } from "../memory.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { compactMessages } from "./context/compact.js";
+import { expandMentions, type MentionHostProviders } from "./mentions.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
+import { toolWebSearch } from "./web.js";
 import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
 import { dispatchTool } from "./toolDispatch.js";
@@ -112,6 +114,8 @@ export async function runLlmAgentLoop(
     stream?: boolean;
     /** Multimodal attachments for the user prompt. */
     attachments?: import("@wanwu/providers").ContentPart[];
+    /** Host-provided context for @terminal / @diagnostics / @web mentions. */
+    hostContext?: MentionHostProviders;
   },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
@@ -157,10 +161,16 @@ export async function runLlmAgentLoop(
     .filter((m) => m.role !== "system")
     .slice(-MAX_HISTORY_MESSAGES);
 
+  const expanded = await expandMentions(ctx.workspaceRoot, prompt, {
+    webSearch: async (q) => (await toolWebSearch(q)).text,
+    ...opts?.hostContext,
+  });
+  const finalPrompt = expanded.context ? `${expanded.text}\n\n${expanded.context}` : prompt;
+
   const userContent =
     opts?.attachments?.length
-      ? [{ type: "text" as const, text: prompt }, ...opts.attachments]
-      : prompt;
+      ? [{ type: "text" as const, text: finalPrompt }, ...opts.attachments]
+      : finalPrompt;
 
   let messages: ChatMessage[] = [
     { role: "system", content: buildSystem(ctx, mode) },
