@@ -8,6 +8,7 @@ import { MODE_CYCLE, detectMode, nextMode, stripModeTags } from "./native/mode.j
 import { runPlanAsync } from "./plan.js";
 import { runVerifyWithReview } from "./verify.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
+import { listWorkspaceFiles } from "./native/tools.js";
 import { renderDiff } from "./tui/renderDiff.js";
 import { SessionLog } from "./tui/sessionLog.js";
 import { parseSessionUpdate } from "./tui/sessionSink.js";
@@ -36,8 +37,16 @@ const HELP = `命令：
   /doctor        运行 doctor
   /inspect       打印配置/记忆/skills/mcp
   /history [n]   显示最近 n 轮会话
+  /status        显示模式/provider/工作区状态
+  /mcp           列出已配置 MCP server
   /clear         清屏
   /exit          退出
+
+上下文引用（Tab 补全）：
+  @文件/@目录    附带文件内容或目录列表
+  @git:status|diff|log  附带 git 状态/差异/日志
+  @web:关键词    联网搜索
+  @terminal / @diagnostics  终端输出 / 诊断（宿主支持时）
 
 快捷键：
   Ctrl+T         循环切换模式（ask → plan → agent → verify）
@@ -73,11 +82,26 @@ export async function runTui(): Promise<number> {
   print(`llm=${shouldUseLlm(config) ? "on" : "deterministic"} · memory=${discoverMemory(cwd).length} · skills=${discoverSkills(cwd).length} · theme=${theme.name}`);
   print(HELP);
 
+  // @-mention path completion (workspace files + special mentions)
+  const workspaceFiles = listWorkspaceFiles(cwd);
+  const SPECIAL_MENTIONS = ["@git:status", "@git:diff", "@git:log", "@web:", "@terminal", "@diagnostics"];
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     terminal: true,
     prompt: promptLine(mode),
+    completer: (line: string): [string[], string] => {
+      const m = line.match(/@([\w./\\-]*)$/);
+      if (!m) return [[], line];
+      const partial = m[1] ?? "";
+      const pathHits = workspaceFiles
+        .filter((f) => f.startsWith(partial))
+        .slice(0, 20)
+        .map((f) => `@${f}`);
+      const specialHits = SPECIAL_MENTIONS.filter((s) => s.startsWith(`@${partial}`));
+      const hits = [...pathHits, ...specialHits];
+      return [hits, `@${partial}`];
+    },
   });
 
   // Ctrl+T cycles mode

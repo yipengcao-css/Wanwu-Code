@@ -116,6 +116,13 @@ export function toolRead(workspaceRoot: string, pathArg: string): ToolResult {
   }
 }
 
+/** List workspace files (walk caps apply) — used by TUI @-completion. */
+export function listWorkspaceFiles(workspaceRoot: string, max = WALK_MAX): string[] {
+  const files: string[] = [];
+  walkFiles(workspaceRoot, workspaceRoot, files, max);
+  return files;
+}
+
 export function toolGlob(workspaceRoot: string, pattern: string): ToolResult {
   const files: string[] = [];
   walkFiles(workspaceRoot, workspaceRoot, files);
