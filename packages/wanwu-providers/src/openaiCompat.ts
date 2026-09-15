@@ -1,4 +1,5 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
+import { fetchWithRetry } from "./http.js";
 import type {
   ChatMessage,
   ChatRequest,
@@ -6,7 +7,19 @@ import type {
   FetchLike,
   ResolvedProvider,
   ToolCall,
+  Usage,
 } from "./types.js";
+
+function parseOpenAiUsage(raw: unknown): Usage | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const u = raw as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  if (typeof u.prompt_tokens !== "number" && typeof u.completion_tokens !== "number") {
+    return undefined;
+  }
+  const inputTokens = u.prompt_tokens ?? 0;
+  const outputTokens = u.completion_tokens ?? 0;
+  return { inputTokens, outputTokens, totalTokens: u.total_tokens ?? inputTokens + outputTokens };
+}
 
 function toApiMessages(messages: ChatMessage[]): unknown[] {
   return messages.map((m) => {
@@ -87,7 +100,7 @@ export async function completeOpenAiCompat(
 
   let res: Response;
   try {
-    res = await fetchImpl(url, {
+    res = await fetchWithRetry(fetchImpl, url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -111,6 +124,7 @@ export async function completeOpenAiCompat(
         }>;
       };
     }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
   };
   try {
     data = JSON.parse(bodyText) as typeof data;
@@ -144,6 +158,7 @@ export async function completeOpenAiCompat(
     provider: resolved.id,
     model,
     toolCalls: toolCalls.length ? toolCalls : undefined,
+    usage: parseOpenAiUsage(data.usage),
     raw: data,
   };
 }

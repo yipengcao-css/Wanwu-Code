@@ -1,4 +1,5 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
+import { fetchWithRetry } from "./http.js";
 import type {
   ChatRequest,
   ChatResponse,
@@ -6,6 +7,7 @@ import type {
   ResolvedProvider,
   StreamChunk,
   ToolCall,
+  Usage,
 } from "./types.js";
 
 type AnthropicContentBlock =
@@ -145,7 +147,7 @@ export async function completeAnthropicStream(
 
   let res: Response;
   try {
-    res = await fetchImpl(url, {
+    res = await fetchWithRetry(fetchImpl, url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -171,6 +173,7 @@ export async function completeAnthropicStream(
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
+  let usage: Usage | undefined;
   const toolCalls = new Map<number, { id: string; name: string; inputJson: string }>();
   let currentToolIndex = -1;
 
@@ -194,7 +197,24 @@ export async function completeAnthropicStream(
 
       try {
         const parsed = JSON.parse(data) as Record<string, unknown>;
-        if (event === "content_block_start") {
+        if (event === "message_start") {
+          const u = (parsed.message as { usage?: { input_tokens?: number; output_tokens?: number } })
+            ?.usage;
+          if (u) {
+            const inputTokens = u.input_tokens ?? 0;
+            const outputTokens = u.output_tokens ?? 0;
+            usage = { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens };
+          }
+        } else if (event === "message_delta") {
+          const u = parsed.usage as { output_tokens?: number } | undefined;
+          if (u?.output_tokens !== undefined) {
+            usage = {
+              inputTokens: usage?.inputTokens ?? 0,
+              outputTokens: u.output_tokens,
+              totalTokens: (usage?.inputTokens ?? 0) + u.output_tokens,
+            };
+          }
+        } else if (event === "content_block_start") {
           const block = parsed.content_block as { type?: string; id?: string; name?: string };
           if (block?.type === "tool_use") {
             currentToolIndex = (parsed.index as number) ?? 0;
@@ -237,5 +257,6 @@ export async function completeAnthropicStream(
     provider: resolved.id,
     model,
     toolCalls: finalToolCalls.length ? finalToolCalls : undefined,
+    usage,
   };
 }

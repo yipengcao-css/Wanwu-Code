@@ -1,4 +1,5 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
+import { fetchWithRetry } from "./http.js";
 import type {
   ChatMessage,
   ChatRequest,
@@ -6,7 +7,19 @@ import type {
   FetchLike,
   ResolvedProvider,
   ToolCall,
+  Usage,
 } from "./types.js";
+
+function parseAnthropicUsage(raw: unknown): Usage | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const u = raw as { input_tokens?: number; output_tokens?: number };
+  if (typeof u.input_tokens !== "number" && typeof u.output_tokens !== "number") {
+    return undefined;
+  }
+  const inputTokens = u.input_tokens ?? 0;
+  const outputTokens = u.output_tokens ?? 0;
+  return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens };
+}
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
@@ -141,7 +154,7 @@ export async function completeAnthropic(
 
   let res: Response;
   try {
-    res = await fetchImpl(url, {
+    res = await fetchWithRetry(fetchImpl, url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -165,6 +178,7 @@ export async function completeAnthropic(
       | { type?: "tool_use"; id?: string; name?: string; input?: Record<string, unknown> }
     >;
     stop_reason?: string;
+    usage?: { input_tokens?: number; output_tokens?: number };
   };
   try {
     data = JSON.parse(bodyText) as typeof data;
@@ -198,6 +212,7 @@ export async function completeAnthropic(
     provider: resolved.id,
     model,
     toolCalls: toolCalls.length ? toolCalls : undefined,
+    usage: parseAnthropicUsage(data.usage),
     raw: data,
   };
 }

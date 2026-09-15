@@ -8,7 +8,9 @@ export {
   type StreamChunk,
   type ToolCall,
   type ToolSpec,
+  type Usage,
 } from "./types.js";
+export { fetchWithRetry, type FetchRetryOptions } from "./http.js";
 export {
   type ContentPart,
   type ImageMediaType,
