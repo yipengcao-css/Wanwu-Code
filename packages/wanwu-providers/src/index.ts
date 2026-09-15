@@ -35,4 +35,10 @@ export {
   type EmbedOptions,
   type EmbedResult,
 } from "./embed.js";
+export {
+  completeInline,
+  sanitizeCompletion,
+  type InlineCompleteOptions,
+  type InlineCompleteResult,
+} from "./inlineComplete.js";
 export { mapHttpError, mapNetworkError } from "./errors.js";

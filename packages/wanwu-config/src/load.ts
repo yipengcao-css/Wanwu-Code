@@ -38,6 +38,8 @@ function parseOverlay(raw: unknown): Partial<WanwuConfig> {
         baseUrl: asString(p.base_url) ?? asString(p.baseUrl),
         defaultModel: asString(p.default_model) ?? asString(p.defaultModel),
         embeddingModel: asString(p.embedding_model) ?? asString(p.embeddingModel),
+        fim: p.fim === true,
+        completionModel: asString(p.completion_model) ?? asString(p.completionModel),
       };
     }
   }

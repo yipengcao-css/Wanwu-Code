@@ -10,6 +10,10 @@ export interface ProviderConfig {
   defaultModel?: string;
   /** Embedding model for codebase indexing (OpenAI-compat /embeddings). */
   embeddingModel?: string;
+  /** Use FIM /completions for inline completion (DeepSeek/Codestral style). */
+  fim?: boolean;
+  /** Dedicated model for inline completion (defaults to chat model). */
+  completionModel?: string;
 }
 
 export interface WanwuConfig {

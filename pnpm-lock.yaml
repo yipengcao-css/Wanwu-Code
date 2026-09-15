@@ -35,6 +35,9 @@ importers:
       '@wanwu/config':
         specifier: workspace:*
         version: link:../../packages/wanwu-config
+      '@wanwu/providers':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-providers
       '@xterm/addon-fit':
         specifier: ^0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
