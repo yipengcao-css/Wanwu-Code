@@ -69,6 +69,34 @@ export interface GateResult {
   text?: string;
 }
 
+/** Session-scoped allow cache for "本会话允许" (allow-session). */
+const sessionAllows = new Map<string, Set<string>>();
+
+function bashPrefix(input: string): string {
+  return input.trim().split(/\s+/).slice(0, 2).join(" ");
+}
+
+/** Record an allow-session choice (called after the user picks it). */
+export function noteSessionAllow(sessionId: string, toolName: string, input: string): void {
+  const set = sessionAllows.get(sessionId) ?? new Set<string>();
+  set.add(`${toolName} ${input}`);
+  if (toolName === "Bash") set.add(`Bash-prefix ${bashPrefix(input)}`);
+  sessionAllows.set(sessionId, set);
+}
+
+export function clearSessionPermissions(sessionId: string): void {
+  sessionAllows.delete(sessionId);
+}
+
+function hasSessionAllow(sessionId: string | undefined, toolName: string, input: string): boolean {
+  if (!sessionId) return false;
+  const set = sessionAllows.get(sessionId);
+  if (!set) return false;
+  if (set.has(`${toolName} ${input}`)) return true;
+  if (toolName === "Bash" && set.has(`Bash-prefix ${bashPrefix(input)}`)) return true;
+  return false;
+}
+
 /**
  * Enforce permission policy for a tool call.
  * - deny-first rules still block outright
@@ -80,35 +108,36 @@ export async function gateToolCall(
   input: string,
   permissionMode: PermissionMode,
   workspaceRoot?: string,
+  sessionId?: string,
 ): Promise<GateResult> {
-  const hookCtx = { toolName, toolArgs: input };
+  const hookCtx = { toolName, toolArgs: input, sessionId };
+  const approved = (choice: string): GateResult => {
+    if (workspaceRoot) {
+      runHooks(workspaceRoot, "ToolCallApproved", { ...hookCtx, permissionChoice: choice });
+    }
+    return { allow: true };
+  };
+  const denied = (reason: string): GateResult => {
+    if (workspaceRoot) {
+      runHooks(workspaceRoot, "ToolCallDenied", { ...hookCtx, denyReason: reason });
+    }
+    return { allow: false, text: reason };
+  };
   // Workspace rules override built-in policy.
   if (workspaceRoot) {
     const file = loadPermissionsFile(workspaceRoot);
     const rule = matchPermissionRule(file, toolName, input);
     if (rule) {
       if (rule.action === "deny") {
-        if (workspaceRoot) {
-          runHooks(workspaceRoot, "ToolCallDenied", {
-            ...hookCtx,
-            denyReason: rule.reason ?? rule.pattern,
-          });
-        }
-        return {
-          allow: false,
-          text: `Blocked by workspace rule: ${rule.reason ?? rule.pattern}`,
-        };
+        return denied(`Blocked by workspace rule: ${rule.reason ?? rule.pattern}`);
       }
       if (rule.action === "allow") {
-        if (workspaceRoot) {
-          runHooks(workspaceRoot, "ToolCallApproved", {
-            ...hookCtx,
-            permissionChoice: "allow-rule",
-          });
-        }
-        return { allow: true };
+        return approved("allow-rule");
       }
-      // ask → fall through to prompt
+      // ask → session cache first, then prompt
+      if (hasSessionAllow(sessionId, toolName, input)) {
+        return approved("allow-session-cached");
+      }
       try {
         const choice = await requestPermission(toolName, input, {
           allow: false,
@@ -117,21 +146,12 @@ export async function gateToolCall(
           requiresPrompt: true,
         });
         if (choice === "deny") {
-          if (workspaceRoot) {
-            runHooks(workspaceRoot, "ToolCallDenied", {
-              ...hookCtx,
-              denyReason: rule.reason ?? rule.pattern,
-            });
-          }
-          return { allow: false, text: `Denied by user: ${rule.reason ?? rule.pattern}` };
+          return denied(`Denied by user: ${rule.reason ?? rule.pattern}`);
         }
-        if (workspaceRoot) {
-          runHooks(workspaceRoot, "ToolCallApproved", {
-            ...hookCtx,
-            permissionChoice: choice,
-          });
+        if (choice === "allow-session" && sessionId) {
+          noteSessionAllow(sessionId, toolName, input);
         }
-        return { allow: true };
+        return approved(choice);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         return { allow: false, text: `Permission request failed: ${msg}` };
@@ -145,48 +165,27 @@ export async function gateToolCall(
       : assessToolCall(toolName, input, permissionMode);
 
   if (!verdict.allow && !verdict.requiresPrompt) {
-    if (workspaceRoot) {
-      runHooks(workspaceRoot, "ToolCallDenied", {
-        ...hookCtx,
-        denyReason: verdict.reason,
-      });
-    }
-    return {
-      allow: false,
-      text: `Blocked by permission: ${verdict.reason}`,
-    };
+    return denied(`Blocked by permission: ${verdict.reason}`);
   }
 
   if (verdict.requiresPrompt) {
+    if (hasSessionAllow(sessionId, toolName, input)) {
+      return approved("allow-session-cached");
+    }
     try {
       const choice = await requestPermission(toolName, input, verdict);
       if (choice === "deny") {
-        if (workspaceRoot) {
-          runHooks(workspaceRoot, "ToolCallDenied", {
-            ...hookCtx,
-            denyReason: verdict.reason,
-          });
-        }
-        return { allow: false, text: `Denied by user: ${verdict.reason}` };
+        return denied(`Denied by user: ${verdict.reason}`);
       }
-      if (workspaceRoot) {
-        runHooks(workspaceRoot, "ToolCallApproved", {
-          ...hookCtx,
-          permissionChoice: choice,
-        });
+      if (choice === "allow-session" && sessionId) {
+        noteSessionAllow(sessionId, toolName, input);
       }
-      return { allow: true };
+      return approved(choice);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return { allow: false, text: `Permission request failed: ${msg}` };
     }
   }
 
-  if (workspaceRoot) {
-    runHooks(workspaceRoot, "ToolCallApproved", {
-      ...hookCtx,
-      permissionChoice: "auto",
-    });
-  }
-  return { allow: true };
+  return approved("auto");
 }

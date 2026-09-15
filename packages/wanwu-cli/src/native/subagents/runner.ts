@@ -1,6 +1,7 @@
 import type { ChatMessage } from "@wanwu/providers";
 import { runLlmAgentLoop } from "../llmAgentLoop.js";
 import { runPlanAsync } from "../../plan.js";
+import { runHooks } from "../../hooks.js";
 import { emitSubagentComplete, emitSubagentStart } from "./emit.js";
 import { policyFor } from "./policy.js";
 import type { SubagentResult, SubagentRunOptions, SubagentSpec } from "./types.js";
@@ -17,6 +18,12 @@ export async function runSubagent(
   const policy = policyFor(spec.kind);
 
   emitSubagentStart(opts.parentSessionId, id, spec.kind, name, spec.prompt);
+  runHooks(opts.workspaceRoot, "SubagentStart", {
+    sessionId: opts.parentSessionId,
+    subagentId: id,
+    subagentKind: spec.kind,
+    subagentName: name,
+  });
 
   // coder gets an isolated worktree; explore/plan stay in the main workspace
   const useWorktree = spec.kind === "coder";
@@ -35,6 +42,13 @@ export async function runSubagent(
       const planPath = await runPlanAsync(spec.prompt, opts.workspaceRoot);
       const summary = `Plan written: ${planPath}`;
       emitSubagentComplete(opts.parentSessionId, id, spec.kind, name, summary, true);
+      runHooks(opts.workspaceRoot, "SubagentEnd", {
+        sessionId: opts.parentSessionId,
+        subagentId: id,
+        subagentKind: spec.kind,
+        subagentName: name,
+        subagentOk: true,
+      });
       return {
         id,
         kind: spec.kind,
@@ -54,6 +68,13 @@ export async function runSubagent(
 
     const summary = out.text || "(no text output)";
     emitSubagentComplete(opts.parentSessionId, id, spec.kind, name, summary, true);
+    runHooks(opts.workspaceRoot, "SubagentEnd", {
+      sessionId: opts.parentSessionId,
+      subagentId: id,
+      subagentKind: spec.kind,
+      subagentName: name,
+      subagentOk: true,
+    });
     return {
       id,
       kind: spec.kind,
@@ -68,6 +89,13 @@ export async function runSubagent(
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     emitSubagentComplete(opts.parentSessionId, id, spec.kind, name, msg, false);
+    runHooks(opts.workspaceRoot, "SubagentEnd", {
+      sessionId: opts.parentSessionId,
+      subagentId: id,
+      subagentKind: spec.kind,
+      subagentName: name,
+      subagentOk: false,
+    });
     return {
       id,
       kind: spec.kind,
