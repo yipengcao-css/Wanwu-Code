@@ -177,6 +177,10 @@ async function main(argv: string[]): Promise<number> {
       const { runMcpConfigCommand } = await import("./mcp/configCmd.js");
       return await runMcpConfigCommand(rest);
     }
+    case "commit-msg": {
+      const { runCommitMsg } = await import("./commitMsg.js");
+      return await runCommitMsg(findWorkspaceRoot());
+    }
     case "checkpoints": {
       const { listCheckpoints } = await import("./native/checkpoints.js");
       const all = listCheckpoints(findWorkspaceRoot());

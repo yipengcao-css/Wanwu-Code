@@ -10,6 +10,7 @@ import { runVerifyWithReview } from "./verify.js";
 import { findWorkspaceRoot } from "./workspaceRoot.js";
 import { runHooks } from "./hooks.js";
 import { listWorkspaceFiles } from "./native/tools.js";
+import { listSessions, loadSession, saveSession } from "./native/sessionStore.js";
 import { renderDiff } from "./tui/renderDiff.js";
 import { SessionLog } from "./tui/sessionLog.js";
 import { parseSessionUpdate } from "./tui/sessionSink.js";
@@ -38,6 +39,7 @@ const HELP = `命令：
   /doctor        运行 doctor
   /inspect       打印配置/记忆/skills/mcp
   /history [n]   显示最近 n 轮会话
+  /resume        列出/恢复磁盘上的会话（/resume 2 或 /resume <id>）
   /undo          回滚上一轮 Agent 的文件修改（检查点）
   /status        显示模式/provider/工作区状态
   /mcp           列出已配置 MCP server
@@ -70,9 +72,10 @@ export async function runTui(): Promise<number> {
     return `\n${color(theme, "prompt", "wanwu")} [${color(theme, "mode", current)}] ${color(theme, "accent", "❯")} `;
   }
 
-  const sessionId = `tui-${Date.now()}`;
+  let sessionId = `tui-${Date.now()}`;
   runHooks(cwd, "SessionStart", { sessionId, sessionSource: "new" });
   let history: Array<{ role: string; content: string }> = [];
+  let lastUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
   const sessionLog = new SessionLog();
   const timeline = new ToolTimeline();
   const view = new SessionView(timeline);
@@ -202,8 +205,45 @@ export async function runTui(): Promise<number> {
               toolsRunning: 0,
             },
             theme,
-          ),
+          ) + (lastUsage ? `\ntokens: in ${lastUsage.inputTokens} / out ${lastUsage.outputTokens} / total ${lastUsage.totalTokens}` : ""),
         );
+        rl.prompt();
+        return;
+      }
+      if (input === "/resume" || input.startsWith("/resume ")) {
+        const arg = input.slice(7).trim();
+        const all = listSessions(cwd);
+        if (!all.length) {
+          print("（没有可恢复的会话）");
+          rl.prompt();
+          return;
+        }
+        if (!arg) {
+          all.slice(0, 10).forEach((s, i) => {
+            const last = s.history.filter((m) => m.role === "user").at(-1);
+            const preview = typeof last?.content === "string" ? last.content.slice(0, 60) : "";
+            print(`  ${i + 1}. ${s.id} · ${s.updatedAt.slice(0, 16)} · ${preview}`);
+          });
+          print("用法: /resume <序号|sessionId>");
+          rl.prompt();
+          return;
+        }
+        const target = /^\d+$/.test(arg) ? all[Number(arg) - 1] : all.find((s) => s.id === arg);
+        if (!target) {
+          print(`未找到会话: ${arg}`);
+          rl.prompt();
+          return;
+        }
+        const stored = loadSession(cwd, target.id);
+        if (!stored) {
+          print(`会话读取失败: ${target.id}`);
+          rl.prompt();
+          return;
+        }
+        sessionId = stored.id;
+        history = stored.history as never;
+        sessionLog.add({ mode, user: `(恢复会话 ${stored.id})`, tools: [] });
+        print(`已恢复会话 ${stored.id}（${stored.history.length} 条消息）`);
         rl.prompt();
         return;
       }
@@ -328,9 +368,22 @@ export async function runTui(): Promise<number> {
             history: history as never,
           });
           history = out.messages.filter((m) => m.role !== "system") as never;
+          lastUsage = out.usage;
+          saveSession({
+            id: sessionId,
+            workspaceRoot: cwd,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            history: history as never,
+          });
           if (out.text) {
             assistantText += out.text;
             print(`\n${out.text}`);
+          }
+          if (out.usage) {
+            print(
+              `\x1b[90m· tokens: in ${out.usage.inputTokens} / out ${out.usage.outputTokens} · checkpoint ${out.checkpointId ?? "-"} · /undo 可回滚\x1b[0m`,
+            );
           }
         } else {
           runDeterministicTurn(ctx, stripModeTags(input));

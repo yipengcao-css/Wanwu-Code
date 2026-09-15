@@ -207,6 +207,8 @@ export function startNativeAcpStdioServer(): void {
               updatedAt: new Date().toISOString(),
               history: session.history,
             });
+            sendResult(id, { stopReason: "end_turn", usage: out.usage, checkpointId: out.checkpointId });
+            return;
           } finally {
             session.abort = undefined;
           }
