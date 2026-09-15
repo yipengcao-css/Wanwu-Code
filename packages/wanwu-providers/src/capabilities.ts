@@ -11,25 +11,27 @@ export interface ProviderCapabilities {
   stream: boolean;
 }
 
+// videoInput is "none" everywhere until a frames/native pipeline exists —
+// capabilities must not advertise unimplemented surface.
 const DEFAULTS: Record<ProviderId, ProviderCapabilities> = {
   openai: {
     imageInput: true,
     imageInputModes: ["base64", "url"],
-    videoInput: "frames",
+    videoInput: "none",
     tools: true,
     stream: true,
   },
   anthropic: {
     imageInput: true,
-    imageInputModes: ["base64"],
-    videoInput: "frames",
+    imageInputModes: ["base64", "url"],
+    videoInput: "none",
     tools: true,
     stream: true,
   },
   xai: {
     imageInput: true,
     imageInputModes: ["base64", "url"],
-    videoInput: "frames",
+    videoInput: "none",
     tools: true,
     stream: true,
   },

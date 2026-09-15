@@ -1,20 +1,20 @@
 /**
  * Shared protocol types for Wanwu-Code.
- * ACP wire types will be generated/locked from upstream schema in a later PR.
+ * Canonical sources: @wanwu/config (config/mode/provider ids) and
+ * @wanwu/providers (streaming wire types). This package re-exports them so
+ * there is exactly one definition; ACP wire types get locked from the
+ * upstream schema here in a later PR.
  */
 
-export type WanwuMode = "ask" | "plan" | "agent" | "verify";
+export type {
+  ProviderId,
+  WanwuMode,
+  AcpBackend,
+  PermissionMode,
+  SandboxMode,
+} from "@wanwu/config";
 
-export type AcpBackend = "grok" | "wanwu-native";
-
-export type ProviderId = "xai" | "openai" | "anthropic" | "ollama" | "custom";
-
-export interface StreamChunk {
-  type: "text" | "thinking" | "tool" | "diff" | "status";
-  text?: string;
-  toolName?: string;
-  status?: string;
-}
+export type { StreamChunk, ToolCall, Usage } from "@wanwu/providers";
 
 export interface PermissionRequest {
   id: string;
@@ -25,8 +25,8 @@ export interface PermissionRequest {
 
 export type PermissionDecision = "allow-once" | "allow-session" | "deny";
 
-export const ACP_SCHEMA_VERSION = "0.1.0-wanwu-placeholder";
+export const ACP_SCHEMA_VERSION = "0.1.0-wanwu-native";
 
-export function isWanwuMode(value: string): value is WanwuMode {
+export function isWanwuMode(value: string): value is import("@wanwu/config").WanwuMode {
   return value === "ask" || value === "plan" || value === "agent" || value === "verify";
 }

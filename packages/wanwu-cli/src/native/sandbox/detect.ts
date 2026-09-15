@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { delimiter } from "node:path";
 
-export type SandboxBackend = "bwrap" | "sandbox-exec" | "docker" | "wsl" | "none";
+export type SandboxBackend = "bwrap" | "sandbox-exec" | "docker" | "none";
 
 function commandExists(cmd: string): boolean {
   const paths = (process.env.PATH ?? "").split(delimiter);
@@ -17,8 +17,9 @@ function commandExists(cmd: string): boolean {
 export function detectSandboxBackend(): SandboxBackend {
   if (process.platform === "linux" && commandExists("bwrap")) return "bwrap";
   if (process.platform === "darwin" && commandExists("sandbox-exec")) return "sandbox-exec";
+  // Windows path is Docker (WSL was detected-but-never-executed; removed to
+  // keep doctor honest).
   if (commandExists("docker")) return "docker";
-  if (process.platform === "win32" && commandExists("wsl")) return "wsl";
   return "none";
 }
 
@@ -30,8 +31,6 @@ export function sandboxBackendLabel(backend: SandboxBackend): string {
       return "sandbox-exec (Seatbelt)";
     case "docker":
       return "docker";
-    case "wsl":
-      return "wsl";
     case "none":
       return "none";
   }
