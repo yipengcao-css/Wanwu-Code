@@ -107,6 +107,29 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
     },
   },
   {
+    name: "WebFetch",
+    description: "Fetch an http(s) URL and return its text content (HTML is stripped to text).",
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string", description: "http(s) URL to fetch" },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "WebSearch",
+    description:
+      "Search the web (DuckDuckGo by default; WANWU_WEB_SEARCH_URL overrides the endpoint). Returns titles, URLs, snippets.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search query" },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "Task",
     description:
       "Run isolated subagents in parallel. explore=read-only, plan=plan-only, coder=edit (propose-only).",

@@ -218,6 +218,24 @@ export async function dispatchTool(
         const items = Array.isArray(args.items) ? (args.items as TodoItem[]) : [];
         return toolTodo(ctx.workspaceRoot, ctx.sessionId, items);
       }
+      case "WebFetch": {
+        const url = String(args.url ?? "");
+        const gate = await gateToolCall("WebFetch", url, ctx.permissionMode, ctx.workspaceRoot);
+        if (!gate.allow) {
+          return { ok: false, title: "WebFetch", text: gate.text ?? "WebFetch denied" };
+        }
+        const { toolWebFetch } = await import("./web.js");
+        return toolWebFetch(url);
+      }
+      case "WebSearch": {
+        const query = String(args.query ?? "");
+        const gate = await gateToolCall("WebSearch", query, ctx.permissionMode, ctx.workspaceRoot);
+        if (!gate.allow) {
+          return { ok: false, title: "WebSearch", text: gate.text ?? "WebSearch denied" };
+        }
+        const { toolWebSearch } = await import("./web.js");
+        return toolWebSearch(query);
+      }
       case "Task": {
         if (!ctx.config) {
           return { ok: false, title: "Task", text: "Task requires LLM config context" };
@@ -359,6 +377,28 @@ export function dispatchToolSync(
     case "Todo": {
       const items = Array.isArray(args.items) ? (args.items as TodoItem[]) : [];
       result = toolTodo(ctx.workspaceRoot, ctx.sessionId, items);
+      break;
+    }
+    case "WebFetch":
+    case "WebSearch": {
+      // Sync path has no interactive gate — policy only.
+      const input = name === "WebFetch" ? String(args.url ?? "") : String(args.query ?? "");
+      const verdict = assessToolCall(name, input, ctx.permissionMode);
+      if (!verdict.allow) {
+        result = {
+          ok: false,
+          title: name,
+          text: `Blocked by permission: ${verdict.reason}${
+            verdict.requiresPrompt ? " (requires confirmation)" : ""
+          }`,
+        };
+        break;
+      }
+      result = {
+        ok: false,
+        title: name,
+        text: `${name} is async-only in the deterministic path; use the LLM agent`,
+      };
       break;
     }
     default:
