@@ -1,9 +1,24 @@
 import { runSubagent } from "./runner.js";
 import type { SubagentBatchResult, SubagentRunOptions, SubagentSpec } from "./types.js";
 
+/** Module-level coder mutex: coder subagents run one at a time (edit safety). */
+let coderChain: Promise<unknown> = Promise.resolve();
+
+function runCoderSerialized(
+  spec: SubagentSpec,
+  opts: SubagentRunOptions,
+): Promise<import("./types.js").SubagentResult> {
+  const p = coderChain.then(
+    () => runSubagent(spec, opts),
+    () => runSubagent(spec, opts),
+  );
+  coderChain = p.catch(() => undefined);
+  return p;
+}
+
 /**
  * Run subagents with bounded concurrency.
- * coder is capped at 1 to avoid edit races in the same checkout.
+ * coder subagents are serialized via a shared mutex chain.
  */
 export async function runSubagents(
   specs: SubagentSpec[],
@@ -21,12 +36,10 @@ export async function runSubagents(
       index += 1;
       if (i >= specs.length) return;
       const spec = specs[i]!;
-      // Serialize coder subagents
-      if (spec.kind === "coder") {
-        results[i] = await runSubagent(spec, opts);
-      } else {
-        results[i] = await runSubagent(spec, opts);
-      }
+      results[i] =
+        spec.kind === "coder"
+          ? await runCoderSerialized(spec, opts)
+          : await runSubagent(spec, opts);
     }
   }
 

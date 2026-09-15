@@ -124,6 +124,11 @@ export async function dispatchTool(
   const writeBlocked = mode === "plan" || mode === "ask" || mode === "verify";
 
   return withHooks(ctx, name, argsJson, async () => {
+    // Hard policy guard (subagent allow-lists) — before any execution.
+    const blocked = ctx.toolGuard?.(name, argsJson);
+    if (blocked) {
+      return { ok: false, title: name, text: blocked };
+    }
     if (name.startsWith("mcp__")) {
       // MCP servers are user-configured RCE surface — always gated by hooks above.
       return dispatchMcp(ctx, name, args);
@@ -302,6 +307,10 @@ export function dispatchToolSync(
     return { ok: false, title: name, text: `invalid JSON arguments: ${argsJson}` };
   }
   const writeBlocked = mode === "plan" || mode === "ask" || mode === "verify";
+  const guardBlocked = ctx.toolGuard?.(name, argsJson);
+  if (guardBlocked) {
+    return { ok: false, title: name, text: guardBlocked };
+  }
   const pre = runHooks(ctx.workspaceRoot, "PreToolUse", {
     toolName: name,
     toolArgs: argsJson,
