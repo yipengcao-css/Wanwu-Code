@@ -12,6 +12,7 @@ import {
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
+import { discoverRules, renderRulesForPrompt } from "../rules.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { compactMessages } from "./context/compact.js";
 import { expandMentions, type MentionHostProviders } from "./mentions.js";
@@ -36,7 +37,7 @@ export function shouldUseLlm(config: WanwuConfig): boolean {
   return hasProviderCredentials(config, { providerId: providerOverride() });
 }
 
-function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
+function buildSystem(ctx: AgentContext, mode: WanwuMode, activeFiles: string[] = []): string {
   const memory = discoverMemory(ctx.workspaceRoot)
     .slice(0, 2)
     .map((f) => {
@@ -54,6 +55,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     .map((t) => t.qualifiedName)
     .slice(0, 40);
   const skills = renderSkillsForPrompt(discoverSkills(ctx.workspaceRoot));
+  const rules = renderRulesForPrompt(discoverRules(ctx.workspaceRoot), activeFiles);
 
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
@@ -69,6 +71,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
       ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`
       : "",
     skills ? `Project skills:\n${skills}` : "",
+    rules ? `Project rules:\n${rules}` : "",
     memory ? `Project memory:\n${memory}` : "",
   ]
     .filter(Boolean)
@@ -166,6 +169,7 @@ export async function runLlmAgentLoop(
     ...opts?.hostContext,
   });
   const finalPrompt = expanded.context ? `${expanded.text}\n\n${expanded.context}` : prompt;
+  const activeFiles = expanded.mentions.filter((m) => m.kind === "file").map((m) => m.arg);
 
   const userContent =
     opts?.attachments?.length
@@ -173,7 +177,7 @@ export async function runLlmAgentLoop(
       : finalPrompt;
 
   let messages: ChatMessage[] = [
-    { role: "system", content: buildSystem(ctx, mode) },
+    { role: "system", content: buildSystem(ctx, mode, activeFiles) },
     ...prior,
     { role: "user", content: userContent },
   ];
