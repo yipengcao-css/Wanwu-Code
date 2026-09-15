@@ -11,6 +11,8 @@ export type WanwuBridge = {
     list: (rel?: string) => Promise<{ name: string; path: string; type: "file" | "dir" }[]>;
     read: (rel: string) => Promise<string>;
     write: (rel: string, content: string) => Promise<boolean>;
+    search: (query: string) => Promise<Array<{ path: string; line: number; text: string }>>;
+    onChanged: (cb: (rel: string) => void) => () => void;
   };
   ai: {
     complete: (req: {
@@ -50,11 +52,11 @@ export type WanwuBridge = {
     ) => () => void;
   };
   term: {
-    start: (cols?: number, rows?: number) => Promise<boolean>;
-    write: (data: string) => Promise<boolean>;
-    resize: (cols: number, rows: number) => Promise<boolean>;
-    stop: () => Promise<boolean>;
-    onData: (cb: (data: string) => void) => () => void;
+    start: (id: string, cols?: number, rows?: number) => Promise<boolean>;
+    write: (id: string, data: string) => Promise<boolean>;
+    resize: (id: string, cols: number, rows: number) => Promise<boolean>;
+    stop: (id: string) => Promise<boolean>;
+    onData: (cb: (payload: { id: string; data: string }) => void) => () => void;
   };
   shell: {
     onFocusAgent: (cb: () => void) => () => void;
@@ -133,6 +135,8 @@ const bridge: WanwuBridge = {
     list: (rel) => ipcRenderer.invoke("fs:list", rel),
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
+    search: (query) => ipcRenderer.invoke("fs:search", query),
+    onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
   },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),
@@ -153,11 +157,11 @@ const bridge: WanwuBridge = {
     onEdit: (cb) => on("acp:edit", (t) => cb(t as never)),
   },
   term: {
-    start: (cols, rows) => ipcRenderer.invoke("term:start", cols, rows),
-    write: (data) => ipcRenderer.invoke("term:write", data),
-    resize: (cols, rows) => ipcRenderer.invoke("term:resize", cols, rows),
-    stop: () => ipcRenderer.invoke("term:stop"),
-    onData: (cb) => on("term:data", (t) => cb(String(t))),
+    start: (id, cols, rows) => ipcRenderer.invoke("term:start", id, cols, rows),
+    write: (id, data) => ipcRenderer.invoke("term:write", id, data),
+    resize: (id, cols, rows) => ipcRenderer.invoke("term:resize", id, cols, rows),
+    stop: (id) => ipcRenderer.invoke("term:stop", id),
+    onData: (cb) => on("term:data", (p) => cb(p as never)),
   },
   shell: {
     onFocusAgent: (cb) => on("shell:focus-agent", () => cb()),

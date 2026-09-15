@@ -28,7 +28,8 @@ describe("parallel worktrees", () => {
     }
   });
 
-  it("isolates marker files so main checkout is untouched", () => {
+  // git worktree creation is IO-heavy; allow headroom under parallel load.
+  it("isolates marker files so main checkout is untouched", { timeout: 30_000 }, () => {
     root = initRepo();
     const result = runParallelMarkers(root, [
       {

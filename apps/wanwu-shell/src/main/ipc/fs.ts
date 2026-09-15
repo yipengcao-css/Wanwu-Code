@@ -1,5 +1,6 @@
 import { BrowserWindow, dialog, ipcMain } from "electron";
 import fs from "node:fs/promises";
+import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 import { resolveInsideRoot } from "../pathSandbox.js";
 
@@ -38,7 +39,105 @@ async function listDir(root: string, rel = "."): Promise<DirEntry[]> {
   return out;
 }
 
-export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string) => void): void {
+const SEARCH_MAX_RESULTS = 200;
+const SEARCH_MAX_FILE_BYTES = 512 * 1024;
+
+async function walkForSearch(root: string, dir: string, out: string[], cap: number): Promise<void> {
+  if (out.length >= cap) return;
+  let names: string[];
+  try {
+    names = await fs.readdir(dir);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    if (SKIP.has(name)) continue;
+    const abs = path.join(dir, name);
+    let st;
+    try {
+      st = await fs.stat(abs);
+    } catch {
+      continue;
+    }
+    if (st.isDirectory()) {
+      await walkForSearch(root, abs, out, cap);
+    } else if (st.isFile() && st.size <= SEARCH_MAX_FILE_BYTES) {
+      out.push(path.relative(root, abs).split(path.sep).join("/"));
+      if (out.length >= cap) return;
+    }
+  }
+}
+
+export type SearchHit = { path: string; line: number; text: string };
+
+async function searchInWorkspace(root: string, query: string): Promise<SearchHit[]> {
+  const files: string[] = [];
+  await walkForSearch(root, root, files, 2000);
+  let re: RegExp;
+  try {
+    re = new RegExp(query, "i");
+  } catch {
+    re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+  }
+  const hits: SearchHit[] = [];
+  for (const rel of files) {
+    if (hits.length >= SEARCH_MAX_RESULTS) break;
+    let text: string;
+    try {
+      text = await fs.readFile(path.join(root, rel), "utf8");
+    } catch {
+      continue;
+    }
+    if (text.includes("\0")) continue; // binary
+    const lines = text.split(/\r?\n/);
+    for (let i = 0; i < lines.length; i += 1) {
+      if (re.test(lines[i]!)) {
+        hits.push({ path: rel, line: i + 1, text: lines[i]!.trim().slice(0, 200) });
+        if (hits.length >= SEARCH_MAX_RESULTS) break;
+      }
+    }
+  }
+  return hits;
+}
+
+let watcher: FSWatcher | undefined;
+let watchTimer: ReturnType<typeof setTimeout> | undefined;
+
+export function stopWatching(): void {
+  watcher?.close();
+  watcher = undefined;
+  if (watchTimer) clearTimeout(watchTimer);
+}
+
+function startWatching(root: string, getWin: () => BrowserWindow | null): void {
+  stopWatching();
+  try {
+    watcher = watch(root, { recursive: true }, (_event, filename) => {
+      if (!filename) return;
+      const rel = filename.split(path.sep).join("/");
+      const first = rel.split("/")[0] ?? "";
+      if (SKIP.has(first) || first.startsWith(".git")) return;
+      // Debounce bursts (saves, formatter runs).
+      if (watchTimer) clearTimeout(watchTimer);
+      watchTimer = setTimeout(() => {
+        getWin()?.webContents.send("fs:changed", rel);
+      }, 250);
+    });
+  } catch {
+    // recursive watch unsupported (old Linux Node) — degrade silently
+  }
+}
+
+export function registerFsIpc(
+  getRoot: () => string | null,
+  setRoot: (r: string) => void,
+  getWin?: () => BrowserWindow | null,
+): void {
+  const setRootAndWatch = (r: string): void => {
+    setRoot(r);
+    if (getWin) startWatching(r, getWin);
+  };
+
   ipcMain.handle("workspace:getRoot", () => getRoot());
 
   ipcMain.handle("workspace:openDialog", async (event) => {
@@ -47,13 +146,13 @@ export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string)
       properties: ["openDirectory"],
     });
     if (result.canceled || !result.filePaths[0]) return null;
-    setRoot(result.filePaths[0]);
+    setRootAndWatch(result.filePaths[0]);
     return result.filePaths[0];
   });
 
   ipcMain.handle("workspace:openPath", (_e, dirPath: string) => {
     const abs = path.resolve(dirPath);
-    setRoot(abs);
+    setRootAndWatch(abs);
     return abs;
   });
 
@@ -78,4 +177,15 @@ export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string)
     await fs.writeFile(abs, content, "utf8");
     return true;
   });
+
+  ipcMain.handle("fs:search", async (_e, query: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    if (!query.trim()) return [];
+    return searchInWorkspace(root, query.trim());
+  });
+
+  // Watch workspace for external changes (formatter, git checkout, agent edits).
+  const root = getRoot();
+  if (root && getWin) startWatching(root, getWin);
 }

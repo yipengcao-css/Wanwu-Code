@@ -2,68 +2,77 @@ import { ipcMain, type BrowserWindow } from "electron";
 import type { IPty } from "node-pty";
 import { resolveShell } from "../shellResolve.js";
 
-let ptyProc: IPty | undefined;
+const ptys = new Map<string, IPty>();
 
 async function loadPty(): Promise<typeof import("node-pty")> {
   return import("node-pty");
 }
 
 export function registerTermIpc(getRoot: () => string | null, getWin: () => BrowserWindow | null): void {
-  ipcMain.handle("term:start", async (_e, cols?: number, rows?: number) => {
-    if (ptyProc) return true;
+  ipcMain.handle("term:start", async (_e, id: string, cols?: number, rows?: number) => {
+    const termId = id || "t1";
+    if (ptys.has(termId)) return true;
     const cwd = getRoot() ?? process.cwd();
     const shell = resolveShell();
     const pty = await loadPty();
-    ptyProc = pty.spawn(shell.file, shell.args, {
+    const proc = pty.spawn(shell.file, shell.args, {
       name: "xterm-256color",
       cols: Math.max(2, cols ?? 80),
       rows: Math.max(1, rows ?? 24),
       cwd,
       env: process.env as Record<string, string>,
     });
+    ptys.set(termId, proc);
     const win = getWin();
-    ptyProc.onData((data) => {
-      win?.webContents.send("term:data", data);
+    proc.onData((data) => {
+      win?.webContents.send("term:data", { id: termId, data });
     });
-    ptyProc.onExit(({ exitCode }) => {
-      win?.webContents.send("term:data", `\r\n[shell exited ${exitCode} · ${shell.label}]\r\n`);
-      ptyProc = undefined;
+    proc.onExit(({ exitCode }) => {
+      win?.webContents.send("term:data", {
+        id: termId,
+        data: `\r\n[shell exited ${exitCode} · ${shell.label}]\r\n`,
+      });
+      ptys.delete(termId);
     });
     return true;
   });
 
-  ipcMain.handle("term:write", (_e, data: string) => {
-    if (!ptyProc) return false;
-    ptyProc.write(data);
+  ipcMain.handle("term:write", (_e, id: string, data: string) => {
+    const proc = ptys.get(id || "t1");
+    if (!proc) return false;
+    proc.write(data);
     return true;
   });
 
-  ipcMain.handle("term:resize", (_e, cols: number, rows: number) => {
-    if (!ptyProc) return false;
-    ptyProc.resize(Math.max(2, cols), Math.max(1, rows));
+  ipcMain.handle("term:resize", (_e, id: string, cols: number, rows: number) => {
+    const proc = ptys.get(id || "t1");
+    if (!proc) return false;
+    proc.resize(Math.max(2, cols), Math.max(1, rows));
     return true;
   });
 
-  ipcMain.handle("term:stop", () => {
-    if (ptyProc) {
+  ipcMain.handle("term:stop", (_e, id: string) => {
+    const termId = id || "t1";
+    const proc = ptys.get(termId);
+    if (proc) {
       try {
-        ptyProc.kill();
+        proc.kill();
       } catch {
         /* ignore */
       }
-      ptyProc = undefined;
+      ptys.delete(termId);
     }
     return true;
   });
 }
 
 export function disposeTerm(): void {
-  if (ptyProc) {
+  for (const proc of ptys.values()) {
     try {
-      ptyProc.kill();
+      proc.kill();
     } catch {
       /* ignore */
     }
-    ptyProc = undefined;
   }
+  ptys.clear();
 }
