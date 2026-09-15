@@ -23,7 +23,12 @@ function parseAnthropicUsage(raw: unknown): Usage | undefined {
 
 type AnthropicContentBlock =
   | { type: "text"; text: string }
-  | { type: "image"; source: { type: "base64"; media_type: string; data: string } }
+  | {
+      type: "image";
+      source:
+        | { type: "base64"; media_type: string; data: string }
+        | { type: "url"; url: string };
+    }
   | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
   | { type: "tool_result"; tool_use_id: string; content: string };
 
@@ -88,6 +93,11 @@ function toAnthropicMessages(messages: ChatMessage[]): Array<{
               media_type: p.source.mediaType,
               data: p.source.data,
             },
+          });
+        } else if (p.type === "image" && p.source.kind === "url") {
+          blocks.push({
+            type: "image",
+            source: { type: "url", url: p.source.url },
           });
         }
       }
