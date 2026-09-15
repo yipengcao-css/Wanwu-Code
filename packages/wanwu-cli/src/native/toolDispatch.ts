@@ -214,6 +214,10 @@ export async function dispatchTool(
           ctx.config?.sandbox ?? "workspace",
         );
       }
+      case "Diagnose": {
+        const { toolDiagnose } = await import("./diagnose.js");
+        return toolDiagnose(ctx.workspaceRoot);
+      }
       case "SearchCodebase": {
         const query = String(args.query ?? "");
         if (!query.trim()) {

@@ -158,8 +158,18 @@ export class AcpClient extends EventEmitter {
     await this.request("session/cancel", sessionId ? { sessionId } : {});
   }
 
-  async prompt(sessionId: string, text: string): Promise<unknown> {
-    return this.request("session/prompt", { sessionId, prompt: text, text });
+  async prompt(
+    sessionId: string,
+    text: string,
+    context?: { diagnostics?: string; terminal?: string },
+  ): Promise<unknown> {
+    return this.request("session/prompt", {
+      sessionId,
+      prompt: text,
+      text,
+      ...(context?.diagnostics ? { diagnostics: context.diagnostics } : {}),
+      ...(context?.terminal ? { terminal: context.terminal } : {}),
+    });
   }
 
   dispose(): void {

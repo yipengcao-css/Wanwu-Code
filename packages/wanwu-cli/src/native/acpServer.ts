@@ -124,6 +124,9 @@ export function startNativeAcpStdioServer(): void {
         sessionId?: string;
         prompt?: string;
         text?: string;
+        /** Host-provided context for @diagnostics / @terminal mentions. */
+        diagnostics?: string;
+        terminal?: string;
       };
       const sessionId = params.sessionId ?? [...sessions.keys()][0];
       if (!sessionId || !sessions.has(sessionId)) {
@@ -187,6 +190,10 @@ export function startNativeAcpStdioServer(): void {
             const out = await runLlmAgentLoop(ctx, config, text, {
               history: session.history,
               signal: session.abort.signal,
+              hostContext: {
+                diagnostics: params.diagnostics ? () => params.diagnostics! : undefined,
+                terminal: params.terminal ? () => params.terminal! : undefined,
+              },
             });
             session.history = out.messages.filter((m) => m.role !== "system");
             saveSession({

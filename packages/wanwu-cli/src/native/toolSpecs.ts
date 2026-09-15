@@ -85,6 +85,12 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
     },
   },
   {
+    name: "Diagnose",
+    description:
+      "Run the project's fast static checker (tsc --noEmit / cargo check / go vet / python compileall) and return errors. Use after edits to confirm nothing broke.",
+    parameters: { type: "object", properties: {} },
+  },
+  {
     name: "SearchCodebase",
     description:
       "Semantic search over the workspace codebase (embeddings index; keyword fallback). Returns relevant code chunks with path:line refs. Prefer over Grep for conceptual questions like 'where is auth handled'.",

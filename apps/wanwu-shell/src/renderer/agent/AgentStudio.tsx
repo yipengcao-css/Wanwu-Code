@@ -31,6 +31,8 @@ export function AgentStudio(props: {
   workspaceRoot: string | null;
   activePath: string | null;
   selectionHint?: string;
+  /** Flattened LSP diagnostics for @diagnostics mention resolution. */
+  diagnosticsSummary?: string;
   onStatus: (s: string) => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
@@ -208,7 +210,9 @@ export function AgentStudio(props: {
             props.selectionHint ? `Preview:\n\`\`\`\n${props.selectionHint}\n\`\`\`\n` : ""
           }[/EDITOR_CONTEXT]\n`
         : "";
-      await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`);
+      await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
+        diagnostics: props.diagnosticsSummary,
+      });
       props.onStatus("回合完成");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
