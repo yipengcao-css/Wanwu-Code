@@ -16,6 +16,8 @@ export interface AgentContext {
   mode: WanwuMode;
   /** Required for Task subagent dispatch (LLM path). */
   config?: WanwuConfig;
+  /** Turn checkpoint id — set by the LLM loop; enables edit backups. */
+  turnId?: string;
 }
 
 function memoryPreamble(workspaceRoot: string): string {

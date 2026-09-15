@@ -18,6 +18,7 @@ import {
   type ToolResult,
 } from "./tools.js";
 import { toolTodo, type TodoItem } from "./todo.js";
+import { recordFileBackup } from "./checkpoints.js";
 
 /** accept-edits / accept-all persist immediately; ask mode proposes for client review. */
 function shouldApplyEdits(ctx: AgentContext): boolean {
@@ -165,9 +166,11 @@ export async function dispatchTool(
         if (!gate.allow) {
           return { ok: false, title: "Edit", text: gate.text ?? "Edit denied", applied: false };
         }
-        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), blocks, {
-          apply: shouldApplyEdits(ctx),
-        });
+        const apply = shouldApplyEdits(ctx);
+        if (apply && ctx.turnId) {
+          recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, String(args.path ?? ""));
+        }
+        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), blocks, { apply });
       }
       case "Write": {
         if (writeBlocked) {
@@ -187,12 +190,13 @@ export async function dispatchTool(
         if (!gate.allow) {
           return { ok: false, title: "Write", text: gate.text ?? "Write denied", applied: false };
         }
-        return toolWrite(
-          ctx.workspaceRoot,
-          String(args.path ?? ""),
-          String(args.content ?? ""),
-          { apply: shouldApplyEdits(ctx) },
-        );
+        const apply = shouldApplyEdits(ctx);
+        if (apply && ctx.turnId) {
+          recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, String(args.path ?? ""));
+        }
+        return toolWrite(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
+          apply,
+        });
       }
       case "Bash": {
         const command = String(args.command ?? "");

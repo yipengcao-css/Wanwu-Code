@@ -177,6 +177,39 @@ async function main(argv: string[]): Promise<number> {
       const { runMcpConfigCommand } = await import("./mcp/configCmd.js");
       return await runMcpConfigCommand(rest);
     }
+    case "checkpoints": {
+      const { listCheckpoints } = await import("./native/checkpoints.js");
+      const all = listCheckpoints(findWorkspaceRoot());
+      if (!all.length) {
+        console.log("(no checkpoints)");
+        return 0;
+      }
+      for (const c of all) {
+        console.log(`${c.id}  ${c.createdAt}  ${c.files.length} file(s)  session=${c.sessionId}`);
+        for (const f of c.files.slice(0, 10)) {
+          console.log(`  ${f.existed ? "modified" : "created"}  ${f.path}`);
+        }
+      }
+      return 0;
+    }
+    case "undo": {
+      const { latestCheckpoint, listCheckpoints, restoreCheckpoint } = await import(
+        "./native/checkpoints.js"
+      );
+      const root = findWorkspaceRoot();
+      const id = rest[0];
+      const meta = id ? listCheckpoints(root).find((c) => c.id === id) : latestCheckpoint(root);
+      if (!meta) {
+        console.error(id ? `checkpoint not found: ${id}` : "no checkpoints to undo");
+        return 1;
+      }
+      const r = restoreCheckpoint(root, meta.id);
+      console.log(
+        `restored checkpoint ${meta.id}: ${r.restored.length} restored, ${r.deleted.length} deleted` +
+          (r.missing.length ? `, ${r.missing.length} missing (${r.missing.join(", ")})` : ""),
+      );
+      return r.missing.length ? 1 : 0;
+    }
     default:
       console.error(`Unknown command: ${cmd}`);
       usage();

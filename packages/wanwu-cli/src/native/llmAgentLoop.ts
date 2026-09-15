@@ -15,6 +15,7 @@ import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { discoverRules, renderRulesForPrompt } from "../rules.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { compactMessages } from "./context/compact.js";
+import { newTurnId, pruneCheckpoints } from "./checkpoints.js";
 import { runDiagnose } from "./diagnose.js";
 import { expandMentions, type MentionHostProviders } from "./mentions.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
@@ -88,6 +89,8 @@ export interface LlmLoopResult {
   toolsUsed: string[];
   /** Summed token usage across turns (when providers report it). */
   usage?: Usage;
+  /** Checkpoint id for this turn (restore via `wanwu undo`). */
+  checkpointId?: string;
   /** Full chat transcript for cross-prompt session memory (includes system). */
   messages: ChatMessage[];
 }
@@ -127,6 +130,10 @@ export async function runLlmAgentLoop(
   const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "25") || 25);
   const providerId = providerOverride();
   const toolsUsed: string[] = [];
+  // One checkpoint per prompt turn; Edit/Write back up before-state into it.
+  const turnId = newTurnId(ctx.sessionId);
+  ctx.turnId = turnId;
+  pruneCheckpoints(ctx.workspaceRoot);
   const callEnv = {
     ...process.env,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
@@ -371,6 +378,7 @@ export async function runLlmAgentLoop(
     turns,
     toolsUsed,
     usage,
+    checkpointId: turnId,
     messages,
   };
 }

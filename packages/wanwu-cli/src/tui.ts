@@ -37,6 +37,7 @@ const HELP = `命令：
   /doctor        运行 doctor
   /inspect       打印配置/记忆/skills/mcp
   /history [n]   显示最近 n 轮会话
+  /undo          回滚上一轮 Agent 的文件修改（检查点）
   /status        显示模式/provider/工作区状态
   /mcp           列出已配置 MCP server
   /clear         清屏
@@ -201,6 +202,21 @@ export async function runTui(): Promise<number> {
             theme,
           ),
         );
+        rl.prompt();
+        return;
+      }
+      if (input === "/undo") {
+        const { latestCheckpoint, restoreCheckpoint } = await import("./native/checkpoints.js");
+        const meta = latestCheckpoint(cwd);
+        if (!meta) {
+          print("（没有可回滚的检查点）");
+        } else {
+          const r = restoreCheckpoint(cwd, meta.id);
+          print(
+            `已回滚 ${meta.id}：恢复 ${r.restored.length} 个文件，删除 ${r.deleted.length} 个新建文件` +
+              (r.missing.length ? `，缺失 ${r.missing.length}` : ""),
+          );
+        }
         rl.prompt();
         return;
       }
