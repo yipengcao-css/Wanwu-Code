@@ -12,6 +12,14 @@ export type WanwuBridge = {
     read: (rel: string) => Promise<string>;
     write: (rel: string, content: string) => Promise<boolean>;
   };
+  ai: {
+    complete: (req: {
+      prefix: string;
+      suffix: string;
+      language?: string;
+      path?: string;
+    }) => Promise<{ text: string; model?: string; error?: string }>;
+  };
   acp: {
     ensure: () => Promise<{ sessionId?: string; cwd?: string }>;
     newChat: () => Promise<{ sessionId?: string; cwd?: string }>;
@@ -110,6 +118,9 @@ const bridge: WanwuBridge = {
     list: (rel) => ipcRenderer.invoke("fs:list", rel),
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
+  },
+  ai: {
+    complete: (req) => ipcRenderer.invoke("ai:complete", req),
   },
   acp: {
     ensure: () => ipcRenderer.invoke("acp:ensure"),

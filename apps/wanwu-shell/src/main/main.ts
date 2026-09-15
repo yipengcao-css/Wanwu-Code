@@ -16,6 +16,7 @@ import {
 } from "./ipc/lsp.js";
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
+import { registerAiIpc } from "./ipc/ai.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -98,6 +99,7 @@ app.whenReady().then(() => {
     },
   );
   registerSettingsIpc(() => workspaceRoot);
+  registerAiIpc(() => workspaceRoot);
   registerAcpIpc(
     () => workspaceRoot,
     () => mainWindow,
