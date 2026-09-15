@@ -7,6 +7,7 @@ import {
   type ChatMessage,
   type ChatResponse,
   type FetchLike,
+  type Usage,
 } from "@wanwu/providers";
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
@@ -77,6 +78,8 @@ export interface LlmLoopResult {
   model: string;
   turns: number;
   toolsUsed: string[];
+  /** Summed token usage across turns (when providers report it). */
+  usage?: Usage;
   /** Full chat transcript for cross-prompt session memory (includes system). */
   messages: ChatMessage[];
 }
@@ -166,6 +169,7 @@ export async function runLlmAgentLoop(
 
   let last: ChatResponse | undefined;
   let turns = 0;
+  let usage: Usage | undefined;
 
   for (let i = 0; i < maxTurns; i += 1) {
     if (opts?.signal?.aborted) {
@@ -239,6 +243,14 @@ export async function runLlmAgentLoop(
       throw err;
     }
 
+    if (last?.usage) {
+      usage = {
+        inputTokens: (usage?.inputTokens ?? 0) + last.usage.inputTokens,
+        outputTokens: (usage?.outputTokens ?? 0) + last.usage.outputTokens,
+        totalTokens: (usage?.totalTokens ?? 0) + last.usage.totalTokens,
+      };
+    }
+
     if (last.toolCalls?.length) {
       messages.push({
         role: "assistant",
@@ -302,6 +314,7 @@ export async function runLlmAgentLoop(
     model: last?.model ?? config.model,
     turns,
     toolsUsed,
+    usage,
     messages,
   };
 }

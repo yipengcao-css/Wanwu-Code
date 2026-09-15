@@ -39,11 +39,18 @@ export interface StreamChunk {
   done: boolean;
 }
 
+export interface Usage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 export interface ChatResponse {
   text: string;
   provider: ProviderId;
   model: string;
   toolCalls?: ToolCall[];
+  usage?: Usage;
   raw?: unknown;
 }
 
@@ -94,10 +101,6 @@ export interface CompleteChatOptions {
   providerId?: ProviderId;
   fetchImpl?: FetchLike;
   env?: NodeJS.ProcessEnv;
-}
-
-export interface StreamChatOptions extends CompleteChatOptions {
-  onChunk?: (chunk: StreamChunk) => void;
 }
 
 export interface StreamChatOptions extends CompleteChatOptions {

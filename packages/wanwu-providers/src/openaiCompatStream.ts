@@ -1,4 +1,5 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
+import { fetchWithRetry } from "./http.js";
 import type {
   ChatRequest,
   ChatResponse,
@@ -6,6 +7,7 @@ import type {
   ResolvedProvider,
   StreamChunk,
   ToolCall,
+  Usage,
 } from "./types.js";
 
 function toApiMessages(messages: ChatRequest["messages"]): unknown[] {
@@ -77,6 +79,7 @@ export async function completeOpenAiCompatStream(
     temperature: request.temperature ?? 0.2,
     max_tokens: request.maxTokens ?? 2048,
     stream: true,
+    stream_options: { include_usage: true },
   };
 
   if (request.tools?.length) {
@@ -93,7 +96,7 @@ export async function completeOpenAiCompatStream(
 
   let res: Response;
   try {
-    res = await fetchImpl(url, {
+    res = await fetchWithRetry(fetchImpl, url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -115,6 +118,7 @@ export async function completeOpenAiCompatStream(
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
+  let usage: Usage | undefined;
   const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
 
   for (;;) {
@@ -146,7 +150,18 @@ export async function completeOpenAiCompatStream(
             };
             finish_reason?: string;
           }>;
+          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
         };
+        if (parsed.usage) {
+          const u = parsed.usage;
+          const inputTokens = u.prompt_tokens ?? 0;
+          const outputTokens = u.completion_tokens ?? 0;
+          usage = {
+            inputTokens,
+            outputTokens,
+            totalTokens: u.total_tokens ?? inputTokens + outputTokens,
+          };
+        }
         const delta = parsed.choices?.[0]?.delta;
         if (delta?.content) {
           text += delta.content;
@@ -175,5 +190,6 @@ export async function completeOpenAiCompatStream(
     provider: resolved.id,
     model,
     toolCalls: finalToolCalls.length ? finalToolCalls : undefined,
+    usage,
   };
 }
