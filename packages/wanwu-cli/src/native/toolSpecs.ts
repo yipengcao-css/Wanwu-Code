@@ -85,6 +85,28 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
     },
   },
   {
+    name: "Todo",
+    description:
+      "Track a multi-step task list for this session. Rewrite the whole list each call. Use it for any task with 3+ steps: mark the current step in_progress, completed when done.",
+    parameters: {
+      type: "object",
+      properties: {
+        items: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              content: { type: "string", description: "Task description" },
+              status: { type: "string", enum: ["pending", "in_progress", "completed"] },
+            },
+            required: ["content", "status"],
+          },
+        },
+      },
+      required: ["items"],
+    },
+  },
+  {
     name: "Task",
     description:
       "Run isolated subagents in parallel. explore=read-only, plan=plan-only, coder=edit (propose-only).",

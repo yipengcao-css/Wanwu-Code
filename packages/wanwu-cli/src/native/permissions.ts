@@ -76,7 +76,7 @@ export interface GateResult {
  * - accept-edits / accept-all auto-allow per existing policy
  */
 export async function gateToolCall(
-  toolName: "Bash" | "Edit",
+  toolName: "Bash" | "Edit" | "Write" | "WebFetch" | "WebSearch",
   input: string,
   permissionMode: PermissionMode,
   workspaceRoot?: string,
