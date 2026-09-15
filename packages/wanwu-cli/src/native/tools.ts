@@ -28,7 +28,16 @@ export interface EditBlock {
 }
 
 const WALK_MAX = 500;
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "out", ".next", "coverage", "target"]);
+const SKIP_DIRS = new Set([
+  "node_modules",
+  ".git",
+  ".wanwu",
+  "dist",
+  "out",
+  ".next",
+  "coverage",
+  "target",
+]);
 
 function walkFiles(root: string, dir: string, out: string[], max = WALK_MAX): void {
   if (out.length >= max) return;

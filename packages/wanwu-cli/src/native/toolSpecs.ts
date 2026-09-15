@@ -85,6 +85,19 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
     },
   },
   {
+    name: "SearchCodebase",
+    description:
+      "Semantic search over the workspace codebase (embeddings index; keyword fallback). Returns relevant code chunks with path:line refs. Prefer over Grep for conceptual questions like 'where is auth handled'.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Natural-language or identifier query" },
+        limit: { type: "number", description: "Max chunks (default 8)" },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "Todo",
     description:
       "Track a multi-step task list for this session. Rewrite the whole list each call. Use it for any task with 3+ steps: mark the current step in_progress, completed when done.",

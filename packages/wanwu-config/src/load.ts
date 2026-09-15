@@ -37,6 +37,7 @@ function parseOverlay(raw: unknown): Partial<WanwuConfig> {
         apiKeyEnv: asString(p.api_key_env) ?? asString(p.apiKeyEnv),
         baseUrl: asString(p.base_url) ?? asString(p.baseUrl),
         defaultModel: asString(p.default_model) ?? asString(p.defaultModel),
+        embeddingModel: asString(p.embedding_model) ?? asString(p.embeddingModel),
       };
     }
   }
