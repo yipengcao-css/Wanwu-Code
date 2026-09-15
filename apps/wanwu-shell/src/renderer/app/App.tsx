@@ -21,6 +21,20 @@ function isTsLike(path: string): boolean {
   return /\.(tsx?|jsx?|mjs|cjs)$/i.test(path);
 }
 
+/** Flatten LSP markers into a compact summary for the agent (@diagnostics). */
+function formatDiagnosticsSummary(diagnostics: Record<string, MarkerDiag[]>): string {
+  const lines: string[] = [];
+  for (const [path, diags] of Object.entries(diagnostics)) {
+    for (const d of diags) {
+      if (d.severity !== "error" && d.severity !== "warning") continue;
+      lines.push(`${path}:${d.startLine}:${d.startCharacter} ${d.severity} ${d.message}`);
+      if (lines.length >= 50) break;
+    }
+    if (lines.length >= 50) break;
+  }
+  return lines.length ? lines.join("\n") : "(no diagnostics)";
+}
+
 export function App() {
   const initial = loadLayout();
   const [root, setRoot] = useState<string | null>(null);
@@ -251,6 +265,7 @@ export function App() {
             workspaceRoot={root}
             activePath={activePath}
             selectionHint={activeTab?.content.slice(0, 500)}
+            diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
             onStatus={setStatus}
           />
         </aside>

@@ -15,6 +15,7 @@ import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { discoverRules, renderRulesForPrompt } from "../rules.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { compactMessages } from "./context/compact.js";
+import { runDiagnose } from "./diagnose.js";
 import { expandMentions, type MentionHostProviders } from "./mentions.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import { toolWebSearch } from "./web.js";
@@ -186,6 +187,11 @@ export async function runLlmAgentLoop(
   let last: ChatResponse | undefined;
   let turns = 0;
   let usage: Usage | undefined;
+  let appliedEdits: string[] = [];
+  let lintLoopRemaining =
+    process.env.WANWU_LINT_LOOP === "0"
+      ? 0
+      : Number(process.env.WANWU_LINT_LOOP_MAX ?? "2") || 2;
 
   for (let i = 0; i < maxTurns; i += 1) {
     if (opts?.signal?.aborted) {
@@ -287,6 +293,14 @@ export async function runLlmAgentLoop(
           throw new Error("aborted");
         }
         const result = await dispatchTool(ctx, mode, call.name, call.arguments);
+        if (
+          (call.name === "Edit" || call.name === "Write") &&
+          result.ok &&
+          result.applied === true &&
+          result.diff
+        ) {
+          appliedEdits.push(result.diff.path);
+        }
         const isProposal =
           (call.name === "Edit" || call.name === "Write") &&
           result.ok &&
@@ -313,6 +327,32 @@ export async function runLlmAgentLoop(
         });
       }
       continue;
+    }
+
+    // Lint loop: after applied edits, re-check diagnostics and let the agent
+    // fix fresh errors before ending the turn (Cursor-style iterate-on-lints).
+    if (appliedEdits.length && lintLoopRemaining > 0) {
+      const diag = runDiagnose(ctx.workspaceRoot);
+      if (diag.available && !diag.ok) {
+        lintLoopRemaining -= 1;
+        const files = [...new Set(appliedEdits)].join(", ");
+        appliedEdits = [];
+        sessionUpdate(ctx.sessionId, {
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: `\n⚠ 诊断发现错误（${diag.label}），自动继续修复…\n`,
+          },
+        });
+        if (last.text) {
+          messages.push({ role: "assistant", content: last.text });
+        }
+        messages.push({
+          role: "user",
+          content: `Diagnostics after editing ${files} (${diag.label}):\n${diag.output}\n\nFix these errors, then re-run Diagnose to confirm.`,
+        });
+        continue;
+      }
     }
 
     if (last.text && !(opts?.stream ?? process.env.WANWU_STREAM === "1")) {

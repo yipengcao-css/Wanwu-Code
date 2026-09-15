@@ -85,10 +85,13 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     return { sessionId: id, cwd: clientCwd };
   });
 
-  ipcMain.handle("acp:prompt", async (_e, text: string) => {
-    if (!client || !sessionId) throw new Error("ACP not ready");
-    return client.prompt(sessionId, text);
-  });
+  ipcMain.handle(
+    "acp:prompt",
+    async (_e, text: string, context?: { diagnostics?: string; terminal?: string }) => {
+      if (!client || !sessionId) throw new Error("ACP not ready");
+      return client.prompt(sessionId, text, context);
+    },
+  );
 
   /** Start a fresh ACP session on the existing backend (keeps process; clears model history). */
   ipcMain.handle("acp:newChat", async () => {
