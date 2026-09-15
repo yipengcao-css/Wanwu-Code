@@ -18,6 +18,8 @@ export interface AgentContext {
   config?: WanwuConfig;
   /** Turn checkpoint id — set by the LLM loop; enables edit backups. */
   turnId?: string;
+  /** Hard tool policy (subagents): return a block reason or undefined. */
+  toolGuard?: (toolName: string, argsJson: string) => string | undefined;
 }
 
 function memoryPreamble(workspaceRoot: string): string {
