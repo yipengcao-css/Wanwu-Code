@@ -17,6 +17,7 @@ import {
   type EditBlock,
   type ToolResult,
 } from "./tools.js";
+import { toolTodo, type TodoItem } from "./todo.js";
 
 /** accept-edits / accept-all persist immediately; ask mode proposes for client review. */
 function shouldApplyEdits(ctx: AgentContext): boolean {
@@ -178,7 +179,7 @@ export async function dispatchTool(
           };
         }
         const gate = await gateToolCall(
-          "Edit",
+          "Write",
           String(args.path ?? ""),
           ctx.permissionMode,
           ctx.workspaceRoot,
@@ -212,6 +213,10 @@ export async function dispatchTool(
           ctx.permissionMode,
           ctx.config?.sandbox ?? "workspace",
         );
+      }
+      case "Todo": {
+        const items = Array.isArray(args.items) ? (args.items as TodoItem[]) : [];
+        return toolTodo(ctx.workspaceRoot, ctx.sessionId, items);
       }
       case "Task": {
         if (!ctx.config) {
@@ -349,6 +354,11 @@ export function dispatchToolSync(
         ctx.permissionMode,
         ctx.config?.sandbox ?? "workspace",
       );
+      break;
+    }
+    case "Todo": {
+      const items = Array.isArray(args.items) ? (args.items as TodoItem[]) : [];
+      result = toolTodo(ctx.workspaceRoot, ctx.sessionId, items);
       break;
     }
     default:
