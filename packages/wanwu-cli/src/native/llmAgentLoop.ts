@@ -12,6 +12,7 @@ import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
+import { compactMessages } from "./context/compact.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
@@ -80,7 +81,15 @@ export interface LlmLoopResult {
   messages: ChatMessage[];
 }
 
-const MAX_HISTORY_MESSAGES = 48;
+const MAX_HISTORY_MESSAGES = 96;
+
+function contextBudget(): number {
+  return Number(process.env.WANWU_CONTEXT_TOKENS ?? "120000") || 120_000;
+}
+
+function maxOutputTokens(): number {
+  return Number(process.env.WANWU_MAX_OUTPUT_TOKENS ?? "8192") || 8192;
+}
 
 /**
  * Multi-turn tool-calling agent loop (OpenAI-compat providers).
@@ -102,9 +111,37 @@ export async function runLlmAgentLoop(
   },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
-  const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "6") || 6);
+  const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "25") || 25);
   const providerId = providerOverride();
   const toolsUsed: string[] = [];
+  const callEnv = {
+    ...process.env,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
+    XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
+  };
+
+  const summarize = async (text: string): Promise<string> => {
+    const r = await completeChat({
+      config,
+      providerId,
+      fetchImpl: opts?.fetchImpl,
+      env: callEnv,
+      request: {
+        messages: [
+          {
+            role: "user",
+            content:
+              "Summarize this earlier agent conversation for continuity. Keep: user goals, decisions made, files changed, tool outcomes that matter, pending tasks. Be terse (<= 400 words).\n\n" +
+              text,
+          },
+        ],
+        temperature: 0.1,
+        maxTokens: 1200,
+      },
+    });
+    return r.text;
+  };
 
   await ensureMcpRegistry(ctx.workspaceRoot);
   const tools = [
@@ -121,7 +158,7 @@ export async function runLlmAgentLoop(
       ? [{ type: "text" as const, text: prompt }, ...opts.attachments]
       : prompt;
 
-  const messages: ChatMessage[] = [
+  let messages: ChatMessage[] = [
     { role: "system", content: buildSystem(ctx, mode) },
     ...prior,
     { role: "user", content: userContent },
@@ -135,6 +172,22 @@ export async function runLlmAgentLoop(
       throw new Error("aborted");
     }
     turns = i + 1;
+
+    const compacted = await compactMessages(messages, {
+      budgetTokens: contextBudget(),
+      summarize,
+    });
+    if (compacted.compacted) {
+      messages = compacted.messages;
+      sessionUpdate(ctx.sessionId, {
+        sessionUpdate: "agent_message_chunk",
+        content: {
+          type: "text",
+          text: `\n🗜 上下文压缩：折叠 ${compacted.droppedCount} 条早期消息（~${compacted.droppedTokens} tokens）\n`,
+        },
+      });
+    }
+
     try {
       const useStream = opts?.stream ?? process.env.WANWU_STREAM === "1";
       if (useStream) {
@@ -142,16 +195,11 @@ export async function runLlmAgentLoop(
           config,
           providerId,
           fetchImpl: opts?.fetchImpl,
-          env: {
-            ...process.env,
-            OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
-            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
-            XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
-          },
+          env: callEnv,
           request: {
             messages,
             temperature: 0.2,
-            maxTokens: 2048,
+            maxTokens: maxOutputTokens(),
             tools,
             toolChoice: "auto",
           },
@@ -169,17 +217,11 @@ export async function runLlmAgentLoop(
           config,
           providerId,
           fetchImpl: opts?.fetchImpl,
-          env: {
-            ...process.env,
-            // fixture / injected fetch paths still need resolveProvider credentials
-            OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? "sk-fixture",
-            ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY ?? "sk-fixture",
-            XAI_API_KEY: process.env.XAI_API_KEY ?? "sk-fixture",
-          },
+          env: callEnv,
           request: {
             messages,
             temperature: 0.2,
-            maxTokens: 2048,
+            maxTokens: maxOutputTokens(),
             tools,
             toolChoice: "auto",
           },
