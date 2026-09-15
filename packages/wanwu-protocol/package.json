@@ -16,5 +16,9 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@wanwu/config": "workspace:*",
+    "@wanwu/providers": "workspace:*"
   }
 }
