@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **编辑工具重做（A1）**：`Edit` 改为 search/replace 块（多块、replace_all、行尾空白容错、未命中给 near-miss 提示）；新增 `Write` 工具（创建/覆写）；`accept-edits`/`accept-all` 模式直接落盘并回传 diff，`ask` 模式保持提案审阅；acp-client 只对 pending diff 触发审阅
 - **IDE 深度集成**：VS Code 内联 diff（`vscode.diff` + WorkspaceEdit）；Quick Fix「用 Wanwu 修复」；Problems 桥接；ACP client 支持 `session/load` / `session/cancel`
 - **丰富 hooks 生命周期**：SessionStart/SessionEnd/UserPromptSubmit/ToolCallApproved/ToolCallDenied/SubagentStart/SubagentEnd/Error；`.wanwu/hooks/*.sh` 按事件前缀发现
 - **多模态输入**：`wanwu exec --image <path>` 附加图像；providers 支持 OpenAI/Anthropic 图像；`ContentPart` 类型与能力检测

@@ -201,6 +201,8 @@ function extractEdit(params: unknown): AcpEditProposal | undefined {
   const p = params as Record<string, unknown>;
   const update = p.update as Record<string, unknown> | undefined;
   if (update?.sessionUpdate !== "tool_call") return undefined;
+  // Only pending diffs are review proposals; applied edits are informational.
+  if (update.status !== "pending") return undefined;
   const content = update.content as Record<string, unknown> | undefined;
   if (content?.type !== "diff") return undefined;
   const path = content.path;

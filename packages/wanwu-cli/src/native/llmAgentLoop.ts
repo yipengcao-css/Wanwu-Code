@@ -54,11 +54,12 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
     "Prefer Read/Glob/Grep before answering about files. Be concise.",
+    "Editing: use Write to create or fully rewrite a file; use Edit with exact old_string/new_string blocks for targeted changes. old_string must match the file exactly and uniquely — include surrounding context lines. Read the file first if unsure.",
     `Workspace: ${ctx.workspaceRoot}`,
     `Mode: ${mode}`,
     mode === "plan" || mode === "ask"
-      ? "Do NOT use Edit. Avoid destructive Bash."
-      : "You may Edit/Bash when needed (permissions still apply).",
+      ? "Do NOT use Edit/Write. Avoid destructive Bash."
+      : "You may Edit/Write/Bash when needed (permissions still apply).",
     mcpNames?.length
       ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`
       : "",
@@ -216,7 +217,11 @@ export async function runLlmAgentLoop(
           throw new Error("aborted");
         }
         const result = await dispatchTool(ctx, mode, call.name, call.arguments);
-        const isProposal = call.name === "Edit" && result.ok && Boolean(result.diff);
+        const isProposal =
+          (call.name === "Edit" || call.name === "Write") &&
+          result.ok &&
+          Boolean(result.diff) &&
+          result.applied === false;
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
           toolCallId,

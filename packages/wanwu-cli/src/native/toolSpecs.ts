@@ -38,12 +38,37 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
   },
   {
     name: "Edit",
-    description: "Create or overwrite a file with new contents (Agent mode only).",
+    description:
+      "Make targeted edits to an existing file via exact search/replace blocks. old_string must match the file content exactly and be unique (add surrounding context). Use replace_all for renames. For new files or full rewrites, use Write.",
     parameters: {
       type: "object",
       properties: {
-        path: { type: "string" },
-        content: { type: "string" },
+        path: { type: "string", description: "Relative path from workspace root" },
+        edits: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              old_string: { type: "string", description: "Exact text to find (must be unique unless replace_all)" },
+              new_string: { type: "string", description: "Replacement text" },
+              replace_all: { type: "boolean", description: "Replace every occurrence" },
+            },
+            required: ["old_string", "new_string"],
+          },
+        },
+      },
+      required: ["path", "edits"],
+    },
+  },
+  {
+    name: "Write",
+    description:
+      "Create a new file or overwrite an existing file with full contents (Agent mode only). Prefer Edit for targeted changes to existing files.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative path from workspace root" },
+        content: { type: "string", description: "Full new file contents" },
       },
       required: ["path", "content"],
     },

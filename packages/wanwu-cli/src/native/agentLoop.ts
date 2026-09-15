@@ -7,7 +7,7 @@ import { runPlan } from "../plan.js";
 import { runVerifyDetailed } from "../verify.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import { detectMode, stripModeTags } from "./mode.js";
-import { toolBash, toolEdit, toolGlob, toolGrep, toolRead } from "./tools.js";
+import { toolBash, toolGlob, toolGrep, toolRead, toolWrite } from "./tools.js";
 
 export interface AgentContext {
   workspaceRoot: string;
@@ -168,9 +168,9 @@ export function runDeterministicTurn(ctx: AgentContext, prompt: string): string 
     const path = "examples/failing-test-demo/src/sum.js";
     const after = "export function sum(a, b) {\n  return a + b;\n}\n";
     const apply = ctx.permissionMode === "accept-edits" || ctx.permissionMode === "accept-all";
-    const e = toolEdit(ctx.workspaceRoot, path, after, { apply });
+    const e = toolWrite(ctx.workspaceRoot, path, after, { apply });
     if (e.diff) {
-      emitTool(sid, nextId(), "Edit", apply ? "completed" : "pending", {
+      emitTool(sid, nextId(), "Write", apply ? "completed" : "pending", {
         type: "diff",
         path: e.diff.path,
         before: e.diff.before,
