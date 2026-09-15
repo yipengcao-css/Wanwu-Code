@@ -17,6 +17,14 @@ export interface ToolResult {
   title: string;
   text: string;
   diff?: { path: string; before: string; after: string };
+  /** True when the edit was persisted to disk (false = propose-only). */
+  applied?: boolean;
+}
+
+export interface EditBlock {
+  old_string: string;
+  new_string: string;
+  replace_all?: boolean;
 }
 
 const WALK_MAX = 500;
@@ -152,10 +160,191 @@ export function toolGrep(workspaceRoot: string, pattern: string, globPat = "**/*
   };
 }
 
+/** Count non-overlapping occurrences of `needle` in `haystack`. */
+function countOccurrences(haystack: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let idx = 0;
+  while (true) {
+    idx = haystack.indexOf(needle, idx);
+    if (idx === -1) return count;
+    count += 1;
+    idx += needle.length;
+  }
+}
+
+/** Normalize line trailing whitespace — tolerant fallback for exact match. */
+function normalizeLineEndings(text: string): string {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/[ \t]+$/g, ""))
+    .join("\n");
+}
+
+/**
+ * Find a match for `oldString` in `content`.
+ * 1) exact match; 2) fallback: match after trimming trailing whitespace per line
+ *    (returns the original-text span so replacement preserves file content).
+ */
+export function findEditMatch(
+  content: string,
+  oldString: string,
+): { start: number; end: number; matched: string } | undefined {
+  const exact = content.indexOf(oldString);
+  if (exact !== -1) {
+    return { start: exact, end: exact + oldString.length, matched: oldString };
+  }
+  // Tolerant pass: align normalized lines back to original offsets.
+  const contentLines = content.split("\n");
+  const oldLines = normalizeLineEndings(oldString).split("\n");
+  if (!oldLines.length || oldLines.length > contentLines.length) return undefined;
+  const normContent = contentLines.map((l) => l.replace(/[ \t]+$/g, ""));
+  outer: for (let i = 0; i + oldLines.length <= contentLines.length; i += 1) {
+    for (let j = 0; j < oldLines.length; j += 1) {
+      if (normContent[i + j] !== oldLines[j]) continue outer;
+    }
+    // Compute original offsets for line range [i, i + oldLines.length)
+    let start = 0;
+    for (let k = 0; k < i; k += 1) start += contentLines[k]!.length + 1;
+    let end = start;
+    for (let k = i; k < i + oldLines.length; k += 1) {
+      end += contentLines[k]!.length;
+      if (k < i + oldLines.length - 1) end += 1;
+    }
+    return { start, end, matched: content.slice(start, end) };
+  }
+  return undefined;
+}
+
+/** Best-effort context snippet when a block fails to match. */
+function nearMissHint(content: string, oldString: string): string {
+  const firstLine = oldString.split("\n").find((l) => l.trim().length > 0) ?? "";
+  if (!firstLine) return "";
+  const trimmed = firstLine.trim();
+  const lines = content.split("\n");
+  // Try full line, then shrinking prefixes, to locate the closest region.
+  let idx = -1;
+  for (const len of [40, 24, 12]) {
+    const key = trimmed.slice(0, len);
+    if (!key) continue;
+    idx = lines.findIndex((l) => l.includes(key));
+    if (idx !== -1) break;
+  }
+  if (idx === -1) return "";
+  const from = Math.max(0, idx - 2);
+  const to = Math.min(lines.length, idx + 3);
+  const snippet = lines
+    .slice(from, to)
+    .map((l, i) => `${from + i + 1}: ${l}`)
+    .join("\n");
+  return `\nNear miss around line ${idx + 1}:\n${snippet}`;
+}
+
+export interface EditApplyResult {
+  ok: boolean;
+  after: string;
+  replacements: number;
+  error?: string;
+}
+
+/** Apply search/replace blocks sequentially. Pure — no IO. */
+export function applyEditBlocks(content: string, blocks: EditBlock[]): EditApplyResult {
+  let current = content;
+  let replacements = 0;
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]!;
+    if (typeof block.old_string !== "string" || typeof block.new_string !== "string") {
+      return { ok: false, after: content, replacements, error: `block ${i + 1}: old_string/new_string must be strings` };
+    }
+    if (block.old_string === "") {
+      return { ok: false, after: content, replacements, error: `block ${i + 1}: old_string must not be empty (use Write to create files)` };
+    }
+    if (block.old_string === block.new_string) {
+      return { ok: false, after: content, replacements, error: `block ${i + 1}: old_string and new_string are identical` };
+    }
+    if (block.replace_all) {
+      const n = countOccurrences(current, block.old_string);
+      if (n === 0) {
+        return {
+          ok: false,
+          after: content,
+          replacements,
+          error: `block ${i + 1}: old_string not found${nearMissHint(current, block.old_string)}`,
+        };
+      }
+      current = current.split(block.old_string).join(block.new_string);
+      replacements += n;
+      continue;
+    }
+    const exactCount = countOccurrences(current, block.old_string);
+    if (exactCount > 1) {
+      return {
+        ok: false,
+        after: content,
+        replacements,
+        error: `block ${i + 1}: old_string matches ${exactCount} times — add more context or set replace_all`,
+      };
+    }
+    const match = findEditMatch(current, block.old_string);
+    if (!match) {
+      return {
+        ok: false,
+        after: content,
+        replacements,
+        error: `block ${i + 1}: old_string not found${nearMissHint(current, block.old_string)}`,
+      };
+    }
+    current = current.slice(0, match.start) + block.new_string + current.slice(match.end);
+    replacements += 1;
+  }
+  return { ok: true, after: current, replacements };
+}
+
+/** Targeted edits to an existing file via search/replace blocks. */
 export function toolEdit(
   workspaceRoot: string,
   pathArg: string,
-  after: string,
+  blocks: EditBlock[],
+  opts: { apply: boolean },
+): ToolResult {
+  try {
+    const abs = assertInsideWorkspace(workspaceRoot, pathArg);
+    if (!existsSync(abs) || isDirectory(abs)) {
+      return { ok: false, title: "Edit", text: `file does not exist: ${pathArg} (use Write to create it)`, applied: false };
+    }
+    if (!Array.isArray(blocks) || blocks.length === 0) {
+      return { ok: false, title: "Edit", text: "edits must be a non-empty array of {old_string, new_string}", applied: false };
+    }
+    const before = readFileSync(abs, "utf8");
+    const result = applyEditBlocks(before, blocks);
+    if (!result.ok) {
+      return { ok: false, title: "Edit", text: result.error ?? "edit failed", applied: false };
+    }
+    if (opts.apply) {
+      writeFileSync(abs, result.after, "utf8");
+    }
+    return {
+      ok: true,
+      title: "Edit",
+      text: `${opts.apply ? "applied" : "proposed"} ${result.replacements} replacement(s) in ${pathArg}`,
+      diff: { path: pathArg, before, after: result.after },
+      applied: opts.apply,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      title: "Edit",
+      text: err instanceof PathSandboxError ? err.message : String(err),
+      applied: false,
+    };
+  }
+}
+
+/** Create a new file or overwrite an existing file entirely. */
+export function toolWrite(
+  workspaceRoot: string,
+  pathArg: string,
+  content: string,
   opts: { apply: boolean },
 ): ToolResult {
   try {
@@ -163,19 +352,21 @@ export function toolEdit(
     const before = existsSync(abs) && !isDirectory(abs) ? readFileSync(abs, "utf8") : "";
     if (opts.apply) {
       mkdirSync(dirname(abs), { recursive: true });
-      writeFileSync(abs, after, "utf8");
+      writeFileSync(abs, content, "utf8");
     }
     return {
       ok: true,
-      title: "Edit",
-      text: opts.apply ? `wrote ${pathArg}` : `proposed edit for ${pathArg}`,
-      diff: { path: pathArg, before, after },
+      title: "Write",
+      text: `${opts.apply ? "wrote" : "proposed write for"} ${pathArg} (${content.length} chars)`,
+      diff: { path: pathArg, before, after: content },
+      applied: opts.apply,
     };
   } catch (err) {
     return {
       ok: false,
-      title: "Edit",
+      title: "Write",
       text: err instanceof PathSandboxError ? err.message : String(err),
+      applied: false,
     };
   }
 }

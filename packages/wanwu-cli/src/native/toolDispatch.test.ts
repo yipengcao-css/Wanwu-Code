@@ -51,9 +51,61 @@ describe("dispatchTool hooks", () => {
 });
 
 describe("dispatchTool P0/P1 safety", () => {
-  it("Edit proposes without writing to disk", async () => {
-    const root = mkdtempSync(join(tmpdir(), "wanwu-edit-propose-"));
+  it("Edit applies to disk in accept-edits mode", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-edit-apply-"));
     writeFileSync(join(root, "a.txt"), "before", "utf8");
+    const result = await dispatchTool(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "accept-edits",
+        mode: "agent",
+      },
+      "agent",
+      "Edit",
+      JSON.stringify({
+        path: "a.txt",
+        edits: [{ old_string: "before", new_string: "after" }],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.applied).toBe(true);
+    expect(result.diff?.before).toBe("before");
+    expect(result.diff?.after).toBe("after");
+    expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("after");
+  });
+
+  it("Edit proposes without writing in ask mode (allow rule bypasses prompt)", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-edit-propose-"));
+    mkdirSync(join(root, ".wanwu"), { recursive: true });
+    writeFileSync(
+      join(root, ".wanwu", "permissions.toml"),
+      `[[rules]]\naction = "allow"\npattern = "Edit *"\n`,
+      "utf8",
+    );
+    writeFileSync(join(root, "a.txt"), "before", "utf8");
+    const result = await dispatchTool(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "ask",
+        mode: "agent",
+      },
+      "agent",
+      "Edit",
+      JSON.stringify({
+        path: "a.txt",
+        edits: [{ old_string: "before", new_string: "after" }],
+      }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.applied).toBe(false);
+    expect(result.diff?.after).toBe("after");
+    expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("before");
+  });
+
+  it("Edit rejects malformed args", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-edit-bad-"));
     const result = await dispatchTool(
       {
         workspaceRoot: root,
@@ -65,10 +117,43 @@ describe("dispatchTool P0/P1 safety", () => {
       "Edit",
       JSON.stringify({ path: "a.txt", content: "after" }),
     );
+    expect(result.ok).toBe(false);
+    expect(result.text).toMatch(/edits/);
+  });
+
+  it("Write creates a file in accept-edits mode", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-write-"));
+    const result = await dispatchTool(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "accept-edits",
+        mode: "agent",
+      },
+      "agent",
+      "Write",
+      JSON.stringify({ path: "sub/new.txt", content: "hello" }),
+    );
     expect(result.ok).toBe(true);
-    expect(result.diff?.before).toBe("before");
-    expect(result.diff?.after).toBe("after");
-    expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("before");
+    expect(result.applied).toBe(true);
+    expect(readFileSync(join(root, "sub", "new.txt"), "utf8")).toBe("hello");
+  });
+
+  it("Write is blocked in plan mode", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-write-plan-"));
+    const result = await dispatchTool(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "accept-edits",
+        mode: "plan",
+      },
+      "plan",
+      "Write",
+      JSON.stringify({ path: "a.txt", content: "x" }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.text).toMatch(/blocked in mode=plan/);
   });
 
   it("Edit is blocked in plan mode", async () => {
@@ -82,7 +167,7 @@ describe("dispatchTool P0/P1 safety", () => {
       },
       "plan",
       "Edit",
-      JSON.stringify({ path: "a.txt", content: "x" }),
+      JSON.stringify({ path: "a.txt", edits: [{ old_string: "a", new_string: "b" }] }),
     );
     expect(result.ok).toBe(false);
     expect(result.text).toMatch(/blocked in mode=plan/);
@@ -123,7 +208,7 @@ describe("dispatchTool P0/P1 safety", () => {
     expect(result.text).toContain("hello");
   });
 
-  it("dispatchToolSync Edit proposes without writing", () => {
+  it("dispatchToolSync Edit applies in accept-edits mode", () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-sync-edit-"));
     writeFileSync(join(root, "a.txt"), "before", "utf8");
     const result = dispatchToolSync(
@@ -135,9 +220,29 @@ describe("dispatchTool P0/P1 safety", () => {
       },
       "agent",
       "Edit",
-      JSON.stringify({ path: "a.txt", content: "after" }),
+      JSON.stringify({ path: "a.txt", edits: [{ old_string: "before", new_string: "after" }] }),
     );
     expect(result.ok).toBe(true);
+    expect(result.applied).toBe(true);
+    expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("after");
+  });
+
+  it("dispatchToolSync Edit proposes in ask mode", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-sync-ask-"));
+    writeFileSync(join(root, "a.txt"), "before", "utf8");
+    const result = dispatchToolSync(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "ask",
+        mode: "agent",
+      },
+      "agent",
+      "Edit",
+      JSON.stringify({ path: "a.txt", edits: [{ old_string: "before", new_string: "after" }] }),
+    );
+    // ask mode → assessToolCall requiresPrompt → blocked in sync path (no interactive gate)
+    expect(result.ok).toBe(false);
     expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("before");
   });
 });

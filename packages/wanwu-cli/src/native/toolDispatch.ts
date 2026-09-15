@@ -7,7 +7,37 @@ import type { AgentContext } from "./agentLoop.js";
 import { gateToolCall } from "./permissions.js";
 import { runSubagents } from "./subagents/pool.js";
 import type { SubagentSpec } from "./subagents/types.js";
-import { toolBash, toolEdit, toolGlob, toolGrep, toolRead, type ToolResult } from "./tools.js";
+import {
+  toolBash,
+  toolEdit,
+  toolGlob,
+  toolGrep,
+  toolRead,
+  toolWrite,
+  type EditBlock,
+  type ToolResult,
+} from "./tools.js";
+
+/** accept-edits / accept-all persist immediately; ask mode proposes for client review. */
+function shouldApplyEdits(ctx: AgentContext): boolean {
+  return ctx.permissionMode === "accept-edits" || ctx.permissionMode === "accept-all";
+}
+
+function parseEditBlocks(args: Record<string, unknown>): EditBlock[] | undefined {
+  if (!Array.isArray(args.edits)) return undefined;
+  const blocks: EditBlock[] = [];
+  for (const raw of args.edits) {
+    if (!raw || typeof raw !== "object") return undefined;
+    const b = raw as Record<string, unknown>;
+    if (typeof b.old_string !== "string" || typeof b.new_string !== "string") return undefined;
+    blocks.push({
+      old_string: b.old_string,
+      new_string: b.new_string,
+      replace_all: b.replace_all === true,
+    });
+  }
+  return blocks.length ? blocks : undefined;
+}
 
 async function withHooks(
   ctx: AgentContext,
@@ -113,6 +143,16 @@ export async function dispatchTool(
             ok: false,
             title: "Edit",
             text: `Edit blocked in mode=${mode}`,
+            applied: false,
+          };
+        }
+        const blocks = parseEditBlocks(args);
+        if (!blocks) {
+          return {
+            ok: false,
+            title: "Edit",
+            text: "Edit requires edits: [{old_string, new_string, replace_all?}]",
+            applied: false,
           };
         }
         const gate = await gateToolCall(
@@ -122,12 +162,36 @@ export async function dispatchTool(
           ctx.workspaceRoot,
         );
         if (!gate.allow) {
-          return { ok: false, title: "Edit", text: gate.text ?? "Edit denied" };
+          return { ok: false, title: "Edit", text: gate.text ?? "Edit denied", applied: false };
         }
-        // Propose only — the Shell DiffReview decides whether to persist.
-        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
-          apply: false,
+        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), blocks, {
+          apply: shouldApplyEdits(ctx),
         });
+      }
+      case "Write": {
+        if (writeBlocked) {
+          return {
+            ok: false,
+            title: "Write",
+            text: `Write blocked in mode=${mode}`,
+            applied: false,
+          };
+        }
+        const gate = await gateToolCall(
+          "Edit",
+          String(args.path ?? ""),
+          ctx.permissionMode,
+          ctx.workspaceRoot,
+        );
+        if (!gate.allow) {
+          return { ok: false, title: "Write", text: gate.text ?? "Write denied", applied: false };
+        }
+        return toolWrite(
+          ctx.workspaceRoot,
+          String(args.path ?? ""),
+          String(args.content ?? ""),
+          { apply: shouldApplyEdits(ctx) },
+        );
       }
       case "Bash": {
         const command = String(args.command ?? "");
@@ -217,7 +281,17 @@ export function dispatchToolSync(
       break;
     case "Edit": {
       if (writeBlocked) {
-        result = { ok: false, title: "Edit", text: `Edit blocked in mode=${mode}` };
+        result = { ok: false, title: "Edit", text: `Edit blocked in mode=${mode}`, applied: false };
+        break;
+      }
+      const blocks = parseEditBlocks(args);
+      if (!blocks) {
+        result = {
+          ok: false,
+          title: "Edit",
+          text: "Edit requires edits: [{old_string, new_string, replace_all?}]",
+          applied: false,
+        };
         break;
       }
       const verdict = assessToolCall("Edit", String(args.path ?? ""), ctx.permissionMode);
@@ -228,11 +302,34 @@ export function dispatchToolSync(
           text: `Blocked by permission: ${verdict.reason}${
             verdict.requiresPrompt ? " (requires confirmation)" : ""
           }`,
+          applied: false,
         };
         break;
       }
-      result = toolEdit(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
-        apply: false,
+      result = toolEdit(ctx.workspaceRoot, String(args.path ?? ""), blocks, {
+        apply: shouldApplyEdits(ctx),
+      });
+      break;
+    }
+    case "Write": {
+      if (writeBlocked) {
+        result = { ok: false, title: "Write", text: `Write blocked in mode=${mode}`, applied: false };
+        break;
+      }
+      const verdict = assessToolCall("Edit", String(args.path ?? ""), ctx.permissionMode);
+      if (!verdict.allow) {
+        result = {
+          ok: false,
+          title: "Write",
+          text: `Blocked by permission: ${verdict.reason}${
+            verdict.requiresPrompt ? " (requires confirmation)" : ""
+          }`,
+          applied: false,
+        };
+        break;
+      }
+      result = toolWrite(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
+        apply: shouldApplyEdits(ctx),
       });
       break;
     }
