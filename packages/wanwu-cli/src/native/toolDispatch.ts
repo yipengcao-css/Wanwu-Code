@@ -214,6 +214,22 @@ export async function dispatchTool(
           ctx.config?.sandbox ?? "workspace",
         );
       }
+      case "SearchCodebase": {
+        const query = String(args.query ?? "");
+        if (!query.trim()) {
+          return { ok: false, title: "SearchCodebase", text: "empty query" };
+        }
+        const { searchCodebase, formatSearchHits } = await import("./codebaseIndex/search.js");
+        const r = await searchCodebase(ctx.workspaceRoot, query, {
+          config: ctx.config,
+          limit: Number(args.limit ?? "8") || 8,
+        });
+        return {
+          ok: true,
+          title: "SearchCodebase",
+          text: `[index ${r.stats}]\n${formatSearchHits(r.hits)}`,
+        };
+      }
       case "Todo": {
         const items = Array.isArray(args.items) ? (args.items as TodoItem[]) : [];
         return toolTodo(ctx.workspaceRoot, ctx.sessionId, items);

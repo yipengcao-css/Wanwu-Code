@@ -8,6 +8,8 @@ export interface ProviderConfig {
   apiKeyEnv?: string;
   baseUrl?: string;
   defaultModel?: string;
+  /** Embedding model for codebase indexing (OpenAI-compat /embeddings). */
+  embeddingModel?: string;
 }
 
 export interface WanwuConfig {

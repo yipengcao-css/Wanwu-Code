@@ -60,6 +60,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode, activeFiles: string[] =
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
     "Prefer Read/Glob/Grep before answering about files. Be concise.",
+    "For conceptual questions ('where is X handled', 'how does Y work') use SearchCodebase (semantic index) before falling back to Grep.",
     "Editing: use Write to create or fully rewrite a file; use Edit with exact old_string/new_string blocks for targeted changes. old_string must match the file exactly and uniquely — include surrounding context lines. Read the file first if unsure.",
     "Use Todo for multi-step tasks (3+ steps). WebSearch/WebFetch are available for fresh public information — prefer workspace facts first.",
     `Workspace: ${ctx.workspaceRoot}`,

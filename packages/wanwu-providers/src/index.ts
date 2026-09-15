@@ -29,4 +29,10 @@ export {
 } from "./capabilities.js";
 export { resolveProvider, hasProviderCredentials } from "./resolve.js";
 export { completeChat, streamChat } from "./complete.js";
+export {
+  embedTexts,
+  resolveEmbeddingModel,
+  type EmbedOptions,
+  type EmbedResult,
+} from "./embed.js";
 export { mapHttpError, mapNetworkError } from "./errors.js";
