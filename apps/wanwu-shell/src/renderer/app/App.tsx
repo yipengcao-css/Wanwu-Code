@@ -17,10 +17,6 @@ const DiffReview = lazy(() =>
   import("../agent/DiffReview").then((m) => ({ default: m.DiffReview })),
 );
 
-function isTsLike(path: string): boolean {
-  return /\.(tsx?|jsx?|mjs|cjs)$/i.test(path);
-}
-
 /** Flatten LSP markers into a compact summary for the agent (@diagnostics). */
 function formatDiagnosticsSummary(diagnostics: Record<string, MarkerDiag[]>): string {
   const lines: string[] = [];
@@ -159,16 +155,14 @@ export function App() {
       return [...prev, { path: rel, content, dirty: false }];
     });
     setActivePath(rel);
-    if (isTsLike(rel)) {
-      void window.wanwu.lsp.didOpen(rel, content);
-    }
+    // Main side filters to languages with a configured server (hasLspMapping).
+    void window.wanwu.lsp.didOpen(rel, content);
   }, []);
 
   const onChange = useCallback((path: string, value: string) => {
     setTabs((prev) =>
       prev.map((t) => (t.path === path ? { ...t, content: value, dirty: true } : t)),
     );
-    if (!isTsLike(path)) return;
     const prev = changeTimers.current.get(path);
     if (prev) clearTimeout(prev);
     changeTimers.current.set(
@@ -241,7 +235,7 @@ export function App() {
                     delete next[p];
                     return next;
                   });
-                  if (isTsLike(p)) void window.wanwu.lsp.didClose(p);
+                  void window.wanwu.lsp.didClose(p);
                 }}
               />
             </Suspense>

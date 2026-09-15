@@ -25,8 +25,14 @@ export class LspSessionManager {
   constructor(private readonly opts: LspSessionManagerOptions) {
     const custom = loadLspServers(opts.workspaceRoot).servers;
     const builtins = opts.servers ?? BUILTIN_LSP_SERVERS;
+    const customIds = new Set(custom.map((s) => s.id));
     const byId = new Map<string, LspServerDef>();
-    for (const s of builtins) byId.set(s.id, s);
+    for (const s of builtins) {
+      // optIn builtins (json/css/html) only activate when the workspace
+      // config explicitly defines them — keeps default surface minimal.
+      if (s.optIn && !customIds.has(s.id)) continue;
+      byId.set(s.id, s);
+    }
     for (const s of custom) byId.set(s.id, s);
     this.servers = [...byId.values()];
   }
@@ -109,6 +115,19 @@ export class LspSessionManager {
     if (!client) return false;
     await client.didClose(relPath);
     return true;
+  }
+
+  /** Route a language-feature request to the server for this path. */
+  async languageRequest(
+    relPath: string,
+    method: string,
+    line: number,
+    character: number,
+    extra?: Record<string, unknown>,
+  ): Promise<unknown> {
+    const client = await this.ensureForPath(relPath);
+    if (!client) return undefined;
+    return client.languageRequest(method, relPath, line, character, extra);
   }
 
   dispose(): void {
