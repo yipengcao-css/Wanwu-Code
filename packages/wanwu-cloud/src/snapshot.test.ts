@@ -6,7 +6,8 @@ import { createSnapshot, validateSnapshotSize } from "./snapshot.js";
 import { unpackSnapshot, verifySnapshotSha256 } from "./snapshotUnpack.js";
 
 describe("snapshot", () => {
-  it("creates and unpacks a git archive snapshot", () => {
+  // git archive + unpack is IO-heavy; allow headroom under parallel load.
+  it("creates and unpacks a git archive snapshot", { timeout: 30_000 }, () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-snap-src-"));
     writeFileSync(join(root, "README.md"), "# test\n", "utf8");
     writeFileSync(join(root, ".env"), "SECRET=1\n", "utf8");

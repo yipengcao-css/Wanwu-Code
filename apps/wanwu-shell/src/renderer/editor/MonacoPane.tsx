@@ -71,6 +71,8 @@ export function MonacoPane(props: {
   tabs: EditorTab[];
   activePath: string | null;
   diagnostics: Record<string, MarkerDiag[]>;
+  /** Jump target from global search (n bumps to re-trigger). */
+  gotoLine?: { path: string; line: number; n: number } | null;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
@@ -106,6 +108,20 @@ export function MonacoPane(props: {
     attachInlineEdit(editor);
     registerLspFeatures();
   };
+
+  // Jump to a line requested by global search.
+  useEffect(() => {
+    const target = props.gotoLine;
+    const ed = editorRef.current;
+    if (!target || !ed || target.path !== active?.path) return;
+    // Wait a tick for the model to be ready after tab switch.
+    const t = setTimeout(() => {
+      ed.revealLineInCenter(target.line);
+      ed.setPosition({ lineNumber: target.line, column: 1 });
+      ed.focus();
+    }, 60);
+    return () => clearTimeout(t);
+  }, [props.gotoLine, active?.path]);
 
   if (props.tabs.length === 0) {
     return (

@@ -97,6 +97,7 @@ app.whenReady().then(() => {
       disposeTerm();
       mainWindow?.webContents.send("workspace:changed", r);
     },
+    () => mainWindow,
   );
   registerSettingsIpc(() => workspaceRoot);
   registerAiIpc(() => workspaceRoot);

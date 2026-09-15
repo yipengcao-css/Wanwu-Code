@@ -18,6 +18,23 @@ export function FileTree(props: {
       .catch((e: Error) => setError(e.message));
   }, [props.rootLabel]);
 
+  // Refresh on external filesystem changes (agent edits, git checkout, …).
+  useEffect(() => {
+    return window.wanwu.fs.onChanged(() => {
+      void window.wanwu.fs.list(".").then(setEntries).catch(() => undefined);
+      setExpanded((prev) => {
+        const next: Record<string, Entry[]> = {};
+        // Re-list expanded dirs lazily; stale entries drop on next toggle.
+        for (const rel of Object.keys(prev)) {
+          void window.wanwu.fs.list(rel).then((kids) => {
+            setExpanded((cur) => (cur[rel] ? { ...cur, [rel]: kids } : cur));
+          });
+        }
+        return { ...next, ...prev };
+      });
+    });
+  }, []);
+
   async function toggleDir(rel: string): Promise<void> {
     if (expanded[rel]) {
       setExpanded((prev) => {

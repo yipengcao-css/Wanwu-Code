@@ -3,11 +3,13 @@ import { OrbitBar, type WanwuMode } from "../layout/OrbitBar";
 import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
+import { SearchPanel } from "../files/SearchPanel";
 import type { EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
+import { CommandPalette } from "../palette/CommandPalette";
 import { WelcomeGate } from "../onboarding/WelcomeGate";
 
 const MonacoPane = lazy(() =>
@@ -39,6 +41,9 @@ export function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<Record<string, MarkerDiag[]>>({});
   const [termOpen, setTermOpen] = useState(initial.termOpen);
+  const [sideTab, setSideTab] = useState<"files" | "search">("files");
+  const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
+  const gotoSeq = useRef(0);
   const [filesW, setFilesW] = useState(initial.filesW);
   const [agentW, setAgentW] = useState(initial.agentW);
   const [termH, setTermH] = useState(initial.termH);
@@ -53,6 +58,7 @@ export function App() {
     risk?: string;
   } | null>(null);
   const [edit, setEdit] = useState<{ path: string; before: string; after: string } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
@@ -85,6 +91,11 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F1" || ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "p")) {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+        return;
+      }
       if (!(e.metaKey || e.ctrlKey)) return;
       if (e.key.toLowerCase() === "i" && !e.altKey && !e.shiftKey) {
         e.preventDefault();
@@ -202,9 +213,35 @@ export function App() {
       />
       <div className="workspace">
         <aside className="panel files-panel">
-          <div className="panel-title">Files</div>
+          <div className="panel-title" style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: "1px 8px", fontSize: 11, opacity: sideTab === "files" ? 1 : 0.55 }}
+              onClick={() => setSideTab("files")}
+            >
+              文件
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: "1px 8px", fontSize: 11, opacity: sideTab === "search" ? 1 : 0.55 }}
+              onClick={() => setSideTab("search")}
+            >
+              搜索
+            </button>
+          </div>
           {root ? (
-            <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
+            sideTab === "files" ? (
+              <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
+            ) : (
+              <SearchPanel
+                onOpenFile={(p, line) => {
+                  void openFile(p);
+                  if (line) setGotoLine({ path: p, line, n: ++gotoSeq.current });
+                }}
+              />
+            )
           ) : (
             <div className="empty">
               <p>尚未打开工作区。</p>
@@ -225,6 +262,7 @@ export function App() {
                 tabs={tabs}
                 activePath={activePath}
                 diagnostics={diagnostics}
+                gotoLine={gotoLine}
                 onSelect={setActivePath}
                 onChange={onChange}
                 onClose={(p) => {
@@ -279,7 +317,7 @@ export function App() {
         <span className={`status-dot${hasApiKey === false ? " warn" : ""}`} />
         <span>{status}</span>
         <span className="status-hotkeys">
-          Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端
+          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑
         </span>
       </footer>
 
@@ -331,6 +369,43 @@ export function App() {
           />
         </Suspense>
       ) : null}
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        commands={[
+          { id: "open-folder", title: "打开文件夹", run: () => void openFolder() },
+          { id: "save", title: "保存当前文件", hint: "Ctrl+S", run: () => void saveActive() },
+          {
+            id: "toggle-terminal",
+            title: "开关终端",
+            hint: "Ctrl+`",
+            run: () => setTermOpen((v) => !v),
+          },
+          { id: "settings", title: "设置", hint: "Ctrl+,", run: () => setSettingsOpen(true) },
+          {
+            id: "focus-agent",
+            title: "聚焦 Agent 输入",
+            hint: "Ctrl+I",
+            run: () => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(),
+          },
+          {
+            id: "side-search",
+            title: "全局搜索",
+            run: () => setSideTab("search"),
+          },
+          {
+            id: "side-files",
+            title: "文件树",
+            run: () => setSideTab("files"),
+          },
+          ...(["ask", "plan", "agent", "verify"] as const).map((m) => ({
+            id: `mode-${m}`,
+            title: `切换到 ${m} 模式`,
+            run: () => setMode(m),
+          })),
+        ]}
+      />
     </div>
   );
 }
