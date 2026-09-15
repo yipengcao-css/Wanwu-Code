@@ -67,4 +67,25 @@ export function registerLspIpc(
     disposeLsp();
     return true;
   });
+
+  ipcMain.handle(
+    "lsp:request",
+    async (
+      _e,
+      relPath: string,
+      method: string,
+      line: number,
+      character: number,
+      extra?: Record<string, unknown>,
+    ) => {
+      const root = getRoot();
+      if (!root || !hasLspMapping(relPath)) return undefined;
+      const m = ensureManager(root, getWin);
+      try {
+        return await m.languageRequest(relPath, method, line, character, extra);
+      } catch {
+        return undefined;
+      }
+    },
+  );
 }

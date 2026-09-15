@@ -88,6 +88,13 @@ export type WanwuBridge = {
     didOpen: (path: string, text: string) => Promise<boolean>;
     didChange: (path: string, text: string) => Promise<boolean>;
     didClose: (path: string) => Promise<boolean>;
+    request: (
+      path: string,
+      method: string,
+      line: number,
+      character: number,
+      extra?: Record<string, unknown>,
+    ) => Promise<unknown>;
     dispose: () => Promise<boolean>;
     onDiagnostics: (
       cb: (payload: {
@@ -165,6 +172,8 @@ const bridge: WanwuBridge = {
     didOpen: (path, text) => ipcRenderer.invoke("lsp:didOpen", path, text),
     didChange: (path, text) => ipcRenderer.invoke("lsp:didChange", path, text),
     didClose: (path) => ipcRenderer.invoke("lsp:didClose", path),
+    request: (path, method, line, character, extra) =>
+      ipcRenderer.invoke("lsp:request", path, method, line, character, extra),
     dispose: () => ipcRenderer.invoke("lsp:dispose"),
     onDiagnostics: (cb) => on("lsp:diagnostics", (p) => cb(p as never)),
     onError: (cb) => on("lsp:error", (t) => cb(String(t))),

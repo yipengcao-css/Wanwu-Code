@@ -3,6 +3,7 @@ import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import { registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
+import { registerLspFeatures } from "./lspFeatures";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
@@ -103,6 +104,7 @@ export function MonacoPane(props: {
     editorRef.current = editor;
     registerInlineCompletion();
     attachInlineEdit(editor);
+    registerLspFeatures();
   };
 
   if (props.tabs.length === 0) {

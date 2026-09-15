@@ -75,6 +75,11 @@ export class StdioLspClient {
             didClose: true,
           },
           publishDiagnostics: { relatedInformation: false },
+          completion: { dynamicRegistration: false, completionItem: { snippetSupport: false } },
+          hover: { dynamicRegistration: false },
+          definition: { dynamicRegistration: false },
+          references: { dynamicRegistration: false },
+          rename: { dynamicRegistration: false },
         },
         workspace: { workspaceFolders: false },
       },
@@ -118,6 +123,24 @@ export class StdioLspClient {
     this.openDocs.delete(uri);
     this.notify("textDocument/didClose", {
       textDocument: { uri },
+    });
+  }
+
+  /** Language-feature request (completion/hover/definition/references/rename). */
+  async languageRequest(
+    method: string,
+    relPath: string,
+    line: number,
+    character: number,
+    extra?: Record<string, unknown>,
+  ): Promise<unknown> {
+    if (!this.initialized) await this.start();
+    const abs = absFromRel(this.opts.workspaceRoot, relPath);
+    const uri = pathToUri(abs);
+    return this.request(method, {
+      textDocument: { uri },
+      position: { line, character },
+      ...extra,
     });
   }
 
