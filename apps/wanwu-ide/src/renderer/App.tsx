@@ -15,6 +15,7 @@ import { TerminalPane } from "./components/TerminalPane.js";
 import { AgentPanel, type TranscriptItem } from "./components/AgentPanel.js";
 import { PermissionModal } from "./components/PermissionModal.js";
 import { DiffModal } from "./components/DiffModal.js";
+import { PathOpenModal } from "./components/PathOpenModal.js";
 
 type LeftView = "files" | "search" | "git";
 
@@ -39,6 +40,7 @@ export function App(): React.ReactElement {
   const [mode, setMode] = useState<AgentMode>("ask");
   const [permission, setPermission] = useState<AgentPermissionEvent | null>(null);
   const [edit, setEdit] = useState<AgentEditEvent | null>(null);
+  const [pathModalOpen, setPathModalOpen] = useState(false);
   const itemId = useRef(1);
 
   const addItem = useCallback((item: Omit<TranscriptItem, "id">) => {
@@ -133,6 +135,17 @@ export function App(): React.ReactElement {
     if (info.root) addItem({ type: "status", text: `已切换工作区并重建 ACP: ${info.root}` });
   }, [addItem]);
 
+  const openByPath = useCallback(
+    async (path: string) => {
+      setPathModalOpen(false);
+      const info = await window.wanwu.workspace.openPath(path);
+      setWorkspace(info);
+      setRefreshToken((n) => n + 1);
+      if (info.root) addItem({ type: "status", text: `已切换工作区并重建 ACP: ${info.root}` });
+    },
+    [addItem],
+  );
+
   const send = useCallback(
     (text: string) => {
       addItem({ type: "user", text: `[${mode}] ${text}` });
@@ -174,6 +187,7 @@ export function App(): React.ReactElement {
         <span className="workspace-name">{workspace.name ?? "未打开文件夹"}</span>
         <div className="titlebar-actions">
           <button onClick={() => void openFolder()}>打开文件夹…</button>
+          <button onClick={() => setPathModalOpen(true)}>按路径打开…</button>
           <button onClick={() => setShowTerminal((v) => !v)}>
             {showTerminal ? "隐藏终端" : "显示终端"}
           </button>
@@ -231,6 +245,13 @@ export function App(): React.ReactElement {
 
       {permission && <PermissionModal request={permission} onRespond={respondPermission} />}
       {edit && <DiffModal proposal={edit} onAccept={() => void acceptEdit()} onReject={() => setEdit(null)} />}
+      {pathModalOpen && (
+        <PathOpenModal
+          initial={workspace.root ?? "/workspace"}
+          onConfirm={(p) => void openByPath(p)}
+          onCancel={() => setPathModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

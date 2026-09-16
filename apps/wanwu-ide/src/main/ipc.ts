@@ -7,6 +7,7 @@ import type { AgentManager } from "./acp/manager.js";
 import type { BackendChoice } from "./acp/resolveBackend.js";
 import { gitStatus } from "./git.js";
 import { searchText } from "./search.js";
+import { saveLastWorkspace } from "./state.js";
 
 export interface Managers {
   window: () => BrowserWindow | null;
@@ -72,6 +73,7 @@ export function registerIpc(m: Managers): void {
 
 async function openWorkspace(m: Managers, path: string) {
   const info = await m.workspace.setRoot(path);
+  saveLastWorkspace(path);
   // P0-3: rebuild the ACP backend/session so it points at the new folder.
   await m.agent.restartForWorkspace(path);
   return info;

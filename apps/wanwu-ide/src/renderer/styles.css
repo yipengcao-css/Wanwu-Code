@@ -511,3 +511,19 @@ code {
   border-color: var(--danger);
   color: var(--danger);
 }
+.btn-secondary {
+  background: var(--bg);
+}
+.path-modal {
+  width: 480px;
+}
+.path-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+}

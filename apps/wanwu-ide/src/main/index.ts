@@ -7,6 +7,7 @@ import { WorkspaceManager } from "./workspace.js";
 import { TerminalManager } from "./terminal.js";
 import { AgentManager } from "./acp/manager.js";
 import { registerIpc } from "./ipc.js";
+import { resolveInitialWorkspace } from "./state.js";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -52,8 +53,9 @@ function createWindow(): void {
   });
 }
 
-app.whenReady().then(() => {
-  const initialCwd = homedir();
+app.whenReady().then(async () => {
+  const initialWorkspace = resolveInitialWorkspace(process.argv.slice(app.isPackaged ? 1 : 2));
+  const initialCwd = initialWorkspace ?? homedir();
 
   const workspace = new WorkspaceManager((p) => send(IPC_EVENTS.fsChanged, p));
   const terminals = new TerminalManager(
@@ -61,6 +63,10 @@ app.whenReady().then(() => {
     (id, exitCode) => send(IPC_EVENTS.termExit, { id, exitCode }),
   );
   const agent = new AgentManager((event: AgentEvent) => send(IPC_EVENTS.agentEvent, event), initialCwd);
+
+  if (initialWorkspace) {
+    await workspace.setRoot(initialWorkspace);
+  }
 
   registerIpc({ window: () => mainWindow, workspace, terminals, agent });
 
