@@ -82,7 +82,15 @@ app.whenReady().then(() => {
   registerFsIpc(
     () => workspaceRoot,
     (r) => {
+      const changed = r !== workspaceRoot;
       workspaceRoot = r;
+      if (changed) {
+        // P0-3: repoint the Agent — tear down the ACP session/backend and the
+        // terminal so the next use rebuilds them against the new workspace root.
+        disposeAcp();
+        disposeTerm();
+        mainWindow?.webContents.send("workspace:changed", r);
+      }
     },
   );
   registerAcpIpc(
