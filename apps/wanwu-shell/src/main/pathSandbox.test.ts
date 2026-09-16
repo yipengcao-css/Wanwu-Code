@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
-import { isInsideRoot, resolveInsideRoot } from "./pathSandbox.ts";
+import { isInsideRoot, resolveInsideRoot } from "./pathSandbox.js";
 
 const root = "/tmp/wanwu-ws";
 
