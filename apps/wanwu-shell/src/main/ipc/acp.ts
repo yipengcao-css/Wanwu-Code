@@ -8,7 +8,7 @@ import {
   type AcpEditProposal,
   type AcpPermissionRequest,
 } from "@wanwu/acp-client";
-import { agentEnv } from "../settings.js";
+import { agentEnv, agentBackendChoice, grokCommandParts } from "../settings.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -58,6 +58,15 @@ function startAcpBackend(cwd: string): AcpClient {
       env: { ...process.env, ...injected, WANWU_WORKSPACE_ROOT: cwd },
       stdio: ["pipe", "pipe", "pipe"],
     });
+  } else if (agentBackendChoice() === "grok") {
+    // Underlying agent = open-source grok CLI (its ACP stdio server). Requires
+    // `grok` on PATH; configurable via Settings ("grok 命令", default "grok acp").
+    const parts = grokCommandParts();
+    child = spawn(parts[0]!, parts.slice(1), {
+      cwd,
+      env: { ...process.env, ...injected, WANWU_WORKSPACE_ROOT: cwd, WANWU_ACP_BACKEND: "grok-bridge" },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
   } else {
     const script = resolveBackendScript();
     child = spawn(process.execPath, [script], {
@@ -96,7 +105,8 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
       await client.initialize();
       sessionId = await client.newSession(root);
     }
-    return { sessionId, backend: app.isPackaged ? "packaged" : "dev" };
+    const runtime = process.env.WANWU_ACP_COMMAND?.trim() ? "custom" : agentBackendChoice();
+    return { sessionId, backend: runtime, packaged: app.isPackaged };
   });
 
   ipcMain.handle("acp:prompt", async (_e, text: string) => {

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
 type ProviderId = SettingsView["activeProvider"];
+type AgentBackend = SettingsView["agentBackend"];
 
 const PROVIDERS: ProviderId[] = ["openai", "xai", "anthropic", "ollama", "custom"];
 const KEY_ENV: Record<ProviderId, string> = {
@@ -22,6 +23,8 @@ export function SettingsModal(props: {
   const [baseUrl, setBaseUrl] = useState(props.initial.baseUrl);
   const [fontSize, setFontSize] = useState(props.initial.fontSize);
   const [verifyCommand, setVerifyCommand] = useState(props.initial.verifyCommand);
+  const [agentBackend, setAgentBackend] = useState<AgentBackend>(props.initial.agentBackend);
+  const [grokCommand, setGrokCommand] = useState(props.initial.grokCommand);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -36,6 +39,8 @@ export function SettingsModal(props: {
         baseUrl,
         fontSize,
         verifyCommand,
+        agentBackend,
+        grokCommand,
       };
       if (apiKey.trim()) patch.apiKeys = { [provider]: apiKey.trim() };
       const view = await window.wanwu.settings.set(patch);
@@ -51,6 +56,30 @@ export function SettingsModal(props: {
       <div className="modal settings-modal">
         <h3>设置 · Agent 与编辑器</h3>
         <div className="settings-grid">
+          <label>Agent 后端</label>
+          <div className="settings-key">
+            <select value={agentBackend} onChange={(e) => setAgentBackend(e.target.value as AgentBackend)}>
+              <option value="wanwu-native">wanwu-native（内置，多模型）</option>
+              <option value="grok">grok（开源 CLI，底层）</option>
+            </select>
+            <span className="settings-hint">
+              {agentBackend === "grok"
+                ? "使用开源 grok CLI 的 ACP，需本机安装 grok"
+                : "内置原生 Agent，走下方 Provider/Model"}
+            </span>
+          </div>
+
+          {agentBackend === "grok" ? (
+            <>
+              <label>grok 命令</label>
+              <input
+                placeholder="grok acp"
+                value={grokCommand}
+                onChange={(e) => setGrokCommand(e.target.value)}
+              />
+            </>
+          ) : null}
+
           <label>Provider</label>
           <select value={provider} onChange={(e) => setProvider(e.target.value as ProviderId)}>
             {PROVIDERS.map((p) => (
