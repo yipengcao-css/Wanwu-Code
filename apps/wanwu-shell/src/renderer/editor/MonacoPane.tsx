@@ -22,6 +22,7 @@ export type EditorTab = {
   path: string;
   content: string;
   dirty: boolean;
+  binary?: boolean;
 };
 
 function languageFor(path: string): string {
@@ -41,6 +42,7 @@ function languageFor(path: string): string {
 export function MonacoPane(props: {
   tabs: EditorTab[];
   activePath: string | null;
+  fontSize?: number;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
@@ -74,7 +76,10 @@ export function MonacoPane(props: {
         ))}
       </div>
       <div className="monaco-host">
-        {active ? (
+        {active && active.binary ? (
+          <div className="empty">二进制文件，暂不支持在编辑器中显示 · {active.path}</div>
+        ) : null}
+        {active && !active.binary ? (
           <Editor
             key={active.path}
             height="100%"
@@ -85,7 +90,7 @@ export function MonacoPane(props: {
             onChange={(v) => props.onChange(active.path, v ?? "")}
             options={{
               fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",
-              fontSize: 13,
+              fontSize: props.fontSize ?? 13,
               minimap: { enabled: false },
               smoothScrolling: true,
               padding: { top: 12 },

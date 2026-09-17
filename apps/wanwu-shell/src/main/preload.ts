@@ -1,4 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { SettingsView, SettingsPatch, ProviderId } from "./settings.js";
+
+export type { SettingsView, SettingsPatch, ProviderId };
 
 export type WanwuBridge = {
   workspace: {
@@ -8,8 +11,28 @@ export type WanwuBridge = {
   };
   fs: {
     list: (rel?: string) => Promise<{ name: string; path: string; type: "file" | "dir" }[]>;
-    read: (rel: string) => Promise<string>;
+    read: (rel: string) => Promise<{ content: string; binary: boolean }>;
     write: (rel: string, content: string) => Promise<boolean>;
+    create: (parentRel: string, name: string, type: "file" | "dir") => Promise<string>;
+    rename: (rel: string, newName: string) => Promise<string>;
+    remove: (rel: string) => Promise<boolean>;
+    allFiles: () => Promise<string[]>;
+    onChanged: (cb: () => void) => () => void;
+  };
+  settings: {
+    get: () => Promise<SettingsView>;
+    set: (patch: SettingsPatch) => Promise<SettingsView>;
+  };
+  search: {
+    text: (query: string) => Promise<{ path: string; line: number; preview: string }[]>;
+  };
+  git: {
+    status: () => Promise<{
+      available: boolean;
+      branch: string | null;
+      entries: { path: string; index: string; workingTree: string }[];
+    }>;
+    commit: (message: string) => Promise<{ ok: boolean; output: string }>;
   };
   acp: {
     ensure: () => Promise<{ sessionId?: string }>;
@@ -27,8 +50,9 @@ export type WanwuBridge = {
     ) => () => void;
   };
   term: {
-    start: () => Promise<boolean>;
+    start: (cols?: number, rows?: number) => Promise<boolean>;
     write: (data: string) => Promise<boolean>;
+    resize: (cols: number, rows: number) => Promise<boolean>;
     stop: () => Promise<boolean>;
     onData: (cb: (data: string) => void) => () => void;
   };
@@ -54,6 +78,22 @@ const bridge: WanwuBridge = {
     list: (rel) => ipcRenderer.invoke("fs:list", rel),
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
+    create: (parentRel, name, type) => ipcRenderer.invoke("fs:create", parentRel, name, type),
+    rename: (rel, newName) => ipcRenderer.invoke("fs:rename", rel, newName),
+    remove: (rel) => ipcRenderer.invoke("fs:delete", rel),
+    allFiles: () => ipcRenderer.invoke("fs:allFiles"),
+    onChanged: (cb) => on("fs:changed", () => cb()),
+  },
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    set: (patch) => ipcRenderer.invoke("settings:set", patch),
+  },
+  search: {
+    text: (query) => ipcRenderer.invoke("search:text", query),
+  },
+  git: {
+    status: () => ipcRenderer.invoke("git:status"),
+    commit: (message) => ipcRenderer.invoke("git:commit", message),
   },
   acp: {
     ensure: () => ipcRenderer.invoke("acp:ensure"),
@@ -67,8 +107,9 @@ const bridge: WanwuBridge = {
     onEdit: (cb) => on("acp:edit", (t) => cb(t as never)),
   },
   term: {
-    start: () => ipcRenderer.invoke("term:start"),
+    start: (cols, rows) => ipcRenderer.invoke("term:start", { cols, rows }),
     write: (data) => ipcRenderer.invoke("term:write", data),
+    resize: (cols, rows) => ipcRenderer.invoke("term:resize", cols, rows),
     stop: () => ipcRenderer.invoke("term:stop"),
     onData: (cb) => on("term:data", (t) => cb(String(t))),
   },

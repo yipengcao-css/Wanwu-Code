@@ -1,17 +1,28 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { OrbitBar, type WanwuMode } from "../layout/OrbitBar";
 import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
+import { SearchPanel } from "../files/SearchPanel";
+import { GitPanel } from "../files/GitPanel";
 import { MonacoPane, type EditorTab } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
-import { ConfirmModal } from "../agent/ConfirmModal";
+import { DiffModal } from "../agent/DiffModal";
+import { PermissionModal } from "../agent/PermissionModal";
+import { SettingsModal } from "../settings/SettingsModal";
+import { CommandPalette, type Command } from "../command/CommandPalette";
+
+type LeftView = "files" | "search" | "git";
+type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
+type PermReq = { id: number; toolName: string; summary: string; risk?: string };
+type EditReq = { path: string; before: string; after: string };
 
 export function App() {
   const initial = loadLayout();
   const [root, setRoot] = useState<string | null>(null);
   const [mode, setMode] = useState<WanwuMode>("agent");
+  const [leftView, setLeftView] = useState<LeftView>("files");
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [termOpen, setTermOpen] = useState(initial.termOpen);
@@ -19,13 +30,18 @@ export function App() {
   const [agentW, setAgentW] = useState(initial.agentW);
   const [termH, setTermH] = useState(initial.termH);
   const [status, setStatus] = useState("就绪 · Wanwu Lattice");
-  const [perm, setPerm] = useState<{
-    id: number;
-    toolName: string;
-    summary: string;
-    risk?: string;
-  } | null>(null);
-  const [edit, setEdit] = useState<{ path: string; before: string; after: string } | null>(null);
+  const [refreshToken, setRefreshToken] = useState(0);
+  const [perm, setPerm] = useState<PermReq | null>(null);
+  const [edit, setEdit] = useState<EditReq | null>(null);
+  const [settings, setSettings] = useState<SettingsView | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+
+  const modeRef = useRef<WanwuMode>(mode);
+  const allowSession = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
@@ -40,6 +56,7 @@ export function App() {
     void window.wanwu.workspace.getRoot().then((r) => {
       if (r) setRoot(r);
     });
+    void window.wanwu.settings.get().then(setSettings);
   }, []);
 
   useEffect(() => {
@@ -47,11 +64,27 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    const offP = window.wanwu.acp.onPermission((req) => setPerm(req));
-    const offE = window.wanwu.acp.onEdit((e) => setEdit(e));
+    const offP = window.wanwu.acp.onPermission((req) => {
+      // P2: "本会话始终允许" — auto-approve remembered tools without prompting.
+      if (allowSession.current.has(req.toolName)) {
+        void window.wanwu.acp.respondPermission(req.id, "allow_once");
+        return;
+      }
+      setPerm(req);
+    });
+    const offE = window.wanwu.acp.onEdit((e) => {
+      // P2: client-side mode enforcement — Ask/Plan must never write to disk.
+      if (modeRef.current === "ask" || modeRef.current === "plan") {
+        setStatus(`已拦截提案 · ${modeRef.current} 模式不写盘（${e.path}）`);
+        return;
+      }
+      setEdit(e);
+    });
+    const offFs = window.wanwu.fs.onChanged(() => setRefreshToken((n) => n + 1));
     return () => {
       offP();
       offE();
+      offFs();
     };
   }, []);
 
@@ -71,6 +104,14 @@ export function App() {
         e.preventDefault();
         void saveActive();
       }
+      if (e.key.toLowerCase() === "p" && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+      if (e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -83,16 +124,21 @@ export function App() {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setRefreshToken((n) => n + 1);
       setStatus(`工作区 · ${dir}`);
       await window.wanwu.acp.dispose();
     }
   }, []);
 
   const openFile = useCallback(async (rel: string) => {
-    const content = await window.wanwu.fs.read(rel);
+    const res = await window.wanwu.fs.read(rel);
     setTabs((prev) => {
-      if (prev.some((t) => t.path === rel)) return prev;
-      return [...prev, { path: rel, content, dirty: false }];
+      if (prev.some((t) => t.path === rel)) {
+        return prev.map((t) =>
+          t.path === rel ? { ...t, content: res.content, binary: res.binary, dirty: false } : t,
+        );
+      }
+      return [...prev, { path: rel, content: res.content, dirty: false, binary: res.binary }];
     });
     setActivePath(rel);
   }, []);
@@ -104,13 +150,53 @@ export function App() {
   }, []);
 
   const saveActive = useCallback(async () => {
-    if (!activeTab) return;
+    if (!activeTab || activeTab.binary) return;
     await window.wanwu.fs.write(activeTab.path, activeTab.content);
     setTabs((prev) =>
       prev.map((t) => (t.path === activeTab.path ? { ...t, dirty: false } : t)),
     );
     setStatus(`已保存 · ${activeTab.path}`);
   }, [activeTab]);
+
+  const respondPerm = useCallback(
+    (optionId: string) => {
+      if (!perm) return;
+      if (optionId === "allow_always") allowSession.current.add(perm.toolName);
+      void window.wanwu.acp.respondPermission(perm.id, optionId);
+      setPerm(null);
+    },
+    [perm],
+  );
+
+  const acceptEdit = useCallback(async () => {
+    if (!edit) return;
+    await window.wanwu.fs.write(edit.path, edit.after);
+    setTabs((prev) => {
+      const others = prev.filter((t) => t.path !== edit.path);
+      return [...others, { path: edit.path, content: edit.after, dirty: false, binary: false }];
+    });
+    setActivePath(edit.path);
+    setStatus(`已接受编辑 · ${edit.path}`);
+    setEdit(null);
+    setRefreshToken((n) => n + 1);
+  }, [edit]);
+
+  const paletteCommands: Command[] = useMemo(
+    () => [
+      { title: "设置：打开", run: () => setSettingsOpen(true) },
+      { title: "终端：切换显示", run: () => setTermOpen((v) => !v) },
+      { title: "文件：保存当前", run: () => void saveActive() },
+      { title: "打开文件夹…", run: () => void openFolder() },
+      { title: "模式：Ask", run: () => setMode("ask") },
+      { title: "模式：Plan", run: () => setMode("plan") },
+      { title: "模式：Agent", run: () => setMode("agent") },
+      { title: "模式：Verify", run: () => setMode("verify") },
+      { title: "视图：资源管理器", run: () => setLeftView("files") },
+      { title: "视图：搜索", run: () => setLeftView("search") },
+      { title: "视图：源代码", run: () => setLeftView("git") },
+    ],
+    [saveActive, openFolder],
+  );
 
   const style = {
     ["--ww-files-w" as string]: `${filesW}px`,
@@ -126,14 +212,24 @@ export function App() {
         onOpenFolder={() => void openFolder()}
         onToggleTerminal={() => setTermOpen((v) => !v)}
         onSave={() => void saveActive()}
+        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         workspaceLabel={root ? root.split(/[\\/]/).filter(Boolean).slice(-2).join("/") : "未打开工作区"}
       />
       <div className="workspace">
         <aside className="panel files-panel">
-          <div className="panel-title">Files</div>
-          {root ? (
-            <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
-          ) : (
+          <div className="left-switch">
+            <button type="button" className={leftView === "files" ? "active" : ""} onClick={() => setLeftView("files")}>
+              资源
+            </button>
+            <button type="button" className={leftView === "search" ? "active" : ""} onClick={() => setLeftView("search")}>
+              搜索
+            </button>
+            <button type="button" className={leftView === "git" ? "active" : ""} onClick={() => setLeftView("git")}>
+              源代码
+            </button>
+          </div>
+          {!root ? (
             <div className="empty">
               打开一个文件夹开始。
               <br />
@@ -141,6 +237,12 @@ export function App() {
                 打开文件夹
               </button>
             </div>
+          ) : leftView === "files" ? (
+            <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} refreshToken={refreshToken} />
+          ) : leftView === "search" ? (
+            <SearchPanel onOpenFile={(p) => void openFile(p)} />
+          ) : (
+            <GitPanel refreshToken={refreshToken} onOpenFile={(p) => void openFile(p)} onStatus={setStatus} />
           )}
         </aside>
         <SplitHandle
@@ -151,6 +253,7 @@ export function App() {
           <MonacoPane
             tabs={tabs}
             activePath={activePath}
+            fontSize={settings?.fontSize}
             onSelect={setActivePath}
             onChange={onChange}
             onClose={(p) => {
@@ -192,41 +295,40 @@ export function App() {
       </footer>
 
       {perm ? (
-        <ConfirmModal
-          title={`权限 · ${perm.toolName}`}
-          body={`${perm.summary}\nrisk=${perm.risk ?? "?"}`}
-          acceptLabel="允许一次"
-          rejectLabel="拒绝"
-          onAccept={() => {
-            void window.wanwu.acp.respondPermission(perm.id, "allow_once");
-            setPerm(null);
-          }}
-          onReject={() => {
-            void window.wanwu.acp.respondPermission(perm.id, "deny");
-            setPerm(null);
-          }}
+        <PermissionModal
+          toolName={perm.toolName}
+          summary={perm.summary}
+          risk={perm.risk}
+          onRespond={respondPerm}
         />
       ) : null}
 
       {edit ? (
-        <ConfirmModal
-          title={`Edit · ${edit.path}`}
-          body={edit.after.slice(0, 4000)}
-          acceptLabel="接受并写入"
-          rejectLabel="拒绝"
-          onAccept={() => {
-            void (async () => {
-              await window.wanwu.fs.write(edit.path, edit.after);
-              setTabs((prev) => {
-                const others = prev.filter((t) => t.path !== edit.path);
-                return [...others, { path: edit.path, content: edit.after, dirty: false }];
-              });
-              setActivePath(edit.path);
-              setEdit(null);
-              setStatus(`已接受编辑 · ${edit.path}`);
-            })();
-          }}
+        <DiffModal
+          path={edit.path}
+          before={edit.before}
+          after={edit.after}
+          onAccept={() => void acceptEdit()}
           onReject={() => setEdit(null)}
+        />
+      ) : null}
+
+      {settingsOpen && settings ? (
+        <SettingsModal
+          initial={settings}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(view) => {
+            setSettings(view);
+            setStatus("设置已保存 · Agent 将按新配置重建会话");
+          }}
+        />
+      ) : null}
+
+      {paletteOpen ? (
+        <CommandPalette
+          commands={paletteCommands}
+          onOpenFile={(p) => void openFile(p)}
+          onClose={() => setPaletteOpen(false)}
         />
       ) : null}
     </div>

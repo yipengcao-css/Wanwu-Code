@@ -1,5 +1,6 @@
-import { ipcMain, type BrowserWindow } from "electron";
+import { app, ipcMain, type BrowserWindow } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -7,12 +8,9 @@ import {
   type AcpEditProposal,
   type AcpPermissionRequest,
 } from "@wanwu/acp-client";
+import { agentEnv } from "../settings.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-/** apps/wanwu-shell/dist/electron → repo root */
-function findRepoRoot(): string {
-  return path.resolve(here, "../../../../");
-}
 
 let client: AcpClient | undefined;
 let child: ChildProcessWithoutNullStreams | undefined;
@@ -22,17 +20,58 @@ function broadcast(win: BrowserWindow | null, channel: string, payload: unknown)
   win?.webContents.send(channel, payload);
 }
 
-function startNativeAcp(cwd: string): AcpClient {
-  const repoRoot = findRepoRoot();
-  const nativeEntry = path.join(repoRoot, "packages/wanwu-cli/src/native/acpServer.ts");
-  child = spawn("pnpm", ["exec", "tsx", nativeEntry], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      WANWU_WORKSPACE_ROOT: cwd,
-    },
-    stdio: ["pipe", "pipe", "pipe"],
-  });
+/**
+ * Locate the bundled single-file ACP backend.
+ *
+ * P0-1: the shell ships its own bundled Node backend and never depends on
+ * `pnpm`/`tsx` or a monorepo checkout. Packaged builds place it under
+ * `resources/backend` (electron-builder extraResources); dev/unpackaged builds
+ * read it from `dist/backend` next to the compiled main process.
+ */
+function resolveBackendScript(): string {
+  const candidates = [
+    path.join(process.resourcesPath ?? "", "backend", "wanwu-acp.mjs"),
+    path.join(here, "..", "backend", "wanwu-acp.mjs"),
+  ];
+  for (const candidate of candidates) {
+    if (candidate && existsSync(candidate)) return candidate;
+  }
+  throw new Error(
+    `Bundled ACP backend not found. Looked in: ${candidates.join(", ")}. Run the shell build.`,
+  );
+}
+
+/**
+ * Start the wanwu-native ACP backend. Launched with the bundled Electron binary
+ * running as plain Node (`ELECTRON_RUN_AS_NODE`), so no system Node/pnpm/tsx is
+ * required. `WANWU_ACP_COMMAND` can override the whole command line for advanced
+ * setups (e.g. bridging to grok).
+ */
+function startAcpBackend(cwd: string): AcpClient {
+  // Settings-driven provider/model/API-key env (P2: model selection + API key UI).
+  const injected = agentEnv();
+  const override = process.env.WANWU_ACP_COMMAND?.trim();
+  if (override) {
+    const parts = override.split(/\s+/);
+    child = spawn(parts[0]!, parts.slice(1), {
+      cwd,
+      env: { ...process.env, ...injected, WANWU_WORKSPACE_ROOT: cwd },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+  } else {
+    const script = resolveBackendScript();
+    child = spawn(process.execPath, [script], {
+      cwd,
+      env: {
+        ...process.env,
+        ...injected,
+        ELECTRON_RUN_AS_NODE: "1",
+        WANWU_INTERNAL_ACP: "1",
+        WANWU_WORKSPACE_ROOT: cwd,
+      },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+  }
   return new AcpClient(child, {
     clientName: "wanwu-shell",
     clientVersion: "1.0.0-beta",
@@ -45,7 +84,7 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     const root = getRoot();
     if (!root) throw new Error("no workspace open");
     if (!client) {
-      client = startNativeAcp(root);
+      client = startAcpBackend(root);
       const win = getWin();
       client.on("message", (text: string) => broadcast(win, "acp:message", text));
       client.on("tool", (tool) => broadcast(win, "acp:tool", tool));
@@ -57,7 +96,7 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
       await client.initialize();
       sessionId = await client.newSession(root);
     }
-    return { sessionId };
+    return { sessionId, backend: app.isPackaged ? "packaged" : "dev" };
   });
 
   ipcMain.handle("acp:prompt", async (_e, text: string) => {
@@ -72,10 +111,7 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
   });
 
   ipcMain.handle("acp:dispose", () => {
-    client?.dispose();
-    client = undefined;
-    child = undefined;
-    sessionId = undefined;
+    disposeAcp();
     return true;
   });
 }

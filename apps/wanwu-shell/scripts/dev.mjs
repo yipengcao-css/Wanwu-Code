@@ -23,8 +23,22 @@ await esbuild.build({
   platform: "node",
   format: "esm",
   target: "node20",
-  external: ["electron"],
+  external: ["electron", "node-pty"],
   sourcemap: true,
+});
+
+// P0-1: bundle the ACP backend for dev too, so the shell runs it the same way
+// as a packaged build (Electron-as-Node, no pnpm/tsx).
+await esbuild.build({
+  entryPoints: {
+    "wanwu-acp": path.join(repoRoot, "packages/wanwu-cli/src/native/acpServer.ts"),
+  },
+  outdir: path.join(root, "dist/backend"),
+  outExtension: { ".js": ".mjs" },
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node20",
 });
 
 // wait briefly for vite

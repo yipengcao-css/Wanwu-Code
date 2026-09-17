@@ -7,6 +7,13 @@ directories:
 files:
   - dist/**/*
   - package.json
+extraResources:
+  - from: dist/backend
+    to: backend
+    filter:
+      - "**/*.mjs"
+asarUnpack:
+  - "**/node_modules/node-pty/**"
 extraMetadata:
   main: dist/electron/main.js
 asar: true

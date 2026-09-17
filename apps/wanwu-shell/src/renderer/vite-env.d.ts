@@ -9,11 +9,4 @@ declare global {
   var MonacoEnvironment: Environment | undefined;
 }
 
-declare module "*?worker" {
-  const WorkerFactory: {
-    new (): Worker;
-  };
-  export default WorkerFactory;
-}
-
 export {};

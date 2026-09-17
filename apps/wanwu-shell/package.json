@@ -12,6 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
     "test": "tsx src/main/pathSandbox.test.ts",
+    "rebuild:native": "electron-rebuild -f -w node-pty",
+    "postinstall": "electron-builder install-app-deps || true",
     "dist": "bash ../../scripts/build-shell-dist.sh",
     "dist:builder": "electron-builder --config electron-builder.yml"
   },
@@ -21,11 +23,13 @@
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "monaco-editor": "^0.52.2",
+    "node-pty": "^1.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@electron/packager": "^20.2.1",
+    "@electron/rebuild": "^3.7.0",
     "@types/node": "^22.15.21",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.6",
