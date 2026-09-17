@@ -92,18 +92,29 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
   ipcMain.handle("acp:ensure", async () => {
     const root = getRoot();
     if (!root) throw new Error("no workspace open");
+    const usingGrok = !process.env.WANWU_ACP_COMMAND?.trim() && agentBackendChoice() === "grok";
     if (!client) {
-      client = startAcpBackend(root);
-      const win = getWin();
-      client.on("message", (text: string) => broadcast(win, "acp:message", text));
-      client.on("tool", (tool) => broadcast(win, "acp:tool", tool));
-      client.on("error", (err: Error) => broadcast(win, "acp:error", err.message));
-      client.on("permission", (req: AcpPermissionRequest) =>
-        broadcast(win, "acp:permission", req),
-      );
-      client.on("edit", (edit: AcpEditProposal) => broadcast(win, "acp:edit", edit));
-      await client.initialize();
-      sessionId = await client.newSession(root);
+      try {
+        client = startAcpBackend(root);
+        const win = getWin();
+        client.on("message", (text: string) => broadcast(win, "acp:message", text));
+        client.on("tool", (tool) => broadcast(win, "acp:tool", tool));
+        client.on("error", (err: Error) => broadcast(win, "acp:error", err.message));
+        client.on("permission", (req: AcpPermissionRequest) =>
+          broadcast(win, "acp:permission", req),
+        );
+        client.on("edit", (edit: AcpEditProposal) => broadcast(win, "acp:edit", edit));
+        await client.initialize();
+        sessionId = await client.newSession(root);
+      } catch (err) {
+        disposeAcp();
+        if (usingGrok) {
+          throw new Error(
+            `无法启动 grok 后端（${grokCommandParts().join(" ")}）：请确认已安装开源 grok CLI 且在 PATH 中，或在「设置 · Agent 后端」改用 wanwu-native / 自定义命令。原始错误：${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        throw err;
+      }
     }
     const runtime = process.env.WANWU_ACP_COMMAND?.trim() ? "custom" : agentBackendChoice();
     return { sessionId, backend: runtime, packaged: app.isPackaged };
