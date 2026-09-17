@@ -12,7 +12,7 @@ export type WanwuBridge = {
   };
   fs: {
     list: (rel?: string) => Promise<{ name: string; path: string; type: "file" | "dir" }[]>;
-    read: (rel: string) => Promise<{ content: string; binary: boolean }>;
+    read: (rel: string) => Promise<{ content: string; binary: boolean; encoding: string }>;
     write: (rel: string, content: string) => Promise<boolean>;
     create: (parentRel: string, name: string, type: "file" | "dir") => Promise<string>;
     rename: (rel: string, newName: string) => Promise<string>;
@@ -33,6 +33,18 @@ export type WanwuBridge = {
   sessions: {
     get: () => Promise<StoredSession[]>;
     set: (sessions: StoredSession[]) => Promise<boolean>;
+  };
+  symbols: {
+    find: (query: string) => Promise<{ name: string; kind: string; path: string; line: number; preview: string }[]>;
+  };
+  context: {
+    discover: () => Promise<{
+      memory: { name: string; path?: string }[];
+      skills: { name: string; path?: string }[];
+      hooks: { name: string; path?: string }[];
+      rules: { name: string; path?: string }[];
+      mcp: { name: string; path?: string }[];
+    }>;
   };
   search: {
     text: (query: string) => Promise<{ path: string; line: number; preview: string }[]>;
@@ -108,6 +120,12 @@ const bridge: WanwuBridge = {
   sessions: {
     get: () => ipcRenderer.invoke("sessions:get"),
     set: (sessions) => ipcRenderer.invoke("sessions:set", sessions),
+  },
+  symbols: {
+    find: (query) => ipcRenderer.invoke("symbols:find", query),
+  },
+  context: {
+    discover: () => ipcRenderer.invoke("context:discover"),
   },
   search: {
     text: (query) => ipcRenderer.invoke("search:text", query),

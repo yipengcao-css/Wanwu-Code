@@ -14,6 +14,7 @@ import { PermissionModal } from "../agent/PermissionModal";
 import { SettingsModal } from "../settings/SettingsModal";
 import { CommandPalette, type Command } from "../command/CommandPalette";
 import { VerifyPanel } from "../verify/VerifyPanel";
+import { ContextModal } from "../context/ContextModal";
 
 type LeftView = "files" | "search" | "git";
 type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
@@ -50,6 +51,8 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [revealLine, setRevealLine] = useState<number | undefined>(undefined);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
 
@@ -203,13 +206,25 @@ export function App() {
     setTabs((prev) => {
       if (prev.some((t) => t.path === rel)) {
         return prev.map((t) =>
-          t.path === rel ? { ...t, content: res.content, binary: res.binary, dirty: false } : t,
+          t.path === rel
+            ? { ...t, content: res.content, binary: res.binary, encoding: res.encoding, dirty: false }
+            : t,
         );
       }
-      return [...prev, { path: rel, content: res.content, dirty: false, binary: res.binary }];
+      return [...prev, { path: rel, content: res.content, dirty: false, binary: res.binary, encoding: res.encoding }];
     });
     setActivePath(rel);
+    if (!res.binary && res.encoding && res.encoding !== "utf-8") {
+      setStatus(`已按 ${res.encoding.toUpperCase()} 解码 · ${rel}（保存将规范化为 UTF-8）`);
+    }
   }, []);
+
+  const openSymbol = useCallback(
+    (rel: string, line: number) => {
+      void openFile(rel).then(() => setRevealLine(line));
+    },
+    [openFile],
+  );
 
   const onChange = useCallback((path: string, value: string) => {
     setTabs((prev) =>
@@ -236,18 +251,21 @@ export function App() {
     [perm],
   );
 
-  const acceptEdit = useCallback(async () => {
-    if (!edit) return;
-    await window.wanwu.fs.write(edit.path, edit.after);
-    setTabs((prev) => {
-      const others = prev.filter((t) => t.path !== edit.path);
-      return [...others, { path: edit.path, content: edit.after, dirty: false, binary: false }];
-    });
-    setActivePath(edit.path);
-    setStatus(`已接受编辑 · ${edit.path}`);
-    setEdit(null);
-    setRefreshToken((n) => n + 1);
-  }, [edit]);
+  const acceptEdit = useCallback(
+    async (content: string) => {
+      if (!edit) return;
+      await window.wanwu.fs.write(edit.path, content);
+      setTabs((prev) => {
+        const others = prev.filter((t) => t.path !== edit.path);
+        return [...others, { path: edit.path, content, dirty: false, binary: false }];
+      });
+      setActivePath(edit.path);
+      setStatus(`已接受编辑 · ${edit.path}`);
+      setEdit(null);
+      setRefreshToken((n) => n + 1);
+    },
+    [edit],
+  );
 
   const activeSession = useMemo(
     () => sessions.find((s) => s.id === activeSessionId) ?? null,
@@ -284,6 +302,7 @@ export function App() {
     () => [
       { title: "设置：打开", run: () => setSettingsOpen(true) },
       { title: "会话：新建", run: () => newSession() },
+      { title: "上下文：Memory/Skills/Rules/MCP", run: () => setContextOpen(true) },
       { title: "验证：运行测试/lint", run: () => setVerifyOpen(true) },
       { title: "终端：切换显示", run: () => setTermOpen((v) => !v) },
       { title: "文件：保存当前", run: () => void saveActive() },
@@ -355,6 +374,7 @@ export function App() {
             tabs={tabs}
             activePath={activePath}
             fontSize={settings?.fontSize}
+            revealLine={revealLine}
             onSelect={setActivePath}
             onChange={onChange}
             onClose={(p) => {
@@ -421,7 +441,7 @@ export function App() {
           path={edit.path}
           before={edit.before}
           after={edit.after}
-          onAccept={() => void acceptEdit()}
+          onAccept={(content) => void acceptEdit(content)}
           onReject={() => setEdit(null)}
         />
       ) : null}
@@ -441,11 +461,15 @@ export function App() {
         <CommandPalette
           commands={paletteCommands}
           onOpenFile={(p) => void openFile(p)}
+          onOpenSymbol={openSymbol}
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}
 
       {verifyOpen ? <VerifyPanel onClose={() => setVerifyOpen(false)} /> : null}
+      {contextOpen ? (
+        <ContextModal onOpenFile={(p) => void openFile(p)} onClose={() => setContextOpen(false)} />
+      ) : null}
     </div>
   );
 }
