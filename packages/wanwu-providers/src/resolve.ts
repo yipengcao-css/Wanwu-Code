@@ -10,7 +10,14 @@ const DEFAULT_BASE: Record<ProviderId, string> = {
 };
 
 function normalizeOpenAiBase(baseUrl: string): string {
-  const trimmed = baseUrl.replace(/\/$/, "");
+  let trimmed = baseUrl.trim().replace(/\/+$/, "");
+  if (!trimmed) return trimmed;
+  // Be forgiving if the user pastes a full endpoint URL (a very common mistake):
+  // strip a trailing `/chat/completions` (or `/completions`) so we keep only the base.
+  trimmed = trimmed
+    .replace(/\/chat\/completions$/i, "")
+    .replace(/\/completions$/i, "")
+    .replace(/\/+$/, "");
   if (!trimmed) return trimmed;
   if (/\/v\d+$/i.test(trimmed)) return trimmed;
   return `${trimmed}/v1`;
