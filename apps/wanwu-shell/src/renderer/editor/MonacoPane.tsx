@@ -22,6 +22,7 @@ export type EditorTab = {
   path: string;
   content: string;
   dirty: boolean;
+  binary?: boolean;
 };
 
 function languageFor(path: string): string {
@@ -74,7 +75,10 @@ export function MonacoPane(props: {
         ))}
       </div>
       <div className="monaco-host">
-        {active ? (
+        {active && active.binary ? (
+          <div className="empty">二进制文件，暂不支持在编辑器中显示 · {active.path}</div>
+        ) : null}
+        {active && !active.binary ? (
           <Editor
             key={active.path}
             height="100%"
