@@ -6,7 +6,8 @@ import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
 import { GitPanel } from "../files/GitPanel";
 import { MonacoPane, type EditorTab } from "../editor/MonacoPane";
-import { AgentStudio } from "../agent/AgentStudio";
+import { AgentStudio, type LogItem } from "../agent/AgentStudio";
+import { SessionBar } from "../agent/SessionBar";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { DiffModal } from "../agent/DiffModal";
 import { PermissionModal } from "../agent/PermissionModal";
@@ -18,6 +19,17 @@ type LeftView = "files" | "search" | "git";
 type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
 type PermReq = { id: number; toolName: string; summary: string; risk?: string };
 type EditReq = { path: string; before: string; after: string };
+type Session = { id: string; title: string; createdAt: number; updatedAt: number; log: LogItem[] };
+
+const GREETING: LogItem = {
+  kind: "status",
+  text: "Agent Studio · wanwu-native ACP。选择 Mode 后描述任务。",
+};
+
+function newSessionObj(index: number): Session {
+  const now = Date.now();
+  return { id: `s-${now}-${Math.random().toString(36).slice(2, 7)}`, title: `会话 ${index}`, createdAt: now, updatedAt: now, log: [GREETING] };
+}
 
 export function App() {
   const initial = loadLayout();
@@ -38,12 +50,31 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string>("");
 
   const modeRef = useRef<WanwuMode>(mode);
+  const activeSessionIdRef = useRef<string>("");
   const allowSession = useRef<Set<string>>(new Set());
   useEffect(() => {
     modeRef.current = mode;
   }, [mode]);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
+  const appendToActive = useCallback((item: LogItem) => {
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeSessionIdRef.current) return s;
+        const title =
+          s.title.startsWith("会话 ") && item.kind === "user"
+            ? item.text.slice(0, 24)
+            : s.title;
+        return { ...s, title, log: [...s.log, item], updatedAt: Date.now() };
+      }),
+    );
+  }, []);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
@@ -65,6 +96,33 @@ export function App() {
     return window.wanwu.shell.onToggleTerminal(() => setTermOpen((v) => !v));
   }, []);
 
+  // Load persisted agent sessions for the current workspace (P2: session history).
+  useEffect(() => {
+    let cancelled = false;
+    void window.wanwu.sessions.get().then((list) => {
+      if (cancelled) return;
+      const loaded = (list as Session[]).slice().sort((a, b) => b.updatedAt - a.updatedAt);
+      if (loaded.length > 0) {
+        setSessions(loaded);
+        setActiveSessionId(loaded[0]!.id);
+      } else {
+        const s = newSessionObj(1);
+        setSessions([s]);
+        setActiveSessionId(s.id);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [root]);
+
+  // Persist sessions (debounced).
+  useEffect(() => {
+    if (sessions.length === 0) return;
+    const t = setTimeout(() => void window.wanwu.sessions.set(sessions), 400);
+    return () => clearTimeout(t);
+  }, [sessions]);
+
   useEffect(() => {
     const offP = window.wanwu.acp.onPermission((req) => {
       // P2: "本会话始终允许" — auto-approve remembered tools without prompting.
@@ -83,12 +141,20 @@ export function App() {
       setEdit(e);
     });
     const offFs = window.wanwu.fs.onChanged(() => setRefreshToken((n) => n + 1));
+    const offMsg = window.wanwu.acp.onMessage((t) => appendToActive({ kind: "assistant", text: t }));
+    const offTool = window.wanwu.acp.onTool((tool) =>
+      appendToActive({ kind: "tool", title: tool.title, status: tool.status, detail: tool.detail }),
+    );
+    const offErr = window.wanwu.acp.onError((t) => appendToActive({ kind: "error", text: t }));
     return () => {
       offP();
       offE();
       offFs();
+      offMsg();
+      offTool();
+      offErr();
     };
-  }, []);
+  }, [appendToActive]);
 
   // Renderer-local hotkeys (backup for before-input-event)
   useEffect(() => {
@@ -183,9 +249,41 @@ export function App() {
     setRefreshToken((n) => n + 1);
   }, [edit]);
 
+  const activeSession = useMemo(
+    () => sessions.find((s) => s.id === activeSessionId) ?? null,
+    [sessions, activeSessionId],
+  );
+
+  const newSession = useCallback(() => {
+    setSessions((prev) => {
+      const s = newSessionObj(prev.length + 1);
+      setActiveSessionId(s.id);
+      return [s, ...prev];
+    });
+    void window.wanwu.acp.dispose(); // fresh backend session for the new chat
+    setStatus("已新建会话");
+  }, []);
+
+  const switchSession = useCallback((id: string) => {
+    setActiveSessionId(id);
+  }, []);
+
+  const deleteSession = useCallback(
+    (id: string) => {
+      setSessions((prev) => {
+        if (prev.length <= 1) return prev;
+        const next = prev.filter((s) => s.id !== id);
+        if (id === activeSessionIdRef.current && next[0]) setActiveSessionId(next[0].id);
+        return next;
+      });
+    },
+    [],
+  );
+
   const paletteCommands: Command[] = useMemo(
     () => [
       { title: "设置：打开", run: () => setSettingsOpen(true) },
+      { title: "会话：新建", run: () => newSession() },
       { title: "验证：运行测试/lint", run: () => setVerifyOpen(true) },
       { title: "终端：切换显示", run: () => setTermOpen((v) => !v) },
       { title: "文件：保存当前", run: () => void saveActive() },
@@ -198,7 +296,7 @@ export function App() {
       { title: "视图：搜索", run: () => setLeftView("search") },
       { title: "视图：源代码", run: () => setLeftView("git") },
     ],
-    [saveActive, openFolder],
+    [saveActive, openFolder, newSession],
   );
 
   const style = {
@@ -270,12 +368,23 @@ export function App() {
           onDrag={(d) => setAgentW((w) => Math.min(640, Math.max(300, w - d)))}
         />
         <aside className="panel agent">
-          <div className="panel-title">Agent Studio</div>
+          <div className="panel-title agent-title">
+            <span>Agent Studio</span>
+            <SessionBar
+              sessions={sessions}
+              activeId={activeSessionId}
+              onSwitch={switchSession}
+              onNew={newSession}
+              onDelete={deleteSession}
+            />
+          </div>
           <AgentStudio
             mode={mode}
             enabled={Boolean(root)}
             activePath={activePath}
             selectionHint={activeTab?.content.slice(0, 500)}
+            log={activeSession?.log ?? []}
+            onLog={appendToActive}
             onStatus={setStatus}
             onVerify={() => setVerifyOpen(true)}
           />

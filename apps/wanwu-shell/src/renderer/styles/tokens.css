@@ -274,6 +274,41 @@ button {
   min-height: 0;
 }
 
+.agent-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.session-select {
+  max-width: 160px;
+  background: var(--ww-surface-2);
+  color: var(--ww-text);
+  border: 1px solid var(--ww-border);
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 12px;
+}
+.session-bar button {
+  border: 1px solid var(--ww-border);
+  background: var(--ww-surface-2);
+  color: var(--ww-text);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 12px;
+}
+.session-bar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .agent-log {
   flex: 1;
   overflow: auto;

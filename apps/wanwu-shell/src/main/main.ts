@@ -14,6 +14,7 @@ import { registerSearchIpc } from "./ipc/search.js";
 import { registerGitIpc } from "./ipc/git.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
 import { disposeVerify, registerVerifyIpc } from "./ipc/verify.js";
+import { registerSessionsIpc } from "./ipc/sessions.js";
 import { WorkspaceWatcher } from "./watcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -121,6 +122,7 @@ app.whenReady().then(() => {
     () => workspaceRoot,
     () => mainWindow,
   );
+  registerSessionsIpc(() => workspaceRoot);
 
   if (workspaceRoot) watcher.start(workspaceRoot);
 
