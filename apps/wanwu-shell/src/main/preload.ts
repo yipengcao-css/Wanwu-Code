@@ -1,7 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { SettingsView, SettingsPatch, ProviderId } from "./settings.js";
+import type { StoredSession } from "./sessions.js";
 
-export type { SettingsView, SettingsPatch, ProviderId };
+export type { SettingsView, SettingsPatch, ProviderId, StoredSession };
 
 export type WanwuBridge = {
   workspace: {
@@ -28,6 +29,10 @@ export type WanwuBridge = {
     cancel: () => Promise<boolean>;
     onData: (cb: (chunk: string) => void) => () => void;
     onDone: (cb: (result: { exitCode: number }) => void) => () => void;
+  };
+  sessions: {
+    get: () => Promise<StoredSession[]>;
+    set: (sessions: StoredSession[]) => Promise<boolean>;
   };
   search: {
     text: (query: string) => Promise<{ path: string; line: number; preview: string }[]>;
@@ -99,6 +104,10 @@ const bridge: WanwuBridge = {
     cancel: () => ipcRenderer.invoke("verify:cancel"),
     onData: (cb) => on("verify:data", (c) => cb(String(c))),
     onDone: (cb) => on("verify:done", (r) => cb(r as { exitCode: number })),
+  },
+  sessions: {
+    get: () => ipcRenderer.invoke("sessions:get"),
+    set: (sessions) => ipcRenderer.invoke("sessions:set", sessions),
   },
   search: {
     text: (query) => ipcRenderer.invoke("search:text", query),
