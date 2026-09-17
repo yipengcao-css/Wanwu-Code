@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { WanwuMode } from "../layout/OrbitBar";
 
-type LogItem =
+export type LogItem =
   | { kind: "user" | "assistant" | "error" | "status"; text: string }
   | { kind: "tool"; title: string; status: string; detail?: string };
 
@@ -10,41 +10,28 @@ export function AgentStudio(props: {
   enabled: boolean;
   activePath: string | null;
   selectionHint?: string;
+  log: LogItem[];
+  onLog: (item: LogItem) => void;
   onStatus: (s: string) => void;
   onVerify?: () => void;
 }) {
-  const [log, setLog] = useState<LogItem[]>([
-    {
-      kind: "status",
-      text: "Agent Studio · wanwu-native ACP。选择 Mode 后描述任务。",
-    },
-  ]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return window.wanwu.shell.onFocusAgent(() => inputRef.current?.focus());
   }, []);
 
   useEffect(() => {
-    const offs = [
-      window.wanwu.acp.onMessage((t) => setLog((prev) => [...prev, { kind: "assistant", text: t }])),
-      window.wanwu.acp.onTool((tool) =>
-        setLog((prev) => [
-          ...prev,
-          { kind: "tool", title: tool.title, status: tool.status, detail: tool.detail },
-        ]),
-      ),
-      window.wanwu.acp.onError((t) => setLog((prev) => [...prev, { kind: "error", text: t }])),
-    ];
-    return () => offs.forEach((off) => off());
-  }, []);
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+  }, [props.log]);
 
   async function stop(): Promise<void> {
     await window.wanwu.acp.dispose();
     setBusy(false);
-    setLog((prev) => [...prev, { kind: "status", text: "已中断当前回合（ACP 已重置，下次发送会重建会话）。" }]);
+    props.onLog({ kind: "status", text: "已中断当前回合（ACP 已重置，下次发送会重建会话）。" });
     props.onStatus("已中断");
   }
 
@@ -58,7 +45,7 @@ export function AgentStudio(props: {
     if (!prompt || !props.enabled || busy) return;
     setBusy(true);
     setText("");
-    setLog((prev) => [...prev, { kind: "user", text: prompt }]);
+    props.onLog({ kind: "user", text: prompt });
     try {
       props.onStatus("连接 ACP…");
       const { sessionId } = await window.wanwu.acp.ensure();
@@ -80,7 +67,7 @@ export function AgentStudio(props: {
       props.onStatus("回合完成");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      setLog((prev) => [...prev, { kind: "error", text: message }]);
+      props.onLog({ kind: "error", text: message });
       props.onStatus(`错误 · ${message}`);
     } finally {
       setBusy(false);
@@ -89,8 +76,8 @@ export function AgentStudio(props: {
 
   return (
     <>
-      <div className="agent-log">
-        {log.map((item, i) => {
+      <div className="agent-log" ref={logRef}>
+        {props.log.map((item, i) => {
           if (item.kind === "tool") {
             return (
               <div key={i} className="chip-row">
