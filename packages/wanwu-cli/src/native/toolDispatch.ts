@@ -1,4 +1,5 @@
 import type { WanwuMode } from "@wanwu/config";
+import { isReadOnlyBash } from "../permission.js";
 import type { AgentContext } from "./agentLoop.js";
 import { toolBash, toolEdit, toolGlob, toolGrep, toolRead, type ToolResult } from "./tools.js";
 
@@ -39,11 +40,17 @@ export function dispatchTool(
       return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
         apply: true,
       });
-    case "Bash":
-      if (writeBlocked && !/^(\s)*(ls|pwd|cat|head|tail|rg|grep|find|echo|node -v|pnpm -v)/i.test(String(args.command ?? ""))) {
-        // allow mild readonly-ish; still pass through assessBash
+    case "Bash": {
+      const command = String(args.command ?? "");
+      if (writeBlocked && !isReadOnlyBash(command)) {
+        return {
+          ok: false,
+          title: "Bash",
+          text: `Bash blocked in mode=${mode}: only read-only commands are allowed (switch to agent mode to mutate the workspace).`,
+        };
       }
-      return toolBash(ctx.workspaceRoot, String(args.command ?? ""), ctx.permissionMode);
+      return toolBash(ctx.workspaceRoot, command, ctx.permissionMode);
+    }
     default:
       return { ok: false, title: name, text: `unknown tool: ${name}` };
   }

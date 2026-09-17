@@ -47,17 +47,18 @@ export WANWU_PROVIDER=custom
 export WANWU_API_KEY="sk-..."
 # base URL 可填到 /v1，也可直接粘贴完整的 .../v1/chat/completions，会自动归一化
 export WANWU_PROVIDER_BASE_URL="https://host/v1"
-export WANWU_MODEL="<model-id>"
+export WANWU_MODEL="WanWu/Deepseek-Auto"   # 换成端点已开通的模型名
 pnpm wanwu exec -p "your question"
 ```
 
 `exec` 会以 JSON 返回 `status`/`provider`/`model`/`output`；若端点返回错误，会返回
-`status:"error"` 及 provider 错误 `code`（如 `auth` / `quota` / `rate_limit`）与 `hint`，
-便于自诊断（鉴权、配额、网络还是模型不可用）。
+`status:"error"` 及 provider 错误 `code`（如 `auth` / `quota` / `rate_limit` / `bad_request`）与
+`hint`，便于自诊断（鉴权、配额、网络还是模型不可用）。
 
-> 例：某网关对未兑换模型包的 token 会返回
-> `403 insufficient_user_quota（须先兑换到模型包）`——这属于账户额度问题，
-> 端点与密钥本身可达/有效，兑换模型包后即可正常问答。
+> 模型开通是**按模型**的：同一 token 下有的模型可直接用，有的会返回
+> `403 insufficient_user_quota（须先兑换到模型包）`（账户额度问题，端点/密钥本身可达有效）。
+> 已验证 `WanWu/Deepseek-Auto` 可正常问答；若网关用「Auto」路由，带工具调用的请求可能被
+> 转发到未定价的模型而返回 `400（模型尚未由管理员定价）`，这属于网关侧配置，需站点管理员开通。
 
 ## 环境变量速查
 

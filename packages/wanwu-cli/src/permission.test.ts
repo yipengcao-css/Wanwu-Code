@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assessBash, assessToolCall } from "./permission.js";
+import { assessBash, assessToolCall, isReadOnlyBash } from "./permission.js";
 
 describe("permission matcher", () => {
   it("hard-denies reading ssh keys", () => {

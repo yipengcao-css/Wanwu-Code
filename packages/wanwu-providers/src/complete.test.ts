@@ -41,7 +41,7 @@ describe("@wanwu/providers", () => {
   it("accepts a custom base_url pasted as a full /v1/chat/completions endpoint", () => {
     const config = mergeConfig(DEFAULT_CONFIG, {
       activeProvider: "custom",
-      model: "kimi-k2",
+      model: "WanWu/Deepseek-Auto",
     });
     const cases = [
       "https://wan.vnet.com/v1/chat/completions",

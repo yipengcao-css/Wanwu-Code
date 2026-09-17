@@ -42,7 +42,7 @@ Env:
   WANWU_FORCE_DETERMINISTIC=1  Disable LLM; use native heuristic loop
 
 Custom OpenAI-compatible endpoint (one-shot):
-  WANWU_PROVIDER=custom WANWU_MODEL=<id> \\
+  WANWU_PROVIDER=custom WANWU_MODEL=WanWu/Deepseek-Auto \\
   WANWU_API_KEY=<key> WANWU_PROVIDER_BASE_URL=https://host/v1 \\
   wanwu exec -p "your question"
 `);
