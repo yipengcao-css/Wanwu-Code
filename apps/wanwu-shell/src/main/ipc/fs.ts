@@ -9,33 +9,44 @@ export type DirEntry = {
   type: "file" | "dir";
 };
 
-const SKIP = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "out",
-  "code-oss",
-  ".wanwu",
-  "coverage",
-]);
+export type ReadResult = {
+  content: string;
+  binary: boolean;
+};
+
+// Only skip node_modules for performance. Dotfiles, `.wanwu`, `.git`, `dist`,
+// etc. are intentionally shown so config/state is discoverable (P1/P2 fix:
+// previously `.wanwu`/`.git` and all dotfiles were hidden from the tree).
+const SKIP = new Set(["node_modules"]);
 
 async function listDir(root: string, rel = "."): Promise<DirEntry[]> {
   const abs = resolveInsideRoot(root, rel);
-  const names = await fs.readdir(abs);
+  const names = await fs.readdir(abs, { withFileTypes: true });
   const out: DirEntry[] = [];
-  for (const name of names.sort()) {
-    if (name.startsWith(".") && name !== ".gitignore") continue;
-    if (SKIP.has(name)) continue;
-    const childAbs = path.join(abs, name);
-    const st = await fs.stat(childAbs);
+  for (const entry of names) {
+    if (SKIP.has(entry.name)) continue;
+    const childAbs = path.join(abs, entry.name);
     const childRel = path.relative(root, childAbs).split(path.sep).join("/");
     out.push({
-      name,
+      name: entry.name,
       path: childRel,
-      type: st.isDirectory() ? "dir" : "file",
+      type: entry.isDirectory() ? "dir" : "file",
     });
   }
+  out.sort((a, b) => {
+    if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
   return out;
+}
+
+/** NUL byte in the first 8KB ⇒ treat as binary (avoid corrupting on save). */
+function isBinary(buf: Buffer): boolean {
+  const len = Math.min(buf.length, 8192);
+  for (let i = 0; i < len; i += 1) {
+    if (buf[i] === 0) return true;
+  }
+  return false;
 }
 
 export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string) => void): void {
@@ -63,11 +74,13 @@ export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string)
     return listDir(root, rel ?? ".");
   });
 
-  ipcMain.handle("fs:read", async (_e, rel: string) => {
+  ipcMain.handle("fs:read", async (_e, rel: string): Promise<ReadResult> => {
     const root = getRoot();
     if (!root) throw new Error("no workspace open");
     const abs = resolveInsideRoot(root, rel);
-    return fs.readFile(abs, "utf8");
+    const buf = await fs.readFile(abs);
+    const binary = isBinary(buf);
+    return { content: binary ? "" : buf.toString("utf8"), binary };
   });
 
   ipcMain.handle("fs:write", async (_e, rel: string, content: string) => {
@@ -76,6 +89,38 @@ export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string)
     const abs = resolveInsideRoot(root, rel);
     await fs.mkdir(path.dirname(abs), { recursive: true });
     await fs.writeFile(abs, content, "utf8");
+    return true;
+  });
+
+  ipcMain.handle("fs:create", async (_e, parentRel: string, name: string, type: "file" | "dir") => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    const parent = parentRel && parentRel !== "." ? `${parentRel}/${name}` : name;
+    const abs = resolveInsideRoot(root, parent);
+    if (type === "dir") {
+      await fs.mkdir(abs, { recursive: true });
+    } else {
+      await fs.mkdir(path.dirname(abs), { recursive: true });
+      await fs.writeFile(abs, "", { flag: "wx" });
+    }
+    return path.relative(root, abs).split(path.sep).join("/");
+  });
+
+  ipcMain.handle("fs:rename", async (_e, rel: string, newName: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    const oldAbs = resolveInsideRoot(root, rel);
+    const newAbs = path.join(path.dirname(oldAbs), newName);
+    resolveInsideRoot(root, path.relative(root, newAbs).split(path.sep).join("/"));
+    await fs.rename(oldAbs, newAbs);
+    return path.relative(root, newAbs).split(path.sep).join("/");
+  });
+
+  ipcMain.handle("fs:delete", async (_e, rel: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    const abs = resolveInsideRoot(root, rel);
+    await fs.rm(abs, { recursive: true, force: true });
     return true;
   });
 }

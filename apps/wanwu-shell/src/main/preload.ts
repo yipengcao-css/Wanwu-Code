@@ -8,8 +8,23 @@ export type WanwuBridge = {
   };
   fs: {
     list: (rel?: string) => Promise<{ name: string; path: string; type: "file" | "dir" }[]>;
-    read: (rel: string) => Promise<string>;
+    read: (rel: string) => Promise<{ content: string; binary: boolean }>;
     write: (rel: string, content: string) => Promise<boolean>;
+    create: (parentRel: string, name: string, type: "file" | "dir") => Promise<string>;
+    rename: (rel: string, newName: string) => Promise<string>;
+    remove: (rel: string) => Promise<boolean>;
+    onChanged: (cb: () => void) => () => void;
+  };
+  search: {
+    text: (query: string) => Promise<{ path: string; line: number; preview: string }[]>;
+  };
+  git: {
+    status: () => Promise<{
+      available: boolean;
+      branch: string | null;
+      entries: { path: string; index: string; workingTree: string }[];
+    }>;
+    commit: (message: string) => Promise<{ ok: boolean; output: string }>;
   };
   acp: {
     ensure: () => Promise<{ sessionId?: string }>;
@@ -55,6 +70,17 @@ const bridge: WanwuBridge = {
     list: (rel) => ipcRenderer.invoke("fs:list", rel),
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
+    create: (parentRel, name, type) => ipcRenderer.invoke("fs:create", parentRel, name, type),
+    rename: (rel, newName) => ipcRenderer.invoke("fs:rename", rel, newName),
+    remove: (rel) => ipcRenderer.invoke("fs:delete", rel),
+    onChanged: (cb) => on("fs:changed", () => cb()),
+  },
+  search: {
+    text: (query) => ipcRenderer.invoke("search:text", query),
+  },
+  git: {
+    status: () => ipcRenderer.invoke("git:status"),
+    commit: (message) => ipcRenderer.invoke("git:commit", message),
   },
   acp: {
     ensure: () => ipcRenderer.invoke("acp:ensure"),

@@ -10,6 +10,9 @@ import { fileURLToPath } from "node:url";
 import { registerFsIpc } from "./ipc/fs.js";
 import { disposeAcp, registerAcpIpc } from "./ipc/acp.js";
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
+import { registerSearchIpc } from "./ipc/search.js";
+import { registerGitIpc } from "./ipc/git.js";
+import { WorkspaceWatcher } from "./watcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -78,12 +81,17 @@ function createWindow(): void {
   });
 }
 
+const watcher = new WorkspaceWatcher(() => {
+  mainWindow?.webContents.send("fs:changed");
+});
+
 app.whenReady().then(() => {
   registerFsIpc(
     () => workspaceRoot,
     (r) => {
       const changed = r !== workspaceRoot;
       workspaceRoot = r;
+      watcher.start(r);
       if (changed) {
         // P0-3: repoint the Agent — tear down the ACP session/backend and the
         // terminal so the next use rebuilds them against the new workspace root.
@@ -101,6 +109,10 @@ app.whenReady().then(() => {
     () => workspaceRoot,
     () => mainWindow,
   );
+  registerSearchIpc(() => workspaceRoot);
+  registerGitIpc(() => workspaceRoot);
+
+  if (workspaceRoot) watcher.start(workspaceRoot);
 
   createWindow();
 
@@ -120,6 +132,7 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   disposeAcp();
   disposeTerm();
+  watcher.stop();
   globalShortcut.unregisterAll();
   if (process.platform !== "darwin") app.quit();
 });
