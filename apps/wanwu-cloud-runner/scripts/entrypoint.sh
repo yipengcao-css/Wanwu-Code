@@ -13,6 +13,9 @@ git config --global user.email "wanwu-cloud@example.com" || true
 git config --global user.name "Wanwu Cloud Runner" || true
 
 if ! command -v pnpm >/dev/null 2>&1; then
+  # node:20 slim ships an older corepack whose bundled pnpm signing keys reject
+  # pnpm 10.33.3 ("Cannot find matching keyid"); skip the signature check here.
+  export COREPACK_INTEGRITY_KEYS=0
   corepack enable
   corepack prepare pnpm@10.33.3 --activate
 fi
