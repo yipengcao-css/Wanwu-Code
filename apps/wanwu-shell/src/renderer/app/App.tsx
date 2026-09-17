@@ -203,12 +203,17 @@ export function App() {
     setTabs((prev) => {
       if (prev.some((t) => t.path === rel)) {
         return prev.map((t) =>
-          t.path === rel ? { ...t, content: res.content, binary: res.binary, dirty: false } : t,
+          t.path === rel
+            ? { ...t, content: res.content, binary: res.binary, encoding: res.encoding, dirty: false }
+            : t,
         );
       }
-      return [...prev, { path: rel, content: res.content, dirty: false, binary: res.binary }];
+      return [...prev, { path: rel, content: res.content, dirty: false, binary: res.binary, encoding: res.encoding }];
     });
     setActivePath(rel);
+    if (!res.binary && res.encoding && res.encoding !== "utf-8") {
+      setStatus(`已按 ${res.encoding.toUpperCase()} 解码 · ${rel}（保存将规范化为 UTF-8）`);
+    }
   }, []);
 
   const onChange = useCallback((path: string, value: string) => {

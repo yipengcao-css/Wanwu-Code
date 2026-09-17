@@ -12,7 +12,7 @@ export type WanwuBridge = {
   };
   fs: {
     list: (rel?: string) => Promise<{ name: string; path: string; type: "file" | "dir" }[]>;
-    read: (rel: string) => Promise<{ content: string; binary: boolean }>;
+    read: (rel: string) => Promise<{ content: string; binary: boolean; encoding: string }>;
     write: (rel: string, content: string) => Promise<boolean>;
     create: (parentRel: string, name: string, type: "file" | "dir") => Promise<string>;
     rename: (rel: string, newName: string) => Promise<string>;

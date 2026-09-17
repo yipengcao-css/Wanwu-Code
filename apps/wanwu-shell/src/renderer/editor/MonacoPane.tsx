@@ -23,6 +23,7 @@ export type EditorTab = {
   content: string;
   dirty: boolean;
   binary?: boolean;
+  encoding?: string;
 };
 
 function languageFor(path: string): string {
@@ -72,6 +73,9 @@ export function MonacoPane(props: {
             }}
           >
             {t.path.split("/").pop()}
+            {t.encoding && t.encoding !== "utf-8" ? (
+              <span className="tab-enc">{t.encoding.toUpperCase()}</span>
+            ) : null}
           </button>
         ))}
       </div>

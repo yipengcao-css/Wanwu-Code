@@ -12,6 +12,8 @@ export type DirEntry = {
 export type ReadResult = {
   content: string;
   binary: boolean;
+  /** Detected source encoding: "utf-8" | "utf-16le" | "utf-16be" | "gb18030" | "binary". */
+  encoding: string;
 };
 
 // Only skip node_modules for performance. Dotfiles, `.wanwu`, `.git`, `dist`,
@@ -49,6 +51,32 @@ function isBinary(buf: Buffer): boolean {
   return false;
 }
 
+/**
+ * Decode a text buffer, detecting the encoding (P1/P2: non-UTF-8 support).
+ * Order: BOM (UTF-16/UTF-8) → strict UTF-8 → GB18030 (CJK legacy superset).
+ */
+function decodeText(buf: Buffer): ReadResult {
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    return { content: new TextDecoder("utf-16le").decode(buf.subarray(2)), binary: false, encoding: "utf-16le" };
+  }
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+    return { content: new TextDecoder("utf-16be").decode(buf.subarray(2)), binary: false, encoding: "utf-16be" };
+  }
+  if (buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+    return { content: new TextDecoder("utf-8").decode(buf.subarray(3)), binary: false, encoding: "utf-8" };
+  }
+  if (isBinary(buf)) {
+    return { content: "", binary: true, encoding: "binary" };
+  }
+  try {
+    const text = new TextDecoder("utf-8", { fatal: true }).decode(buf);
+    return { content: text, binary: false, encoding: "utf-8" };
+  } catch {
+    // Not valid UTF-8 — best-effort decode as GB18030 (covers GBK/GB2312).
+    return { content: new TextDecoder("gb18030").decode(buf), binary: false, encoding: "gb18030" };
+  }
+}
+
 export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string) => void): void {
   ipcMain.handle("workspace:getRoot", () => getRoot());
 
@@ -78,9 +106,7 @@ export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string)
     const root = getRoot();
     if (!root) throw new Error("no workspace open");
     const abs = resolveInsideRoot(root, rel);
-    const buf = await fs.readFile(abs);
-    const binary = isBinary(buf);
-    return { content: binary ? "" : buf.toString("utf8"), binary };
+    return decodeText(await fs.readFile(abs));
   });
 
   ipcMain.handle("fs:write", async (_e, rel: string, content: string) => {

@@ -263,6 +263,16 @@ button {
   color: var(--ww-accent);
 }
 
+.tab-enc {
+  margin-left: 6px;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: rgba(123, 97, 255, 0.2);
+  border: 1px solid rgba(123, 97, 255, 0.4);
+  color: var(--ww-text);
+}
+
 .monaco-host {
   flex: 1;
   min-height: 0;
