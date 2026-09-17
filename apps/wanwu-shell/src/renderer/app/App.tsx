@@ -236,18 +236,21 @@ export function App() {
     [perm],
   );
 
-  const acceptEdit = useCallback(async () => {
-    if (!edit) return;
-    await window.wanwu.fs.write(edit.path, edit.after);
-    setTabs((prev) => {
-      const others = prev.filter((t) => t.path !== edit.path);
-      return [...others, { path: edit.path, content: edit.after, dirty: false, binary: false }];
-    });
-    setActivePath(edit.path);
-    setStatus(`已接受编辑 · ${edit.path}`);
-    setEdit(null);
-    setRefreshToken((n) => n + 1);
-  }, [edit]);
+  const acceptEdit = useCallback(
+    async (content: string) => {
+      if (!edit) return;
+      await window.wanwu.fs.write(edit.path, content);
+      setTabs((prev) => {
+        const others = prev.filter((t) => t.path !== edit.path);
+        return [...others, { path: edit.path, content, dirty: false, binary: false }];
+      });
+      setActivePath(edit.path);
+      setStatus(`已接受编辑 · ${edit.path}`);
+      setEdit(null);
+      setRefreshToken((n) => n + 1);
+    },
+    [edit],
+  );
 
   const activeSession = useMemo(
     () => sessions.find((s) => s.id === activeSessionId) ?? null,
@@ -421,7 +424,7 @@ export function App() {
           path={edit.path}
           before={edit.before}
           after={edit.after}
-          onAccept={() => void acceptEdit()}
+          onAccept={(content) => void acceptEdit(content)}
           onReject={() => setEdit(null)}
         />
       ) : null}
