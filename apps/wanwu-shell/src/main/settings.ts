@@ -9,6 +9,8 @@ export interface WanwuSettings {
   model: string;
   baseUrl: string;
   fontSize: number;
+  /** Command run by Verify mode (in-app test/lint runner). */
+  verifyCommand: string;
   /** Per-provider API keys, stored encrypted (safeStorage) when available. */
   apiKeys: Partial<Record<ProviderId, string>>;
 }
@@ -19,6 +21,7 @@ export interface SettingsView {
   model: string;
   baseUrl: string;
   fontSize: number;
+  verifyCommand: string;
   apiKeysSet: Partial<Record<ProviderId, boolean>>;
 }
 
@@ -27,6 +30,7 @@ export interface SettingsPatch {
   model?: string;
   baseUrl?: string;
   fontSize?: number;
+  verifyCommand?: string;
   /** Empty string = leave unchanged; non-empty = set new key. */
   apiKeys?: Partial<Record<ProviderId, string>>;
 }
@@ -44,6 +48,7 @@ const DEFAULTS: WanwuSettings = {
   model: "",
   baseUrl: "",
   fontSize: 13,
+  verifyCommand: "pnpm test",
   apiKeys: {},
 };
 
@@ -91,6 +96,7 @@ export function loadSettings(): WanwuSettings {
       model: raw.model ?? DEFAULTS.model,
       baseUrl: raw.baseUrl ?? DEFAULTS.baseUrl,
       fontSize: raw.fontSize ?? DEFAULTS.fontSize,
+      verifyCommand: raw.verifyCommand ?? DEFAULTS.verifyCommand,
       apiKeys: raw.apiKeys ?? {},
     };
   } catch {
@@ -116,6 +122,7 @@ export function getSettingsView(): SettingsView {
     model: s.model,
     baseUrl: s.baseUrl,
     fontSize: s.fontSize,
+    verifyCommand: s.verifyCommand,
     apiKeysSet,
   };
 }
@@ -127,6 +134,7 @@ export function updateSettings(patch: SettingsPatch): SettingsView {
     model: patch.model ?? s.model,
     baseUrl: patch.baseUrl ?? s.baseUrl,
     fontSize: patch.fontSize ?? s.fontSize,
+    verifyCommand: patch.verifyCommand ?? s.verifyCommand,
     apiKeys: { ...s.apiKeys },
   };
   if (patch.apiKeys) {
