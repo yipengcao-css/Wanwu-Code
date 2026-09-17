@@ -8,6 +8,8 @@ export function OrbitBar(props: {
   onOpenFolder: () => void;
   onToggleTerminal: () => void;
   onSave: () => void;
+  onOpenPalette: () => void;
+  onOpenSettings: () => void;
   workspaceLabel: string;
 }) {
   return (
@@ -30,6 +32,9 @@ export function OrbitBar(props: {
       </div>
       <span style={{ color: "var(--ww-muted)", fontSize: 13 }}>{props.workspaceLabel}</span>
       <div className="orbit-actions">
+        <button type="button" className="btn" onClick={props.onOpenPalette} title="命令面板 (Ctrl/Cmd+P)">
+          ⌘P
+        </button>
         <button type="button" className="btn" onClick={props.onOpenFolder}>
           打开文件夹
         </button>
@@ -38,6 +43,9 @@ export function OrbitBar(props: {
         </button>
         <button type="button" className="btn" onClick={props.onToggleTerminal}>
           终端
+        </button>
+        <button type="button" className="btn" onClick={props.onOpenSettings} title="设置 (Ctrl/Cmd+,)">
+          设置
         </button>
       </div>
     </header>

@@ -10,8 +10,11 @@ import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { DiffModal } from "../agent/DiffModal";
 import { PermissionModal } from "../agent/PermissionModal";
+import { SettingsModal } from "../settings/SettingsModal";
+import { CommandPalette, type Command } from "../command/CommandPalette";
 
 type LeftView = "files" | "search" | "git";
+type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
 type PermReq = { id: number; toolName: string; summary: string; risk?: string };
 type EditReq = { path: string; before: string; after: string };
 
@@ -30,6 +33,9 @@ export function App() {
   const [refreshToken, setRefreshToken] = useState(0);
   const [perm, setPerm] = useState<PermReq | null>(null);
   const [edit, setEdit] = useState<EditReq | null>(null);
+  const [settings, setSettings] = useState<SettingsView | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const modeRef = useRef<WanwuMode>(mode);
   const allowSession = useRef<Set<string>>(new Set());
@@ -50,6 +56,7 @@ export function App() {
     void window.wanwu.workspace.getRoot().then((r) => {
       if (r) setRoot(r);
     });
+    void window.wanwu.settings.get().then(setSettings);
   }, []);
 
   useEffect(() => {
@@ -96,6 +103,14 @@ export function App() {
       if (e.key.toLowerCase() === "s") {
         e.preventDefault();
         void saveActive();
+      }
+      if (e.key.toLowerCase() === "p" && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+      if (e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen(true);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -166,6 +181,23 @@ export function App() {
     setRefreshToken((n) => n + 1);
   }, [edit]);
 
+  const paletteCommands: Command[] = useMemo(
+    () => [
+      { title: "设置：打开", run: () => setSettingsOpen(true) },
+      { title: "终端：切换显示", run: () => setTermOpen((v) => !v) },
+      { title: "文件：保存当前", run: () => void saveActive() },
+      { title: "打开文件夹…", run: () => void openFolder() },
+      { title: "模式：Ask", run: () => setMode("ask") },
+      { title: "模式：Plan", run: () => setMode("plan") },
+      { title: "模式：Agent", run: () => setMode("agent") },
+      { title: "模式：Verify", run: () => setMode("verify") },
+      { title: "视图：资源管理器", run: () => setLeftView("files") },
+      { title: "视图：搜索", run: () => setLeftView("search") },
+      { title: "视图：源代码", run: () => setLeftView("git") },
+    ],
+    [saveActive, openFolder],
+  );
+
   const style = {
     ["--ww-files-w" as string]: `${filesW}px`,
     ["--ww-agent-w" as string]: `${agentW}px`,
@@ -180,6 +212,8 @@ export function App() {
         onOpenFolder={() => void openFolder()}
         onToggleTerminal={() => setTermOpen((v) => !v)}
         onSave={() => void saveActive()}
+        onOpenPalette={() => setPaletteOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         workspaceLabel={root ? root.split(/[\\/]/).filter(Boolean).slice(-2).join("/") : "未打开工作区"}
       />
       <div className="workspace">
@@ -219,6 +253,7 @@ export function App() {
           <MonacoPane
             tabs={tabs}
             activePath={activePath}
+            fontSize={settings?.fontSize}
             onSelect={setActivePath}
             onChange={onChange}
             onClose={(p) => {
@@ -275,6 +310,25 @@ export function App() {
           after={edit.after}
           onAccept={() => void acceptEdit()}
           onReject={() => setEdit(null)}
+        />
+      ) : null}
+
+      {settingsOpen && settings ? (
+        <SettingsModal
+          initial={settings}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(view) => {
+            setSettings(view);
+            setStatus("设置已保存 · Agent 将按新配置重建会话");
+          }}
+        />
+      ) : null}
+
+      {paletteOpen ? (
+        <CommandPalette
+          commands={paletteCommands}
+          onOpenFile={(p) => void openFile(p)}
+          onClose={() => setPaletteOpen(false)}
         />
       ) : null}
     </div>

@@ -641,6 +641,97 @@ button {
   gap: 8px;
 }
 
+/* Settings modal */
+.settings-modal {
+  width: min(560px, 94vw);
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px 12px;
+  align-items: center;
+  margin-top: 8px;
+}
+.settings-grid label {
+  color: var(--ww-muted);
+  font-size: 13px;
+}
+.settings-grid input,
+.settings-grid select {
+  width: 100%;
+  background: var(--ww-bg);
+  border: 1px solid var(--ww-border);
+  color: var(--ww-text);
+  border-radius: 8px;
+  padding: 6px 8px;
+  outline: none;
+}
+.settings-key {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-hint {
+  color: var(--ww-muted);
+  font-size: 11px;
+}
+
+/* Command palette */
+.palette-backdrop {
+  align-items: flex-start;
+}
+.palette {
+  margin-top: 10vh;
+  width: min(640px, 92vw);
+  background: var(--ww-surface-1);
+  border: 1px solid var(--ww-border);
+  border-radius: 14px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.palette-input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--ww-border);
+  background: transparent;
+  color: var(--ww-text);
+  padding: 14px 16px;
+  font-size: 15px;
+  outline: none;
+}
+.palette-list {
+  max-height: 50vh;
+  overflow: auto;
+  padding: 6px;
+}
+.palette-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--ww-text);
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.palette-item.active {
+  background: rgba(46, 230, 166, 0.14);
+}
+.palette-kind {
+  color: var(--ww-accent);
+  width: 16px;
+  text-align: center;
+}
+.palette-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--ww-font-mono);
+  font-size: 13px;
+}
+
 /* Diff modal */
 .diff-modal {
   width: min(1100px, 94vw);

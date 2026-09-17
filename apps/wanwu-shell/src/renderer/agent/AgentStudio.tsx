@@ -40,6 +40,13 @@ export function AgentStudio(props: {
     return () => offs.forEach((off) => off());
   }, []);
 
+  async function stop(): Promise<void> {
+    await window.wanwu.acp.dispose();
+    setBusy(false);
+    setLog((prev) => [...prev, { kind: "status", text: "已中断当前回合（ACP 已重置，下次发送会重建会话）。" }]);
+    props.onStatus("已中断");
+  }
+
   async function send(): Promise<void> {
     const prompt = text.trim();
     if (!prompt || !props.enabled || busy) return;
@@ -120,6 +127,11 @@ export function AgentStudio(props: {
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
             Mode={props.mode} · Ctrl/Cmd+Enter 发送
           </span>
+          {busy ? (
+            <button type="button" className="btn danger" onClick={() => void stop()}>
+              停止
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn primary"

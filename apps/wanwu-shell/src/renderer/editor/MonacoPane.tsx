@@ -42,6 +42,7 @@ function languageFor(path: string): string {
 export function MonacoPane(props: {
   tabs: EditorTab[];
   activePath: string | null;
+  fontSize?: number;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
@@ -89,7 +90,7 @@ export function MonacoPane(props: {
             onChange={(v) => props.onChange(active.path, v ?? "")}
             options={{
               fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",
-              fontSize: 13,
+              fontSize: props.fontSize ?? 13,
               minimap: { enabled: false },
               smoothScrolling: true,
               padding: { top: 12 },
