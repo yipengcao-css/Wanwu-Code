@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { toolBash, toolGlob, toolRead } from "./tools.js";
@@ -9,6 +9,21 @@ describe("native tools sandbox", () => {
   it("rejects paths outside workspace", () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
     expect(() => assertInsideWorkspace(root, "../escape.txt")).toThrow(PathSandboxError);
+  });
+
+  it("rejects a symlink inside the workspace that points outside it", () => {
+    const base = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
+    const root = join(base, "ws");
+    const outside = join(base, "outside");
+    mkdirSync(root);
+    mkdirSync(outside);
+    writeFileSync(join(outside, "secret.txt"), "top secret\n");
+    // Create root/link -> ../outside, then try to escape via it.
+    symlinkSync(outside, join(root, "link"), "dir");
+    expect(() => assertInsideWorkspace(root, "link/secret.txt")).toThrow(PathSandboxError);
+    const read = toolRead(root, "link/secret.txt");
+    expect(read.ok).toBe(false);
+    expect(read.text).not.toContain("top secret");
   });
 
   it("reads files inside workspace", () => {
