@@ -23,6 +23,12 @@ export type WanwuBridge = {
     get: () => Promise<SettingsView>;
     set: (patch: SettingsPatch) => Promise<SettingsView>;
   };
+  verify: {
+    run: (command?: string) => Promise<{ ok: boolean; command: string }>;
+    cancel: () => Promise<boolean>;
+    onData: (cb: (chunk: string) => void) => () => void;
+    onDone: (cb: (result: { exitCode: number }) => void) => () => void;
+  };
   search: {
     text: (query: string) => Promise<{ path: string; line: number; preview: string }[]>;
   };
@@ -87,6 +93,12 @@ const bridge: WanwuBridge = {
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (patch) => ipcRenderer.invoke("settings:set", patch),
+  },
+  verify: {
+    run: (command) => ipcRenderer.invoke("verify:run", command),
+    cancel: () => ipcRenderer.invoke("verify:cancel"),
+    onData: (cb) => on("verify:data", (c) => cb(String(c))),
+    onDone: (cb) => on("verify:done", (r) => cb(r as { exitCode: number })),
   },
   search: {
     text: (query) => ipcRenderer.invoke("search:text", query),

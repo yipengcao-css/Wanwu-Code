@@ -13,6 +13,7 @@ import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSearchIpc } from "./ipc/search.js";
 import { registerGitIpc } from "./ipc/git.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
+import { disposeVerify, registerVerifyIpc } from "./ipc/verify.js";
 import { WorkspaceWatcher } from "./watcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -116,6 +117,10 @@ app.whenReady().then(() => {
     // Rebuild the ACP backend so updated provider/model/API key are applied.
     disposeAcp();
   });
+  registerVerifyIpc(
+    () => workspaceRoot,
+    () => mainWindow,
+  );
 
   if (workspaceRoot) watcher.start(workspaceRoot);
 
@@ -137,6 +142,7 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   disposeAcp();
   disposeTerm();
+  disposeVerify();
   watcher.stop();
   globalShortcut.unregisterAll();
   if (process.platform !== "darwin") app.quit();
