@@ -12,6 +12,7 @@ import { DiffModal } from "../agent/DiffModal";
 import { PermissionModal } from "../agent/PermissionModal";
 import { SettingsModal } from "../settings/SettingsModal";
 import { CommandPalette, type Command } from "../command/CommandPalette";
+import { VerifyPanel } from "../verify/VerifyPanel";
 
 type LeftView = "files" | "search" | "git";
 type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
@@ -36,6 +37,7 @@ export function App() {
   const [settings, setSettings] = useState<SettingsView | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   const modeRef = useRef<WanwuMode>(mode);
   const allowSession = useRef<Set<string>>(new Set());
@@ -184,6 +186,7 @@ export function App() {
   const paletteCommands: Command[] = useMemo(
     () => [
       { title: "设置：打开", run: () => setSettingsOpen(true) },
+      { title: "验证：运行测试/lint", run: () => setVerifyOpen(true) },
       { title: "终端：切换显示", run: () => setTermOpen((v) => !v) },
       { title: "文件：保存当前", run: () => void saveActive() },
       { title: "打开文件夹…", run: () => void openFolder() },
@@ -274,6 +277,7 @@ export function App() {
             activePath={activePath}
             selectionHint={activeTab?.content.slice(0, 500)}
             onStatus={setStatus}
+            onVerify={() => setVerifyOpen(true)}
           />
         </aside>
       </div>
@@ -331,6 +335,8 @@ export function App() {
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}
+
+      {verifyOpen ? <VerifyPanel onClose={() => setVerifyOpen(false)} /> : null}
     </div>
   );
 }

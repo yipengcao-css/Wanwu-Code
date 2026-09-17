@@ -21,6 +21,7 @@ export function SettingsModal(props: {
   const [model, setModel] = useState(props.initial.model);
   const [baseUrl, setBaseUrl] = useState(props.initial.baseUrl);
   const [fontSize, setFontSize] = useState(props.initial.fontSize);
+  const [verifyCommand, setVerifyCommand] = useState(props.initial.verifyCommand);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -34,6 +35,7 @@ export function SettingsModal(props: {
         model,
         baseUrl,
         fontSize,
+        verifyCommand,
       };
       if (apiKey.trim()) patch.apiKeys = { [provider]: apiKey.trim() };
       const view = await window.wanwu.settings.set(patch);
@@ -89,6 +91,13 @@ export function SettingsModal(props: {
             max={24}
             value={fontSize}
             onChange={(e) => setFontSize(Number(e.target.value) || 13)}
+          />
+
+          <label>验证命令</label>
+          <input
+            placeholder="如 pnpm test / pnpm lint"
+            value={verifyCommand}
+            onChange={(e) => setVerifyCommand(e.target.value)}
           />
         </div>
         <div className="modal-actions">

@@ -11,6 +11,7 @@ export function AgentStudio(props: {
   activePath: string | null;
   selectionHint?: string;
   onStatus: (s: string) => void;
+  onVerify?: () => void;
 }) {
   const [log, setLog] = useState<LogItem[]>([
     {
@@ -48,6 +49,11 @@ export function AgentStudio(props: {
   }
 
   async function send(): Promise<void> {
+    // Verify mode runs the project's test/lint command instead of prompting.
+    if (props.mode === "verify" && props.onVerify) {
+      props.onVerify();
+      return;
+    }
     const prompt = text.trim();
     if (!prompt || !props.enabled || busy) return;
     setBusy(true);
@@ -135,10 +141,10 @@ export function AgentStudio(props: {
           <button
             type="button"
             className="btn primary"
-            disabled={!props.enabled || busy || !text.trim()}
+            disabled={!props.enabled || busy || (props.mode !== "verify" && !text.trim())}
             onClick={() => void send()}
           >
-            {busy ? "运行中…" : "运行"}
+            {busy ? "运行中…" : props.mode === "verify" ? "运行验证" : "运行"}
           </button>
         </div>
       </div>
