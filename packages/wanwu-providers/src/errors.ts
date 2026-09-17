@@ -7,6 +7,21 @@ export function mapHttpError(
   bodyText: string,
 ): ProviderError {
   const snippet = bodyText.replace(/\s+/g, " ").slice(0, 240);
+  // A 403 often means the key is valid but lacks quota/model access (common on
+  // OpenAI-compatible gateways), which is distinct from bad credentials (401).
+  const looksLikeQuota =
+    /quota|insufficient|no access|not have access|permission|模型包|额度|兑换|forbidden|plan|subscription|balance/i.test(
+      bodyText,
+    );
+  if (status === 403 && looksLikeQuota) {
+    return new ProviderError({
+      code: "quota",
+      provider,
+      status,
+      message: `${provider} quota/access denied (403): ${snippet}`,
+      hint: `Key is valid but lacks quota or access to this model. Redeem a plan/model package, or pick a model your key can use (check GET ${"{base_url}"}/models).`,
+    });
+  }
   if (status === 401 || status === 403) {
     return new ProviderError({
       code: "auth",
