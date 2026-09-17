@@ -1,8 +1,9 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { SettingsView, SettingsPatch, ProviderId } from "./settings.js";
 import type { StoredSession } from "./sessions.js";
+import type { ProviderTestResult } from "./ipc/providerTest.js";
 
-export type { SettingsView, SettingsPatch, ProviderId, StoredSession };
+export type { SettingsView, SettingsPatch, ProviderId, StoredSession, ProviderTestResult };
 
 export type WanwuBridge = {
   workspace: {
@@ -23,6 +24,9 @@ export type WanwuBridge = {
   settings: {
     get: () => Promise<SettingsView>;
     set: (patch: SettingsPatch) => Promise<SettingsView>;
+  };
+  provider: {
+    test: () => Promise<ProviderTestResult>;
   };
   verify: {
     run: (command?: string) => Promise<{ ok: boolean; command: string }>;
@@ -110,6 +114,9 @@ const bridge: WanwuBridge = {
   settings: {
     get: () => ipcRenderer.invoke("settings:get"),
     set: (patch) => ipcRenderer.invoke("settings:set", patch),
+  },
+  provider: {
+    test: () => ipcRenderer.invoke("provider:test"),
   },
   verify: {
     run: (command) => ipcRenderer.invoke("verify:run", command),

@@ -720,6 +720,25 @@ button {
   color: var(--ww-muted);
   font-size: 11px;
 }
+.settings-test {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  border: 1px solid var(--ww-border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.settings-test.ok {
+  color: var(--ww-accent);
+  border-color: rgba(46, 230, 166, 0.5);
+  background: rgba(46, 230, 166, 0.08);
+}
+.settings-test.fail {
+  color: #ffb3c0;
+  border-color: rgba(255, 92, 122, 0.5);
+  background: rgba(255, 92, 122, 0.08);
+}
 
 /* Command palette */
 .palette-backdrop {

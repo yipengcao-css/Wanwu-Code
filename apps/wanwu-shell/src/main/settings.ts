@@ -4,6 +4,9 @@ import { app, safeStorage } from "electron";
 
 export type ProviderId = "xai" | "openai" | "anthropic" | "ollama" | "custom";
 
+/** Which agent runtime backs the Agent panel. */
+export type AgentBackend = "wanwu-native" | "grok";
+
 export interface WanwuSettings {
   activeProvider: ProviderId;
   model: string;
@@ -11,6 +14,10 @@ export interface WanwuSettings {
   fontSize: number;
   /** Command run by Verify mode (in-app test/lint runner). */
   verifyCommand: string;
+  /** Underlying agent runtime: bundled wanwu-native, or the open-source grok CLI. */
+  agentBackend: AgentBackend;
+  /** Command line used to launch grok's ACP stdio server (when agentBackend=grok). */
+  grokCommand: string;
   /** Per-provider API keys, stored encrypted (safeStorage) when available. */
   apiKeys: Partial<Record<ProviderId, string>>;
 }
@@ -22,6 +29,8 @@ export interface SettingsView {
   baseUrl: string;
   fontSize: number;
   verifyCommand: string;
+  agentBackend: AgentBackend;
+  grokCommand: string;
   apiKeysSet: Partial<Record<ProviderId, boolean>>;
 }
 
@@ -31,6 +40,8 @@ export interface SettingsPatch {
   baseUrl?: string;
   fontSize?: number;
   verifyCommand?: string;
+  agentBackend?: AgentBackend;
+  grokCommand?: string;
   /** Empty string = leave unchanged; non-empty = set new key. */
   apiKeys?: Partial<Record<ProviderId, string>>;
 }
@@ -49,6 +60,8 @@ const DEFAULTS: WanwuSettings = {
   baseUrl: "",
   fontSize: 13,
   verifyCommand: "pnpm test",
+  agentBackend: "wanwu-native",
+  grokCommand: "grok acp",
   apiKeys: {},
 };
 
@@ -97,6 +110,8 @@ export function loadSettings(): WanwuSettings {
       baseUrl: raw.baseUrl ?? DEFAULTS.baseUrl,
       fontSize: raw.fontSize ?? DEFAULTS.fontSize,
       verifyCommand: raw.verifyCommand ?? DEFAULTS.verifyCommand,
+      agentBackend: raw.agentBackend ?? DEFAULTS.agentBackend,
+      grokCommand: raw.grokCommand ?? DEFAULTS.grokCommand,
       apiKeys: raw.apiKeys ?? {},
     };
   } catch {
@@ -123,6 +138,8 @@ export function getSettingsView(): SettingsView {
     baseUrl: s.baseUrl,
     fontSize: s.fontSize,
     verifyCommand: s.verifyCommand,
+    agentBackend: s.agentBackend,
+    grokCommand: s.grokCommand,
     apiKeysSet,
   };
 }
@@ -135,6 +152,8 @@ export function updateSettings(patch: SettingsPatch): SettingsView {
     baseUrl: patch.baseUrl ?? s.baseUrl,
     fontSize: patch.fontSize ?? s.fontSize,
     verifyCommand: patch.verifyCommand ?? s.verifyCommand,
+    agentBackend: patch.agentBackend ?? s.agentBackend,
+    grokCommand: patch.grokCommand ?? s.grokCommand,
     apiKeys: { ...s.apiKeys },
   };
   if (patch.apiKeys) {
@@ -158,4 +177,13 @@ export function agentEnv(): NodeJS.ProcessEnv {
     env.WANWU_PROVIDER_BASE_URL = s.baseUrl.trim();
   }
   return env;
+}
+
+export function agentBackendChoice(): AgentBackend {
+  return loadSettings().agentBackend;
+}
+
+/** grok ACP launch command line (when agentBackend=grok), split into argv. */
+export function grokCommandParts(): string[] {
+  return (loadSettings().grokCommand || "grok acp").trim().split(/\s+/).filter(Boolean);
 }

@@ -41,6 +41,7 @@ export interface ChatResponse {
 
 export type ProviderErrorCode =
   | "auth"
+  | "quota"
   | "rate_limit"
   | "network"
   | "bad_request"
