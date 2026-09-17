@@ -15,6 +15,7 @@ import { registerGitIpc } from "./ipc/git.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
 import { disposeVerify, registerVerifyIpc } from "./ipc/verify.js";
 import { registerSessionsIpc } from "./ipc/sessions.js";
+import { registerContextIpc } from "./ipc/context.js";
 import { WorkspaceWatcher } from "./watcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -123,6 +124,7 @@ app.whenReady().then(() => {
     () => mainWindow,
   );
   registerSessionsIpc(() => workspaceRoot);
+  registerContextIpc(() => workspaceRoot);
 
   if (workspaceRoot) watcher.start(workspaceRoot);
 

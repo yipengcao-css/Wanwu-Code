@@ -1,4 +1,5 @@
-import Editor, { loader } from "@monaco-editor/react";
+import { useEffect, useRef } from "react";
+import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
@@ -44,11 +45,31 @@ export function MonacoPane(props: {
   tabs: EditorTab[];
   activePath: string | null;
   fontSize?: number;
+  revealLine?: number;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
 }) {
   const active = props.tabs.find((t) => t.path === props.activePath);
+  const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+
+  function reveal(line: number): void {
+    const ed = editorRef.current;
+    if (!ed || !line) return;
+    ed.revealLineInCenter(line);
+    ed.setPosition({ lineNumber: line, column: 1 });
+    ed.focus();
+  }
+
+  const handleMount: OnMount = (editor) => {
+    editorRef.current = editor;
+    if (props.revealLine) reveal(props.revealLine);
+  };
+
+  useEffect(() => {
+    if (props.revealLine) reveal(props.revealLine);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.revealLine, props.activePath]);
 
   if (props.tabs.length === 0) {
     return (
@@ -91,6 +112,7 @@ export function MonacoPane(props: {
             path={active.path}
             language={languageFor(active.path)}
             value={active.content}
+            onMount={handleMount}
             onChange={(v) => props.onChange(active.path, v ?? "")}
             options={{
               fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",

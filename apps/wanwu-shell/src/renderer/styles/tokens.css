@@ -775,6 +775,62 @@ button {
   white-space: nowrap;
   font-family: var(--ww-font-mono);
   font-size: 13px;
+  flex: 1;
+}
+.palette-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ww-muted);
+}
+
+/* Context modal */
+.ctx-modal {
+  width: min(760px, 94vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.ctx-grid {
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+}
+.ctx-section {
+  border: 1px solid var(--ww-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.ctx-title {
+  font-weight: 600;
+}
+.ctx-count {
+  color: var(--ww-accent);
+  font-size: 12px;
+  margin-left: 4px;
+}
+.ctx-desc {
+  color: var(--ww-muted);
+  font-size: 11px;
+  margin: 2px 0 8px;
+}
+.ctx-empty {
+  color: var(--ww-muted);
+  font-size: 12px;
+}
+.ctx-item {
+  display: inline-block;
+  margin: 3px 6px 0 0;
+  border: 1px solid var(--ww-border);
+  background: var(--ww-surface-2);
+  color: var(--ww-text);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--ww-font-mono);
+}
+.ctx-item:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 /* Verify panel */

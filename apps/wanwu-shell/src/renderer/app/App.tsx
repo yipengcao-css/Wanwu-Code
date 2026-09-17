@@ -14,6 +14,7 @@ import { PermissionModal } from "../agent/PermissionModal";
 import { SettingsModal } from "../settings/SettingsModal";
 import { CommandPalette, type Command } from "../command/CommandPalette";
 import { VerifyPanel } from "../verify/VerifyPanel";
+import { ContextModal } from "../context/ContextModal";
 
 type LeftView = "files" | "search" | "git";
 type SettingsView = Awaited<ReturnType<typeof window.wanwu.settings.get>>;
@@ -50,6 +51,8 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [verifyOpen, setVerifyOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [revealLine, setRevealLine] = useState<number | undefined>(undefined);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string>("");
 
@@ -216,6 +219,13 @@ export function App() {
     }
   }, []);
 
+  const openSymbol = useCallback(
+    (rel: string, line: number) => {
+      void openFile(rel).then(() => setRevealLine(line));
+    },
+    [openFile],
+  );
+
   const onChange = useCallback((path: string, value: string) => {
     setTabs((prev) =>
       prev.map((t) => (t.path === path ? { ...t, content: value, dirty: true } : t)),
@@ -292,6 +302,7 @@ export function App() {
     () => [
       { title: "设置：打开", run: () => setSettingsOpen(true) },
       { title: "会话：新建", run: () => newSession() },
+      { title: "上下文：Memory/Skills/Rules/MCP", run: () => setContextOpen(true) },
       { title: "验证：运行测试/lint", run: () => setVerifyOpen(true) },
       { title: "终端：切换显示", run: () => setTermOpen((v) => !v) },
       { title: "文件：保存当前", run: () => void saveActive() },
@@ -363,6 +374,7 @@ export function App() {
             tabs={tabs}
             activePath={activePath}
             fontSize={settings?.fontSize}
+            revealLine={revealLine}
             onSelect={setActivePath}
             onChange={onChange}
             onClose={(p) => {
@@ -449,11 +461,15 @@ export function App() {
         <CommandPalette
           commands={paletteCommands}
           onOpenFile={(p) => void openFile(p)}
+          onOpenSymbol={openSymbol}
           onClose={() => setPaletteOpen(false)}
         />
       ) : null}
 
       {verifyOpen ? <VerifyPanel onClose={() => setVerifyOpen(false)} /> : null}
+      {contextOpen ? (
+        <ContextModal onOpenFile={(p) => void openFile(p)} onClose={() => setContextOpen(false)} />
+      ) : null}
     </div>
   );
 }
