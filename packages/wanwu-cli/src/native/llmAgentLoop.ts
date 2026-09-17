@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   completeChat,
   hasProviderCredentials,
@@ -9,6 +10,7 @@ import {
 } from "@wanwu/providers";
 import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
+import { discoverSkills } from "../discover.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
 import type { AgentContext } from "./agentLoop.js";
 import { dispatchTool } from "./toolDispatch.js";
@@ -36,7 +38,7 @@ function detectMode(prompt: string, fallback: WanwuMode): WanwuMode {
   return fallback;
 }
 
-function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
+export function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
   const memory = discoverMemory(ctx.workspaceRoot)
     .slice(0, 2)
     .map((f) => {
@@ -49,6 +51,22 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
     .filter(Boolean)
     .join("\n---\n");
 
+  // Inject project skills (SOPs) from .wanwu/skills/*.md so the agent can follow
+  // internal troubleshooting playbooks, not just list them.
+  const skillsDir = join(ctx.workspaceRoot, ".wanwu", "skills");
+  const skills = discoverSkills(ctx.workspaceRoot)
+    .filter((n) => n.endsWith(".md"))
+    .slice(0, 6)
+    .map((n) => {
+      try {
+        return `## ${n}\n${readFileSync(join(skillsDir, n), "utf8").slice(0, 1500)}`;
+      } catch {
+        return "";
+      }
+    })
+    .filter(Boolean)
+    .join("\n\n");
+
   return [
     "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
     "Prefer Read/Glob/Grep before answering about files. Be concise.",
@@ -58,6 +76,7 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode): string {
       ? "Do NOT use Edit. Avoid destructive Bash."
       : "You may Edit/Bash when needed (permissions still apply).",
     memory ? `Project memory:\n${memory}` : "",
+    skills ? `Skills (internal SOPs — follow the relevant one when applicable):\n${skills}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
