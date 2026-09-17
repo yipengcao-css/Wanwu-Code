@@ -36,7 +36,15 @@ Env:
   WANWU_PROVIDER            Override active provider (openai|anthropic|xai|ollama|custom)
   WANWU_MODEL               Override model id
   OPENAI_BASE_URL           OpenAI-compatible API base (e.g. https://api.deepseek.com)
+  WANWU_PROVIDER_BASE_URL   Base URL for custom/ollama provider (accepts a full
+                            .../v1/chat/completions URL; it is normalized)
+  WANWU_API_KEY             API key for the custom provider (BYOK)
   WANWU_FORCE_DETERMINISTIC=1  Disable LLM; use native heuristic loop
+
+Custom OpenAI-compatible endpoint (one-shot):
+  WANWU_PROVIDER=custom WANWU_MODEL=<id> \\
+  WANWU_API_KEY=<key> WANWU_PROVIDER_BASE_URL=https://host/v1 \\
+  wanwu exec -p "your question"
 `);
   process.exit(0);
 }

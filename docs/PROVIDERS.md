@@ -38,6 +38,27 @@ base_url = "https://api.deepseek.com"
 default_model = "deepseek-chat"
 ```
 
+## 自定义 OpenAI 兼容端点（`custom`）
+
+用于任意自建 / 网关式 OpenAI 兼容端点。密钥仅经环境变量传入，切勿写入仓库。
+
+```bash
+export WANWU_PROVIDER=custom
+export WANWU_API_KEY="sk-..."
+# base URL 可填到 /v1，也可直接粘贴完整的 .../v1/chat/completions，会自动归一化
+export WANWU_PROVIDER_BASE_URL="https://host/v1"
+export WANWU_MODEL="<model-id>"
+pnpm wanwu exec -p "your question"
+```
+
+`exec` 会以 JSON 返回 `status`/`provider`/`model`/`output`；若端点返回错误，会返回
+`status:"error"` 及 provider 错误 `code`（如 `auth` / `quota` / `rate_limit`）与 `hint`，
+便于自诊断（鉴权、配额、网络还是模型不可用）。
+
+> 例：某网关对未兑换模型包的 token 会返回
+> `403 insufficient_user_quota（须先兑换到模型包）`——这属于账户额度问题，
+> 端点与密钥本身可达/有效，兑换模型包后即可正常问答。
+
 ## 环境变量速查
 
 | Env | 作用 |
