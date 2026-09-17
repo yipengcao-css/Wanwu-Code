@@ -8,6 +8,7 @@ import {
   type AcpEditProposal,
   type AcpPermissionRequest,
 } from "@wanwu/acp-client";
+import { agentEnv } from "../settings.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -47,12 +48,14 @@ function resolveBackendScript(): string {
  * setups (e.g. bridging to grok).
  */
 function startAcpBackend(cwd: string): AcpClient {
+  // Settings-driven provider/model/API-key env (P2: model selection + API key UI).
+  const injected = agentEnv();
   const override = process.env.WANWU_ACP_COMMAND?.trim();
   if (override) {
     const parts = override.split(/\s+/);
     child = spawn(parts[0]!, parts.slice(1), {
       cwd,
-      env: { ...process.env, WANWU_WORKSPACE_ROOT: cwd },
+      env: { ...process.env, ...injected, WANWU_WORKSPACE_ROOT: cwd },
       stdio: ["pipe", "pipe", "pipe"],
     });
   } else {
@@ -61,6 +64,7 @@ function startAcpBackend(cwd: string): AcpClient {
       cwd,
       env: {
         ...process.env,
+        ...injected,
         ELECTRON_RUN_AS_NODE: "1",
         WANWU_INTERNAL_ACP: "1",
         WANWU_WORKSPACE_ROOT: cwd,

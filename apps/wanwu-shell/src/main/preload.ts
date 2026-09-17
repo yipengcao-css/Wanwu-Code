@@ -1,4 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { SettingsView, SettingsPatch, ProviderId } from "./settings.js";
+
+export type { SettingsView, SettingsPatch, ProviderId };
 
 export type WanwuBridge = {
   workspace: {
@@ -13,7 +16,12 @@ export type WanwuBridge = {
     create: (parentRel: string, name: string, type: "file" | "dir") => Promise<string>;
     rename: (rel: string, newName: string) => Promise<string>;
     remove: (rel: string) => Promise<boolean>;
+    allFiles: () => Promise<string[]>;
     onChanged: (cb: () => void) => () => void;
+  };
+  settings: {
+    get: () => Promise<SettingsView>;
+    set: (patch: SettingsPatch) => Promise<SettingsView>;
   };
   search: {
     text: (query: string) => Promise<{ path: string; line: number; preview: string }[]>;
@@ -73,7 +81,12 @@ const bridge: WanwuBridge = {
     create: (parentRel, name, type) => ipcRenderer.invoke("fs:create", parentRel, name, type),
     rename: (rel, newName) => ipcRenderer.invoke("fs:rename", rel, newName),
     remove: (rel) => ipcRenderer.invoke("fs:delete", rel),
+    allFiles: () => ipcRenderer.invoke("fs:allFiles"),
     onChanged: (cb) => on("fs:changed", () => cb()),
+  },
+  settings: {
+    get: () => ipcRenderer.invoke("settings:get"),
+    set: (patch) => ipcRenderer.invoke("settings:set", patch),
   },
   search: {
     text: (query) => ipcRenderer.invoke("search:text", query),

@@ -123,4 +123,38 @@ export function registerFsIpc(getRoot: () => string | null, setRoot: (r: string)
     await fs.rm(abs, { recursive: true, force: true });
     return true;
   });
+
+  ipcMain.handle("fs:allFiles", async (): Promise<string[]> => {
+    const root = getRoot();
+    if (!root) return [];
+    return listAllFiles(root);
+  });
+}
+
+const ALLFILES_SKIP = new Set(["node_modules", ".git", "dist", "out", "code-oss", ".turbo", "coverage"]);
+const ALLFILES_MAX = 5000;
+
+/** Flat list of workspace files (relative), for the command palette quick-open. */
+async function listAllFiles(root: string): Promise<string[]> {
+  const out: string[] = [];
+  async function walk(dir: string): Promise<void> {
+    if (out.length >= ALLFILES_MAX) return;
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (out.length >= ALLFILES_MAX) return;
+      if (entry.isDirectory()) {
+        if (ALLFILES_SKIP.has(entry.name)) continue;
+        await walk(path.join(dir, entry.name));
+      } else if (entry.isFile()) {
+        out.push(path.relative(root, path.join(dir, entry.name)).split(path.sep).join("/"));
+      }
+    }
+  }
+  await walk(root);
+  return out;
 }

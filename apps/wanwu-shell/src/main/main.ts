@@ -12,6 +12,7 @@ import { disposeAcp, registerAcpIpc } from "./ipc/acp.js";
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSearchIpc } from "./ipc/search.js";
 import { registerGitIpc } from "./ipc/git.js";
+import { registerSettingsIpc } from "./ipc/settings.js";
 import { WorkspaceWatcher } from "./watcher.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -111,6 +112,10 @@ app.whenReady().then(() => {
   );
   registerSearchIpc(() => workspaceRoot);
   registerGitIpc(() => workspaceRoot);
+  registerSettingsIpc(() => {
+    // Rebuild the ACP backend so updated provider/model/API key are applied.
+    disposeAcp();
+  });
 
   if (workspaceRoot) watcher.start(workspaceRoot);
 
