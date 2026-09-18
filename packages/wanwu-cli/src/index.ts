@@ -30,6 +30,7 @@ Env:
   WANWU_MODEL               Override model id
   OPENAI_BASE_URL           OpenAI-compatible API base (e.g. https://api.deepseek.com)
   WANWU_FORCE_DETERMINISTIC=1  Disable LLM; use native heuristic loop
+  WANWU_STREAM=0               Disable incremental LLM streaming (default on)
 `);
   process.exit(0);
 }

@@ -87,6 +87,7 @@ export async function runExec(options: ExecOptions): Promise<number> {
     let model = process.env.WANWU_MODEL?.trim() || config.model;
     let turns = 0;
     let toolsUsed: string[] = [];
+    let usage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
     try {
       if (shouldUseLlm(config)) {
         llm = true;
@@ -100,6 +101,7 @@ export async function runExec(options: ExecOptions): Promise<number> {
         model = out.model;
         turns = out.turns;
         toolsUsed = out.toolsUsed;
+        usage = out.usage;
       } else {
         runDeterministicTurn(ctx, options.prompt);
       }
@@ -137,6 +139,7 @@ export async function runExec(options: ExecOptions): Promise<number> {
           model,
           turns,
           toolsUsed,
+          usage,
           output: chunks.join("\n").slice(0, 8000),
         },
         null,

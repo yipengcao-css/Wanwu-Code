@@ -4,6 +4,7 @@ import { discoverMemory } from "./memory.js";
 import { discoverSkills } from "./skills.js";
 import { runDeterministicTurn } from "./native/agentLoop.js";
 import { runLlmAgentLoop, shouldUseLlm } from "./native/llmAgentLoop.js";
+import { shouldStream } from "./native/stream.js";
 import { MODE_CYCLE, detectMode, nextMode, stripModeTags } from "./native/mode.js";
 import { runPlanAsync } from "./plan.js";
 import { runVerifyWithReview } from "./verify.js";
@@ -41,7 +42,7 @@ const HELP = `命令：
   /history [n]   显示最近 n 轮会话
   /resume        列出/恢复磁盘上的会话（/resume 2 或 /resume <id>）
   /undo          回滚上一轮 Agent 的文件修改（检查点）
-  /status        显示模式/provider/工作区状态
+  /status        显示模式/provider/工作区/token 用量
   /mcp           列出已配置 MCP server
   /clear         清屏
   /exit          退出
@@ -85,7 +86,9 @@ export async function runTui(): Promise<number> {
   print(BANNER);
   print(`Wanwu TUI · workspace=${cwd}`);
   print(`provider=${config.activeProvider}/${config.model} · permission=${config.permissionMode} · sandbox=${config.sandbox}`);
-  print(`llm=${shouldUseLlm(config) ? "on" : "deterministic"} · memory=${discoverMemory(cwd).length} · skills=${discoverSkills(cwd).length} · theme=${theme.name}`);
+  print(
+    `llm=${shouldUseLlm(config) ? "on" : "deterministic"} · stream=${shouldStream() ? "on" : "off"} · memory=${discoverMemory(cwd).length} · skills=${discoverSkills(cwd).length} · theme=${theme.name}`,
+  );
   print(HELP);
 
   // @-mention path completion (workspace files + special mentions)
@@ -122,6 +125,21 @@ export async function runTui(): Promise<number> {
     }
   });
 
+  function statusState() {
+    return {
+      mode,
+      provider: config.activeProvider,
+      model: config.model,
+      llm: shouldUseLlm(config),
+      workspace: cwd,
+      toolsRunning: 0,
+      stream: shouldStream(),
+      inputTokens: lastUsage?.inputTokens,
+      outputTokens: lastUsage?.outputTokens,
+      totalTokens: lastUsage?.totalTokens,
+    };
+  }
+
   function redraw(): void {
     if (!usePanes) return;
     const state = view.getState();
@@ -130,17 +148,7 @@ export async function runTui(): Promise<number> {
     const lines = composeFrame(
       state.chat,
       state.tools,
-      state.status || renderStatusBar(
-        {
-          mode,
-          provider: config.activeProvider,
-          model: config.model,
-          llm: shouldUseLlm(config),
-          workspace: cwd,
-          toolsRunning: 0,
-        },
-        theme,
-      ),
+      state.status || renderStatusBar(statusState(), theme),
       promptLine(mode),
       { cols, rows, rightRatio: cols >= 100 ? 0.3 : 0 },
     );
@@ -194,19 +202,7 @@ export async function runTui(): Promise<number> {
         return;
       }
       if (input === "/status") {
-        print(
-          renderStatusBar(
-            {
-              mode,
-              provider: config.activeProvider,
-              model: config.model,
-              llm: shouldUseLlm(config),
-              workspace: cwd,
-              toolsRunning: 0,
-            },
-            theme,
-          ) + (lastUsage ? `\ntokens: in ${lastUsage.inputTokens} / out ${lastUsage.outputTokens} / total ${lastUsage.totalTokens}` : ""),
-        );
+        print(renderStatusBar(statusState(), theme));
         rl.prompt();
         return;
       }
@@ -352,7 +348,7 @@ export async function runTui(): Promise<number> {
               view.addChat(renderDiff(event.path, event.before, event.after));
             } else if (event.type === "text") {
               assistantText += event.text;
-              view.addChat(event.text);
+              view.appendChat(event.text);
             }
             if (usePanes) redraw();
             continue;
@@ -376,7 +372,7 @@ export async function runTui(): Promise<number> {
             updatedAt: new Date().toISOString(),
             history: history as never,
           });
-          if (out.text) {
+          if (out.text && !shouldStream()) {
             assistantText += out.text;
             print(`\n${out.text}`);
           }
