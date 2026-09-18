@@ -170,7 +170,14 @@ importers:
         specifier: ^22.15.21
         version: 22.20.1
 
-  packages/wanwu-protocol: {}
+  packages/wanwu-protocol:
+    dependencies:
+      '@wanwu/config':
+        specifier: workspace:*
+        version: link:../wanwu-config
+      '@wanwu/providers':
+        specifier: workspace:*
+        version: link:../wanwu-providers
 
   packages/wanwu-providers:
     dependencies:

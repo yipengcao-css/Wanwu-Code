@@ -18,28 +18,19 @@ export function parseGitPorcelain(stdout: string): GitStatusEntry[] {
     const path = rest.includes(" -> ") ? rest.slice(rest.lastIndexOf(" -> ") + 4) : rest;
     const letter = (raw[1] !== " " && raw[1] !== "?" ? raw[1] : raw[0]) ?? "?";
     const code = (letter === "?" ? "?" : letter) as GitStatusCode;
-    out.push({ path: path.trim(), code, raw });
+    out.push({ path: path.trim().replace(/\\/g, "/"), code, raw });
   }
   return out;
 }
 
 export function gitStatus(cwd: string): GitStatusEntry[] {
   try {
-    const stdout = execFileSync("git", ["status", "--porcelain=v1", "-z"], {
+    // Line-oriented porcelain is enough for UI/tools; -z is harder to parse for renames.
+    const stdout = execFileSync("git", ["status", "--porcelain=v1"], {
       cwd,
       encoding: "utf8",
       timeout: 4000,
     });
-    // -z uses NUL. Fall back to line parse if empty separators look like newlines.
-    if (stdout.includes("\0")) {
-      return parseGitPorcelain(
-        stdout
-          .split("\0")
-          .filter(Boolean)
-          .map((row) => (row.length >= 3 ? `${row.slice(0, 2)} ${row.slice(3)}` : row))
-          .join("\n"),
-      );
-    }
     return parseGitPorcelain(stdout);
   } catch {
     return [];
