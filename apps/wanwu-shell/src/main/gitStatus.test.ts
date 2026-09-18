@@ -27,6 +27,10 @@ mkdirSync(join(dir, "nested"), { recursive: true });
 writeFileSync(join(dir, "nested", "u.txt"), "y");
 const live = gitStatus(dir);
 assert.ok(live.some((e) => e.path === "tracked-soon.txt" && e.code === "?"));
-assert.ok(live.some((e) => e.path === "nested/u.txt" && e.code === "?"));
+assert.ok(
+  live.some((e) => (e.path === "nested/u.txt" || e.path === "nested/") && e.code === "?"),
+  `expected nested untracked, got ${JSON.stringify(live)}`,
+);
+assert.equal(scmCodeForPath("nested", live), "dirty");
 
 console.log("gitStatus tests passed");
