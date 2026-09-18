@@ -38,6 +38,26 @@ describe("@wanwu/providers", () => {
     expect(resolved.kind).toBe("openai-compat");
   });
 
+  it("accepts a custom base_url pasted as a full /v1/chat/completions endpoint", () => {
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "custom",
+      model: "WanWu/Deepseek-Auto",
+    });
+    const cases = [
+      "https://wan.vnet.com/v1/chat/completions",
+      "https://wan.vnet.com/v1/chat/completions/",
+      "https://wan.vnet.com/v1",
+      "https://wan.vnet.com",
+    ];
+    for (const base of cases) {
+      const resolved = resolveProvider(config, {
+        env: { WANWU_API_KEY: "sk-test", WANWU_PROVIDER_BASE_URL: base },
+      });
+      // All shapes normalize to the same base; openaiCompat appends /chat/completions.
+      expect(resolved.baseUrl).toBe("https://wan.vnet.com/v1");
+    }
+  });
+
   it("completes via openai fixture", async () => {
     const config = mergeConfig(DEFAULT_CONFIG, {
       activeProvider: "openai",

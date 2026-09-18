@@ -79,7 +79,11 @@ export function SettingsModal(props: {
 
           <label>Base URL</label>
           <input
-            placeholder={provider === "custom" ? "如 https://api.deepseek.com" : "（可选，custom/ollama）"}
+            placeholder={
+              provider === "custom"
+                ? "如 https://wan.vnet.com/v1（也可直接粘贴 …/chat/completions）"
+                : "（可选，custom/ollama）"
+            }
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
           />

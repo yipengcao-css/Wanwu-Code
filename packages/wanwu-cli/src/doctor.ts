@@ -115,6 +115,15 @@ export function runDoctor(cwd: string = findWorkspaceRoot()): DoctorFinding[] {
       code: "acp.native",
       message: "acp_backend=wanwu-native (no grok binary required)",
     });
+    // Grok Build ACP is a first-class alternative underlying backend — surface it
+    // so `doctor` documents the option regardless of the active backend.
+    findings.push({
+      level: "ok",
+      code: "acp.grok.available",
+      message: commandExists("grok")
+        ? "grok binary detected on PATH — set acp_backend=grok to use the open-source Grok Build ACP bridge"
+        : "grok bridge is an optional underlying backend (set acp_backend=grok); install Grok Build (https://x.ai/cli) to enable it",
+    });
   } else if (config.acpBackend === "grok") {
     if (commandExists("grok")) {
       findings.push({

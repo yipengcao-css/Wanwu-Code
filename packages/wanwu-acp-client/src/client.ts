@@ -47,8 +47,22 @@ export class AcpClient extends EventEmitter {
     child.stderr.on("data", (buf: Buffer) => {
       this.emit("notification", "stderr", buf.toString("utf8"));
     });
-    child.on("exit", (code) => this.emit("exit", code));
-    child.on("error", (err) => this.emit("error", err));
+    child.on("exit", (code) => {
+      this.emit("exit", code);
+      this.failAllPending(new Error(`ACP backend exited (code ${code ?? "?"})`));
+    });
+    child.on("error", (err) => {
+      this.emit("error", err);
+      this.failAllPending(err instanceof Error ? err : new Error(String(err)));
+    });
+  }
+
+  /** Reject every in-flight request so callers never hang if the backend dies. */
+  private failAllPending(err: Error): void {
+    for (const [, pending] of this.pending) {
+      pending.reject(err);
+    }
+    this.pending.clear();
   }
 
   private onLine(line: string): void {
@@ -155,6 +169,7 @@ export class AcpClient extends EventEmitter {
     if (!this.child.killed) {
       this.child.kill();
     }
+    this.failAllPending(new Error("ACP client disposed"));
   }
 }
 
