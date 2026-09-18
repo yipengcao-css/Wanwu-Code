@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Added
+- **MCP resources**：stdio `resources/list` / `resources/read`；LLM 工具 `McpReadResource`
+- **聊天贴图**：ACP `session/prompt` 接受 `images` / content-block 图像；TUI `/image`；Shell 粘贴/选图经 ACP 发送
+- **自动记忆**：用户明确说「记住 / remember / always use」时写入 `WANWU.md` `## Learned`（`WANWU_AUTO_MEMORY=0` 关闭）
+- **轻量 SCM**：Shell FileTree 显示 git porcelain 状态标记（M/A/D/?）
 - **编辑工具重做（A1）**：`Edit` 改为 search/replace 块（多块、replace_all、行尾空白容错、未命中给 near-miss 提示）；新增 `Write` 工具（创建/覆写）；`accept-edits`/`accept-all` 模式直接落盘并回传 diff，`ask` 模式保持提案审阅；acp-client 只对 pending diff 触发审阅
 - **IDE 深度集成**：VS Code 内联 diff（`vscode.diff` + WorkspaceEdit）；Quick Fix「用 Wanwu 修复」；Problems 桥接；ACP client 支持 `session/load` / `session/cancel`
 - **丰富 hooks 生命周期**：SessionStart/SessionEnd/UserPromptSubmit/ToolCallApproved/ToolCallDenied/SubagentStart/SubagentEnd/Error；`.wanwu/hooks/*.sh` 按事件前缀发现

@@ -21,6 +21,7 @@ target/
 .wanwu/cloud-tasks/
 .wanwu/credentials.env
 **/.wanwu/credentials.env
+.wanwu/attachments/
 extensions/wanwu-vscode/*.vsix
 dist-bin/
 apps/wanwu-ide/code-oss/

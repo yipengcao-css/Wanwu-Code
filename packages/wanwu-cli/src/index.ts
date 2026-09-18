@@ -30,6 +30,7 @@ Env:
   WANWU_MODEL               Override model id
   OPENAI_BASE_URL           OpenAI-compatible API base (e.g. https://api.deepseek.com)
   WANWU_FORCE_DETERMINISTIC=1  Disable LLM; use native heuristic loop
+  WANWU_AUTO_MEMORY=0          Disable auto-write to WANWU.md on 「记住」
 `);
   process.exit(0);
 }

@@ -285,6 +285,22 @@ export async function dispatchTool(
         });
         return { ok: true, title: "Task", text: result.aggregateText };
       }
+      case "McpReadResource": {
+        const uri = String(args.uri ?? "");
+        const reg = peekMcpRegistry(ctx.workspaceRoot);
+        if (!uri) return { ok: false, title: "McpReadResource", text: "uri required" };
+        if (!reg) return { ok: false, title: "McpReadResource", text: "MCP not started" };
+        try {
+          const text = await reg.readResource(uri);
+          return { ok: true, title: "McpReadResource", text };
+        } catch (err) {
+          return {
+            ok: false,
+            title: "McpReadResource",
+            text: err instanceof Error ? err.message : String(err),
+          };
+        }
+      }
       default:
         return { ok: false, title: name, text: `unknown tool: ${name}` };
     }

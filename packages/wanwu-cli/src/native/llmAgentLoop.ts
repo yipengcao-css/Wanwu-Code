@@ -25,6 +25,7 @@ import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
 import { dispatchTool } from "./toolDispatch.js";
 import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
+import { maybeAutoRemember } from "./autoMemory.js";
 
 function providerOverride(): ProviderId | undefined {
   const raw = process.env.WANWU_PROVIDER?.trim();
@@ -53,10 +54,15 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode, activeFiles: string[] =
     .filter(Boolean)
     .join("\n---\n");
 
-  const mcpNames = peekMcpRegistry(ctx.workspaceRoot)
+  const mcpReg = peekMcpRegistry(ctx.workspaceRoot);
+  const mcpNames = mcpReg
     ?.listTools()
     .map((t) => t.qualifiedName)
     .slice(0, 40);
+  const mcpResources = mcpReg
+    ?.listResources()
+    .slice(0, 20)
+    .map((r) => `${r.uri}${r.name ? ` (${r.name})` : ""}`);
   const skills = renderSkillsForPrompt(discoverSkills(ctx.workspaceRoot));
   const rules = renderRulesForPrompt(discoverRules(ctx.workspaceRoot), activeFiles);
 
@@ -73,6 +79,9 @@ function buildSystem(ctx: AgentContext, mode: WanwuMode, activeFiles: string[] =
       : "You may Edit/Write/Bash when needed (permissions still apply).",
     mcpNames?.length
       ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`
+      : "",
+    mcpResources?.length
+      ? `MCP resources (use McpReadResource with uri): ${mcpResources.join(", ")}`
       : "",
     skills ? `Project skills:\n${skills}` : "",
     rules ? `Project rules:\n${rules}` : "",
@@ -125,6 +134,8 @@ export async function runLlmAgentLoop(
     attachments?: import("@wanwu/providers").ContentPart[];
     /** Host-provided context for @terminal / @diagnostics / @web mentions. */
     hostContext?: MentionHostProviders;
+    /** Persist WANWU.md when the user explicitly asked to remember (default on). */
+    autoMemory?: boolean;
   },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
@@ -375,6 +386,16 @@ export async function runLlmAgentLoop(
       });
     }
     break;
+  }
+
+  if (opts?.autoMemory !== false && !opts?.fetchImpl) {
+    const note = maybeAutoRemember(ctx.workspaceRoot, prompt, last?.text ?? "");
+    if (note) {
+      sessionUpdate(ctx.sessionId, {
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: `\n已自动写入 WANWU.md：${note}\n` },
+      });
+    }
   }
 
   return {
