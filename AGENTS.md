@@ -25,7 +25,8 @@
 | `extensions/wanwu-vscode/` | VS Code 扩展 |
 | `packages/*` | TS 共享库 |
 | `crates/` | Rust / 桥接 |
-| `apps/wanwu-ide/` | 整机（后期） |
+| `apps/wanwu-shell/` | 品牌整机（Electron + Monaco） |
+| `apps/wanwu-ide/` | DEPRECATED，勿再扩展 |
 | `examples/` | 可运行演示 |
 
 ## 编码习惯
