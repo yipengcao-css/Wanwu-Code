@@ -18,6 +18,8 @@ type ChatSession = {
   log: LogItem[];
 };
 
+type PendingImage = { id: string; name: string; path: string; preview?: string };
+
 function newLocalId(): string {
   return `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -53,6 +55,7 @@ export function AgentStudio(props: {
   const [files, setFiles] = useState<string[]>([]);
   const [activeSug, setActiveSug] = useState(0);
   const [mentionOpen, setMentionOpen] = useState(true);
+  const [images, setImages] = useState<PendingImage[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   activeLocalIdRef.current = activeLocalId;
@@ -214,12 +217,51 @@ export function AgentStudio(props: {
     }
   }
 
+  async function attachFiles(incoming: File[]): Promise<void> {
+    for (const file of incoming) {
+      if (!file.type.startsWith("image/")) continue;
+      const dataBase64 = await fileToBase64(file);
+      try {
+        const saved = await window.wanwu.media.saveImage({
+          name: file.name,
+          mime: file.type,
+          dataBase64,
+        });
+        const preview = URL.createObjectURL(file);
+        setImages((prev) => [
+          ...prev,
+          { id: `${Date.now()}-${file.name}`, name: file.name, path: saved, preview },
+        ]);
+      } catch (err) {
+        props.onStatus(err instanceof Error ? err.message : String(err));
+      }
+    }
+  }
+
+  async function pickImages(): Promise<void> {
+    try {
+      const paths = await window.wanwu.media.pickImages();
+      setImages((prev) => [
+        ...prev,
+        ...paths.map((path) => ({
+          id: `${Date.now()}-${path}`,
+          name: path.split(/[\\/]/).pop() ?? path,
+          path,
+        })),
+      ]);
+    } catch (err) {
+      props.onStatus(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   async function send(): Promise<void> {
     const prompt = text.trim();
-    if (!prompt || !props.enabled || busy) return;
+    const pending = images;
+    if ((!prompt && pending.length === 0) || !props.enabled || busy) return;
     setBusy(true);
     setText("");
-    const titleFromPrompt = prompt.slice(0, 24);
+    setImages([]);
+    const titleFromPrompt = (prompt || pending[0]?.name || "附图").slice(0, 24);
     setChats((prev) =>
       prev.map((c) =>
         c.localId === activeLocalIdRef.current
@@ -228,7 +270,15 @@ export function AgentStudio(props: {
               title: c.title.startsWith("会话") && c.log.filter((l) => l.kind === "user").length === 0
                 ? titleFromPrompt
                 : c.title,
-              log: [...c.log, { kind: "user", text: prompt }],
+              log: [
+                ...c.log,
+                {
+                  kind: "user",
+                  text:
+                    (prompt || "（附图）") +
+                    (pending.length ? `\n[已附加 ${pending.length} 张图片]` : ""),
+                },
+              ],
             }
           : c,
       ),
@@ -257,21 +307,24 @@ export function AgentStudio(props: {
             props.selectionHint ? `Preview:\n\`\`\`\n${props.selectionHint}\n\`\`\`\n` : ""
           }[/EDITOR_CONTEXT]\n`
         : "";
-      const result = (await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
+      const result = await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt || "请查看附图。"}`, {
         diagnostics: props.diagnosticsSummary,
         terminal: props.terminalSummary,
-      })) as {
-        usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
-        checkpointId?: string;
-      };
+        images: pending.length ? pending.map((img) => img.path) : undefined,
+      });
+      pending.forEach((img) => {
+        if (img.preview) URL.revokeObjectURL(img.preview);
+      });
       const usage = result?.usage;
       const tokens =
         usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined)
           ? ` · in ${usage.inputTokens ?? 0} / out ${usage.outputTokens ?? 0}`
           : "";
       const ckpt = result?.checkpointId ? ` · ckpt ${result.checkpointId}` : "";
-      props.onStatus(`回合完成${tokens}${ckpt}`);
+      const pics = pending.length ? ` · 已发送 ${pending.length} 张图` : "";
+      props.onStatus(`回合完成${tokens}${ckpt}${pics}`);
     } catch (err) {
+      setImages(pending);
       const message = err instanceof Error ? err.message : String(err);
       patchActive((prev) => [...prev, { kind: "error", text: message }]);
       props.onStatus(`错误 · ${message}`);
@@ -334,7 +387,18 @@ export function AgentStudio(props: {
           );
         })}
       </div>
-      <div className="composer">
+      <div
+        className="composer"
+        onDragOver={(e) => {
+          if (!props.enabled || busy) return;
+          e.preventDefault();
+        }}
+        onDrop={(e) => {
+          if (!props.enabled || busy) return;
+          e.preventDefault();
+          void attachFiles(Array.from(e.dataTransfer.files));
+        }}
+      >
         {suggestions.length > 0 ? (
           <ul className="mention-menu" role="listbox" aria-label="@ 上下文补全">
             {suggestions.map((s, i) => (
@@ -356,11 +420,37 @@ export function AgentStudio(props: {
             ))}
           </ul>
         ) : null}
+        {images.length ? (
+          <div className="attach-row" aria-label="待发送图片">
+            {images.map((img) => (
+              <span key={img.id} className="attach-chip">
+                {img.preview ? <img src={img.preview} alt="" className="attach-thumb" /> : null}
+                <span className="attach-name">{img.name}</span>
+                <button
+                  type="button"
+                  className="attach-remove"
+                  aria-label={`移除 ${img.name}`}
+                  disabled={busy}
+                  onClick={() => {
+                    if (img.preview) URL.revokeObjectURL(img.preview);
+                    setImages((prev) => prev.filter((x) => x.id !== img.id));
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         <textarea
           ref={inputRef}
           value={text}
           disabled={!props.enabled || busy}
-          placeholder={props.enabled ? "描述你的意图… 输入 @ 引用文件 / git / 终端 / 诊断" : "请先打开工作区"}
+          placeholder={
+            props.enabled
+              ? "描述你的意图… 输入 @ 引用文件 / git / 终端 / 诊断，可粘贴或拖入图片"
+              : "请先打开工作区"
+          }
           onChange={(e) => {
             setText(e.target.value);
             setCursor(e.target.selectionStart);
@@ -369,6 +459,14 @@ export function AgentStudio(props: {
           }}
           onClick={(e) => setCursor(e.currentTarget.selectionStart)}
           onKeyUp={(e) => setCursor(e.currentTarget.selectionStart)}
+          onPaste={(e) => {
+            const pasted = Array.from(e.clipboardData?.files ?? []).filter((f) =>
+              f.type.startsWith("image/"),
+            );
+            if (!pasted.length) return;
+            e.preventDefault();
+            void attachFiles(pasted);
+          }}
           onKeyDown={(e) => {
             if (suggestions.length > 0) {
               if (e.key === "ArrowDown") {
@@ -403,16 +501,37 @@ export function AgentStudio(props: {
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
             Mode={props.mode} · @ 引用 · Ctrl/Cmd+Enter 发送
           </span>
-          <button
-            type="button"
-            className="btn primary"
-            disabled={!props.enabled || busy || !text.trim()}
-            onClick={() => void send()}
-          >
-            {busy ? "运行中…" : "运行"}
-          </button>
+          <div className="composer-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={!props.enabled || busy}
+              onClick={() => void pickImages()}
+            >
+              附加图片
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!props.enabled || busy || (!text.trim() && images.length === 0)}
+              onClick={() => void send()}
+            >
+              {busy ? "运行中…" : "运行"}
+            </button>
+          </div>
         </div>
       </div>
     </>
   );
+}
+
+async function fileToBase64(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
 }

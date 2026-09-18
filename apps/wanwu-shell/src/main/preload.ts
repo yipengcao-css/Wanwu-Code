@@ -15,6 +15,13 @@ export type WanwuBridge = {
     listFiles: () => Promise<string[]>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
+  git: {
+    status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
+  };
+  media: {
+    saveImage: (payload: { name?: string; mime?: string; dataBase64: string }) => Promise<string>;
+    pickImages: () => Promise<string[]>;
+  };
   ai: {
     complete: (req: {
       prefix: string;
@@ -37,7 +44,7 @@ export type WanwuBridge = {
     setSession: (sessionId: string) => Promise<{ sessionId?: string }>;
     prompt: (
       text: string,
-      context?: { diagnostics?: string; terminal?: string },
+      context?: { diagnostics?: string; terminal?: string; images?: string[] },
     ) => Promise<{
       stopReason?: string;
       usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
@@ -143,6 +150,13 @@ const bridge: WanwuBridge = {
     search: (query) => ipcRenderer.invoke("fs:search", query),
     listFiles: () => ipcRenderer.invoke("fs:listFiles"),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
+  },
+  git: {
+    status: () => ipcRenderer.invoke("git:status"),
+  },
+  media: {
+    saveImage: (payload) => ipcRenderer.invoke("media:saveImage", payload),
+    pickImages: () => ipcRenderer.invoke("media:pickImages"),
   },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),

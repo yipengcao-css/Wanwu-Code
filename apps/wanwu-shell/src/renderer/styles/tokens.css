@@ -255,7 +255,10 @@ button {
 }
 
 .file-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   width: 100%;
   text-align: left;
   border: 0;
@@ -263,6 +266,47 @@ button {
   color: var(--ww-text);
   padding: 5px 8px;
   border-radius: 8px;
+}
+
+.file-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-badge {
+  flex: 0 0 auto;
+  font-family: var(--ww-font-mono);
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 6px;
+  border: 1px solid var(--ww-border);
+  color: var(--ww-muted);
+}
+
+.scm-badge.scm-M {
+  color: #f5c36a;
+  border-color: rgba(245, 195, 106, 0.45);
+}
+
+.scm-badge.scm-A,
+.scm-badge.scm-dirty {
+  color: var(--ww-accent);
+  border-color: rgba(42, 212, 160, 0.4);
+}
+
+.scm-badge.scm-D,
+.scm-badge.scm-U {
+  color: var(--ww-danger);
+  border-color: rgba(242, 95, 124, 0.45);
+}
+
+.scm-badge.scm-R,
+.scm-badge.scm-C {
+  color: var(--ww-accent-2);
+  border-color: rgba(79, 140, 255, 0.4);
 }
 
 .file-item:hover,
@@ -443,6 +487,53 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+
+.composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attach-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attach-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 4px 8px 4px 4px;
+  border-radius: var(--ww-radius-md);
+  border: 1px solid var(--ww-border);
+  background: rgba(22, 32, 51, 0.9);
+  font-size: 12px;
+  color: var(--ww-muted);
+}
+
+.attach-thumb {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.attach-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attach-remove {
+  border: 0;
+  background: transparent;
+  color: var(--ww-muted);
+  padding: 0 2px;
+  line-height: 1;
 }
 
 .status {

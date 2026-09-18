@@ -43,6 +43,14 @@ mcp__<server>__<tool>
 
 示例：`mcp__filesystem__read_file`。
 
+## Resources
+
+MCP `resources/list` / `resources/read` 已接入：
+
+- 启动 server 时列出资源，写入系统提示（最多 20 条）
+- LLM 可调用 `McpReadResource`（参数 `uri`）读取内容
+- server 不支持 resources 时静默跳过（空列表）
+
 ## 运行时
 
 - `wanwu-native` ACP 在 `initialize` / 首次 LLM 回合时懒加载 MCP servers
