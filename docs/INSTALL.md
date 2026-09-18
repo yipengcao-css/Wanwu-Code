@@ -101,3 +101,10 @@ xattr -cr "Wanwu Code.app"
 ### Windows 备注
 
 当前默认产出 **zip 便携包**（本机 Linux 交叉构建 NSIS 依赖完整 wine 环境；Authenticode 签名后置）。需要 `.exe` 安装器时请在 Windows 主机运行 `electron-builder --win nsis`。
+
+开发态：
+
+- 建议 **Node 22 LTS**。Node 24.16+ 会让 Electron 的 `extract-zip` 解压失败（`path.txt` 缺失）。
+- `pnpm build:cli` / `pnpm shell:dev` **不需要 Git Bash**（已改为 `node scripts/build-cli.mjs`）。
+- 必须在仓库**根目录**执行 `pnpm install`，不要进 `apps/wanwu-shell` 单独装依赖。
+- 国内 Electron 二进制可设：`$env:ELECTRON_MIRROR="https://mirrors.huaweicloud.com/electron/"`

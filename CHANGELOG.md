@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Windows `pnpm build:cli` / `shell:dev`**：生成 `dist-bin/wanwu.mjs` 改为 Node 脚本，不再依赖 `bash`（未装 Git Bash 时也能拉起 ACP）
+
 ### Added
 - **默认流式输出**：LLM 循环默认走 SSE（`WANWU_STREAM=0` 关闭）；TUI 状态栏显示 `stream=on` 与本轮 token 用量；Shell 回合完成后在状态栏显示 in/out tokens；TUI 将流式增量拼到同一行，避免刷屏
 - **Shell @-mentions 补全**：Agent Studio 输入 `@` 弹出文件 / `@git:*` / `@web:` / `@terminal` / `@diagnostics` 列表；Tab/Enter 插入；终端最近输出与 LSP 诊断随 prompt 传给 ACP
