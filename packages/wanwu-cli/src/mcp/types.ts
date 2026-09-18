@@ -16,3 +16,11 @@ export type McpListedTool = McpTool & {
   /** Exposed to the LLM as mcp__<server>__<tool> */
   qualifiedName: string;
 };
+
+export type McpResource = {
+  uri: string;
+  name?: string;
+  description?: string;
+  mimeType?: string;
+  server: string;
+};

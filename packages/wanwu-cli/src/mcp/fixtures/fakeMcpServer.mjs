@@ -36,7 +36,7 @@ rl.on("line", (line) => {
       id,
       result: {
         protocolVersion: "2024-11-05",
-        capabilities: { tools: {} },
+        capabilities: { tools: {}, resources: {} },
         serverInfo: { name: "fake-mcp", version: "0.0.1" },
       },
     });
@@ -45,6 +45,33 @@ rl.on("line", (line) => {
   if (method === "notifications/initialized") return;
   if (method === "tools/list") {
     write({ jsonrpc: "2.0", id, result: { tools } });
+    return;
+  }
+  if (method === "resources/list") {
+    write({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        resources: [
+          {
+            uri: "fake://notes",
+            name: "notes",
+            description: "Fixture notes",
+            mimeType: "text/plain",
+          },
+        ],
+      },
+    });
+    return;
+  }
+  if (method === "resources/read") {
+    write({
+      jsonrpc: "2.0",
+      id,
+      result: {
+        contents: [{ uri: params?.uri, mimeType: "text/plain", text: `resource:${params?.uri}` }],
+      },
+    });
     return;
   }
   if (method === "tools/call") {
