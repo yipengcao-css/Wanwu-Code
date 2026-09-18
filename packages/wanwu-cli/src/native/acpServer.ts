@@ -17,6 +17,7 @@ import { detectMode, stripModeTags } from "./mode.js";
 import { resolvePermissionRequest } from "./permissions.js";
 import { loadSession, saveSession } from "./sessionStore.js";
 import { runHooks } from "../hooks.js";
+import { normalizePromptText, resolvePromptAttachments } from "./promptAttachments.js";
 
 type SessionState = {
   id: string;
@@ -125,8 +126,10 @@ export function startNativeAcpStdioServer(): void {
     if (method === "session/prompt" || method === "prompt") {
       const params = (msg.params ?? {}) as {
         sessionId?: string;
-        prompt?: string;
-        text?: string;
+        prompt?: unknown;
+        text?: unknown;
+        images?: unknown;
+        attachments?: unknown;
         /** Host-provided context for @diagnostics / @terminal mentions. */
         diagnostics?: string;
         terminal?: string;
@@ -137,7 +140,8 @@ export function startNativeAcpStdioServer(): void {
         return;
       }
       const session = sessions.get(sessionId)!;
-      const text = params.prompt ?? params.text ?? "";
+      const text = normalizePromptText(params);
+      const attachments = resolvePromptAttachments(workspaceRoot, params);
       const mode = detectMode(text, config.defaultMode);
       runHooks(workspaceRoot, "UserPromptSubmit", { sessionId, prompt: text, mode });
       const ctx = {
@@ -194,6 +198,7 @@ export function startNativeAcpStdioServer(): void {
             const out = await runLlmAgentLoop(ctx, config, text, {
               history: session.history,
               signal: session.abort.signal,
+              attachments: attachments.length ? attachments : undefined,
               hostContext: {
                 diagnostics: params.diagnostics ? () => params.diagnostics! : undefined,
                 terminal: params.terminal ? () => params.terminal! : undefined,
