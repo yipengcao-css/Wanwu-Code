@@ -48,6 +48,7 @@ export function App() {
   const [agentW, setAgentW] = useState(initial.agentW);
   const [termH, setTermH] = useState(initial.termH);
   const [status, setStatus] = useState("就绪 · Wanwu Lattice");
+  const [termTail, setTermTail] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const changeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -298,6 +299,7 @@ export function App() {
             activePath={activePath}
             selectionHint={activeTab?.content.slice(0, 500)}
             diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
+            terminalSummary={termTail || undefined}
             onStatus={setStatus}
           />
         </aside>
@@ -309,7 +311,15 @@ export function App() {
             onDrag={(d) => setTermH((h) => Math.min(480, Math.max(120, h - d)))}
           />
           <div className="terminal-drawer">
-            <TerminalPane key={root ?? "no-ws"} active={termOpen} />
+            <TerminalPane
+              key={root ?? "no-ws"}
+              active={termOpen}
+              onOutput={(data) => {
+                const clean = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+                if (!clean) return;
+                setTermTail((prev) => `${prev}${clean}`.slice(-4000));
+              }}
+            />
           </div>
         </>
       ) : null}

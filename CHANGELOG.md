@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Shell @-mentions 补全**：Agent Studio 输入 `@` 弹出文件 / `@git:*` / `@web:` / `@terminal` / `@diagnostics` 列表；Tab/Enter 插入；终端最近输出与 LSP 诊断随 prompt 传给 ACP
 - **编辑工具重做（A1）**：`Edit` 改为 search/replace 块（多块、replace_all、行尾空白容错、未命中给 near-miss 提示）；新增 `Write` 工具（创建/覆写）；`accept-edits`/`accept-all` 模式直接落盘并回传 diff，`ask` 模式保持提案审阅；acp-client 只对 pending diff 触发审阅
 - **IDE 深度集成**：VS Code 内联 diff（`vscode.diff` + WorkspaceEdit）；Quick Fix「用 Wanwu 修复」；Problems 桥接；ACP client 支持 `session/load` / `session/cancel`
 - **丰富 hooks 生命周期**：SessionStart/SessionEnd/UserPromptSubmit/ToolCallApproved/ToolCallDenied/SubagentStart/SubagentEnd/Error；`.wanwu/hooks/*.sh` 按事件前缀发现
