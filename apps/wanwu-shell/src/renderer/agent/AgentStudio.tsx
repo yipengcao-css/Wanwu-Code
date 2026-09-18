@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { WanwuMode } from "../layout/OrbitBar";
+import {
+  applyMention,
+  completeMentions,
+  mentionTokenAt,
+  type MentionSuggestion,
+} from "./mentionComplete";
 
 type LogItem =
   | { kind: "user" | "assistant" | "error" | "status"; text: string }
@@ -33,6 +39,8 @@ export function AgentStudio(props: {
   selectionHint?: string;
   /** Flattened LSP diagnostics for @diagnostics mention resolution. */
   diagnosticsSummary?: string;
+  /** Recent terminal output for @terminal mention resolution. */
+  terminalSummary?: string;
   onStatus: (s: string) => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
@@ -41,6 +49,10 @@ export function AgentStudio(props: {
   const [activeLocalId, setActiveLocalId] = useState(chats[0]!.localId);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [cursor, setCursor] = useState(0);
+  const [files, setFiles] = useState<string[]>([]);
+  const [activeSug, setActiveSug] = useState(0);
+  const [mentionOpen, setMentionOpen] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   activeLocalIdRef.current = activeLocalId;
@@ -57,6 +69,35 @@ export function AgentStudio(props: {
   useEffect(() => {
     return window.wanwu.shell.onFocusAgent(() => inputRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    if (!props.workspaceRoot) {
+      setFiles([]);
+      return;
+    }
+    void window.wanwu.fs.listFiles().then(setFiles).catch(() => setFiles([]));
+  }, [props.workspaceRoot]);
+
+  const token = useMemo(() => mentionTokenAt(text, cursor), [text, cursor]);
+  const suggestions = useMemo(
+    () => (token && mentionOpen ? completeMentions(token.partial, files) : []),
+    [token, files, mentionOpen],
+  );
+
+  function insertMention(sug: MentionSuggestion): void {
+    if (!token) return;
+    const next = applyMention(text, token, sug.insert);
+    setText(next);
+    setActiveSug(0);
+    const pos = token.start + sug.insert.length + (sug.insert.endsWith(":") ? 0 : 1);
+    requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(pos, pos);
+      setCursor(pos);
+    });
+  }
 
   const prevRootRef = useRef<string | null>(null);
   useEffect(() => {
@@ -212,6 +253,7 @@ export function AgentStudio(props: {
         : "";
       await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
         diagnostics: props.diagnosticsSummary,
+        terminal: props.terminalSummary,
       });
       props.onStatus("回合完成");
     } catch (err) {
@@ -278,13 +320,64 @@ export function AgentStudio(props: {
         })}
       </div>
       <div className="composer">
+        {suggestions.length > 0 ? (
+          <ul className="mention-menu" role="listbox" aria-label="@ 上下文补全">
+            {suggestions.map((s, i) => (
+              <li key={s.insert}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={i === activeSug}
+                  className={`mention-item${i === activeSug ? " active" : ""}`}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    insertMention(s);
+                  }}
+                >
+                  <span>{s.label}</span>
+                  {s.hint ? <span className="mention-hint">{s.hint}</span> : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <textarea
           ref={inputRef}
           value={text}
           disabled={!props.enabled || busy}
-          placeholder={props.enabled ? "描述你的意图…" : "请先打开工作区"}
-          onChange={(e) => setText(e.target.value)}
+          placeholder={props.enabled ? "描述你的意图… 输入 @ 引用文件 / git / 终端 / 诊断" : "请先打开工作区"}
+          onChange={(e) => {
+            setText(e.target.value);
+            setCursor(e.target.selectionStart);
+            setActiveSug(0);
+            setMentionOpen(true);
+          }}
+          onClick={(e) => setCursor(e.currentTarget.selectionStart)}
+          onKeyUp={(e) => setCursor(e.currentTarget.selectionStart)}
           onKeyDown={(e) => {
+            if (suggestions.length > 0) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setActiveSug((i) => (i + 1) % suggestions.length);
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setActiveSug((i) => (i - 1 + suggestions.length) % suggestions.length);
+                return;
+              }
+              if (e.key === "Tab" || (e.key === "Enter" && !e.metaKey && !e.ctrlKey)) {
+                e.preventDefault();
+                const pick = suggestions[activeSug] ?? suggestions[0];
+                if (pick) insertMention(pick);
+                return;
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setMentionOpen(false);
+                return;
+              }
+            }
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
               void send();
@@ -293,7 +386,7 @@ export function AgentStudio(props: {
         />
         <div className="composer-row">
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
-            Mode={props.mode} · Ctrl/Cmd+Enter 发送
+            Mode={props.mode} · @ 引用 · Ctrl/Cmd+Enter 发送
           </span>
           <button
             type="button"

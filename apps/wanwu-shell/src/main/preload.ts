@@ -12,6 +12,7 @@ export type WanwuBridge = {
     read: (rel: string) => Promise<string>;
     write: (rel: string, content: string) => Promise<boolean>;
     search: (query: string) => Promise<Array<{ path: string; line: number; text: string }>>;
+    listFiles: () => Promise<string[]>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
   ai: {
@@ -136,6 +137,7 @@ const bridge: WanwuBridge = {
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
     search: (query) => ipcRenderer.invoke("fs:search", query),
+    listFiles: () => ipcRenderer.invoke("fs:listFiles"),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
   },
   ai: {

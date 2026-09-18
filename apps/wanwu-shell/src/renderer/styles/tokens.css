@@ -371,12 +371,55 @@ button {
 }
 
 .composer {
+  position: relative;
   border-top: 1px solid var(--ww-border);
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   background: rgba(15, 21, 36, 0.95);
+}
+
+.mention-menu {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 100%;
+  margin: 0 0 4px;
+  padding: 4px;
+  list-style: none;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--ww-border);
+  background: var(--ww-surface-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 5;
+}
+
+.mention-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: var(--ww-font-mono);
+}
+
+.mention-item.active,
+.mention-item:hover {
+  background: rgba(42, 212, 160, 0.12);
+}
+
+.mention-hint {
+  color: var(--ww-muted);
+  font-family: var(--ww-font-ui);
+  font-size: 11px;
 }
 
 .composer textarea {
