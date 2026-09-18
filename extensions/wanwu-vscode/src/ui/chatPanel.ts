@@ -5,8 +5,6 @@ import { startAcpProcess } from "../acp/process";
 import { askToolPermission } from "./permissionModal";
 import { reviewSingleFileDiff } from "./diffReview";
 import { findExtensionWorkspaceRoot } from "../workspaceRoot";
-import * as path from "node:path";
-import { writeFileSync, mkdirSync } from "node:fs";
 import { SessionManager } from "./sessionManager";
 
 export class WanwuChatPanel {
@@ -78,6 +76,8 @@ export class WanwuChatPanel {
     const child = startAcpProcess({
       cwd: folder,
       workspaceRoot,
+      extensionPath: this.context.extensionPath,
+      repoRoot: workspaceRoot,
       commandOverride: process.env.WANWU_ACP_COMMAND,
       useMock: Boolean(useMock),
     });
@@ -109,12 +109,8 @@ export class WanwuChatPanel {
           type: "tool",
           text: `pending Edit: ${edit.path}`,
         });
-        const decision = await reviewSingleFileDiff(edit);
+        const decision = await reviewSingleFileDiff(edit, findExtensionWorkspaceRoot());
         if (decision === "accept") {
-          const root = findExtensionWorkspaceRoot();
-          const abs = path.isAbsolute(edit.path) ? edit.path : path.join(root, edit.path);
-          mkdirSync(path.dirname(abs), { recursive: true });
-          writeFileSync(abs, edit.after, "utf8");
           void this.panel.webview.postMessage({
             type: "status",
             text: `accepted edit → ${edit.path}`,

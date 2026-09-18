@@ -16,7 +16,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/client.test.ts"
+    "test": "tsx src/client.test.ts && tsx src/launch.test.ts"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
