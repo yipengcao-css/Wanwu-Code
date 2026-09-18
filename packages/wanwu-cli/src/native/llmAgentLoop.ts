@@ -24,6 +24,7 @@ import { toolWebSearch } from "./web.js";
 import type { AgentContext } from "./agentLoop.js";
 import { detectMode } from "./mode.js";
 import { dispatchTool } from "./toolDispatch.js";
+import { shouldStream } from "./stream.js";
 import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 
 function providerOverride(): ProviderId | undefined {
@@ -223,7 +224,7 @@ export async function runLlmAgentLoop(
     }
 
     try {
-      const useStream = opts?.stream ?? process.env.WANWU_STREAM === "1";
+      const useStream = shouldStream(opts);
       if (useStream) {
         last = await streamChat({
           config,
@@ -368,7 +369,7 @@ export async function runLlmAgentLoop(
       }
     }
 
-    if (last.text && !(opts?.stream ?? process.env.WANWU_STREAM === "1")) {
+    if (last.text && !shouldStream(opts)) {
       sessionUpdate(ctx.sessionId, {
         sessionUpdate: "agent_message_chunk",
         content: { type: "text", text: last.text },

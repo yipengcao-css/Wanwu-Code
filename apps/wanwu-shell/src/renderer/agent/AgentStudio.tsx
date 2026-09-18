@@ -85,7 +85,13 @@ export function AgentStudio(props: {
   useEffect(() => {
     const offs = [
       window.wanwu.acp.onMessage((t) =>
-        patchActive((prev) => [...prev, { kind: "assistant", text: t }]),
+        patchActive((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.kind === "assistant") {
+            return [...prev.slice(0, -1), { kind: "assistant", text: last.text + t }];
+          }
+          return [...prev, { kind: "assistant", text: t }];
+        }),
       ),
       window.wanwu.acp.onTool((tool) =>
         patchActive((prev) => [
@@ -210,10 +216,19 @@ export function AgentStudio(props: {
             props.selectionHint ? `Preview:\n\`\`\`\n${props.selectionHint}\n\`\`\`\n` : ""
           }[/EDITOR_CONTEXT]\n`
         : "";
-      await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
+      const result = (await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
         diagnostics: props.diagnosticsSummary,
-      });
-      props.onStatus("回合完成");
+      })) as {
+        usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+        checkpointId?: string;
+      };
+      const usage = result?.usage;
+      const tokens =
+        usage && (usage.inputTokens !== undefined || usage.outputTokens !== undefined)
+          ? ` · in ${usage.inputTokens ?? 0} / out ${usage.outputTokens ?? 0}`
+          : "";
+      const ckpt = result?.checkpointId ? ` · ckpt ${result.checkpointId}` : "";
+      props.onStatus(`回合完成${tokens}${ckpt}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       patchActive((prev) => [...prev, { kind: "error", text: message }]);

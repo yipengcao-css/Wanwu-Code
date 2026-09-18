@@ -37,7 +37,11 @@ export type WanwuBridge = {
     prompt: (
       text: string,
       context?: { diagnostics?: string; terminal?: string },
-    ) => Promise<unknown>;
+    ) => Promise<{
+      stopReason?: string;
+      usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+      checkpointId?: string;
+    }>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
