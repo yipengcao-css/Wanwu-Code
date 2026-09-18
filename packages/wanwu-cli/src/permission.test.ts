@@ -69,3 +69,52 @@ describe("permission matcher", () => {
     expect(v.requiresPrompt).toBe(true);
   });
 });
+
+describe("isReadOnlyBash", () => {
+  it("treats common inspection commands as read-only", () => {
+    for (const cmd of [
+      "ls -la",
+      "cat README.md",
+      "grep -r foo src",
+      "rg pattern",
+      "git status",
+      "git log --oneline -5",
+      "git diff HEAD~1",
+      "find . -name '*.ts'",
+      "head -n 20 file.txt | wc -l",
+      "node -v",
+      "pnpm --version",
+      "echo hello 2>&1",
+      "sed -n '1,5p' file.txt",
+    ]) {
+      expect(isReadOnlyBash(cmd), cmd).toBe(true);
+    }
+  });
+
+  it("treats mutating commands as NOT read-only", () => {
+    for (const cmd of [
+      "echo hi > out.txt",
+      "cat a >> b.txt",
+      "mkdir newdir",
+      "touch file",
+      "rm file.txt",
+      "git commit -m x",
+      "git push",
+      "git checkout -b feature",
+      "pnpm install",
+      "npm run build",
+      "sed -i 's/a/b/' file",
+      "cat $(cat cmd.txt)",
+      "NODE_ENV=prod node server.js",
+      "cp a b",
+      "mv a b",
+    ]) {
+      expect(isReadOnlyBash(cmd), cmd).toBe(false);
+    }
+  });
+
+  it("is conservative: a read-only prefix chained with a mutation is not read-only", () => {
+    expect(isReadOnlyBash("ls && rm file")).toBe(false);
+    expect(isReadOnlyBash("cat x.txt; touch y")).toBe(false);
+  });
+});

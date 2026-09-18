@@ -35,8 +35,10 @@ const MEDIUM_PATTERNS: Array<{ re: RegExp; reason: string }> = [
 
 /** Split a command line into its shell segments (best-effort, for scoping guards). */
 function shellSegments(cmd: string): string[] {
+  // Separators: newline, ;, &&, ||, | and a lone background & — but NOT an & that
+  // is part of a redirection such as 2>&1, >&2 or &> (those are not separators).
   return cmd
-    .split(/\n|;|&&|\|\||\||&/)
+    .split(/\n|;|&&|\|\||\||(?<![\d>&])&(?![>&])/)
     .map((s) => s.trim())
     .filter(Boolean);
 }
