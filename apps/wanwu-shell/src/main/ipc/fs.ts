@@ -185,6 +185,14 @@ export function registerFsIpc(
     return searchInWorkspace(root, query.trim());
   });
 
+  ipcMain.handle("fs:listFiles", async () => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    const files: string[] = [];
+    await walkForSearch(root, root, files, 500);
+    return files;
+  });
+
   // Watch workspace for external changes (formatter, git checkout, agent edits).
   const root = getRoot();
   if (root && getWin) startWatching(root, getWin);
