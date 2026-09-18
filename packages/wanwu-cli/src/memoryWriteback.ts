@@ -6,6 +6,8 @@ export interface WritebackOptions {
   note: string;
   yes?: boolean;
   cwd?: string;
+  /** Skip stdout (ACP uses stdout for JSON-RPC). */
+  quiet?: boolean;
 }
 
 /** Append a confirmed lesson/convention into WANWU.md under "## Learned". */
@@ -16,9 +18,11 @@ export function writebackMemory(opts: WritebackOptions): string {
   const entry = `\n- (${stamp}) ${opts.note.trim()}\n`;
 
   if (!opts.yes) {
-    console.log(`Dry-run writeback to ${path}:`);
-    console.log(entry);
-    console.log("Re-run with --yes to apply.");
+    if (!opts.quiet) {
+      console.log(`Dry-run writeback to ${path}:`);
+      console.log(entry);
+      console.log("Re-run with --yes to apply.");
+    }
     return path;
   }
 
@@ -34,6 +38,6 @@ export function writebackMemory(opts: WritebackOptions): string {
     const updated = current.replace(/^(## Learned\n)/m, `$1${entry}`);
     writeFileSync(path, updated, "utf8");
   }
-  console.log(`Updated ${path}`);
+  if (!opts.quiet) console.log(`Updated ${path}`);
   return path;
 }
