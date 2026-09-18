@@ -14,6 +14,13 @@ export type WanwuBridge = {
     search: (query: string) => Promise<Array<{ path: string; line: number; text: string }>>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
+  git: {
+    status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
+  };
+  media: {
+    saveImage: (payload: { name?: string; mime?: string; dataBase64: string }) => Promise<string>;
+    pickImages: () => Promise<string[]>;
+  };
   ai: {
     complete: (req: {
       prefix: string;
@@ -36,7 +43,7 @@ export type WanwuBridge = {
     setSession: (sessionId: string) => Promise<{ sessionId?: string }>;
     prompt: (
       text: string,
-      context?: { diagnostics?: string; terminal?: string },
+      context?: { diagnostics?: string; terminal?: string; images?: string[] },
     ) => Promise<unknown>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
@@ -137,6 +144,13 @@ const bridge: WanwuBridge = {
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
     search: (query) => ipcRenderer.invoke("fs:search", query),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
+  },
+  git: {
+    status: () => ipcRenderer.invoke("git:status"),
+  },
+  media: {
+    saveImage: (payload) => ipcRenderer.invoke("media:saveImage", payload),
+    pickImages: () => ipcRenderer.invoke("media:pickImages"),
   },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),

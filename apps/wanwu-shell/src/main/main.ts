@@ -17,6 +17,8 @@ import {
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
 import { registerAiIpc } from "./ipc/ai.js";
+import { registerGitIpc } from "./ipc/git.js";
+import { registerMediaIpc } from "./ipc/media.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -101,6 +103,8 @@ app.whenReady().then(() => {
   );
   registerSettingsIpc(() => workspaceRoot);
   registerAiIpc(() => workspaceRoot);
+  registerGitIpc(() => workspaceRoot);
+  registerMediaIpc(() => workspaceRoot);
   registerAcpIpc(
     () => workspaceRoot,
     () => mainWindow,
