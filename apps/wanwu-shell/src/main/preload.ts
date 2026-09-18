@@ -12,7 +12,15 @@ export type WanwuBridge = {
     read: (rel: string) => Promise<string>;
     write: (rel: string, content: string) => Promise<boolean>;
     search: (query: string) => Promise<Array<{ path: string; line: number; text: string }>>;
+    listFiles: () => Promise<string[]>;
     onChanged: (cb: (rel: string) => void) => () => void;
+  };
+  git: {
+    status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
+  };
+  media: {
+    saveImage: (payload: { name?: string; mime?: string; dataBase64: string }) => Promise<string>;
+    pickImages: () => Promise<string[]>;
   };
   ai: {
     complete: (req: {
@@ -36,8 +44,12 @@ export type WanwuBridge = {
     setSession: (sessionId: string) => Promise<{ sessionId?: string }>;
     prompt: (
       text: string,
-      context?: { diagnostics?: string; terminal?: string },
-    ) => Promise<unknown>;
+      context?: { diagnostics?: string; terminal?: string; images?: string[] },
+    ) => Promise<{
+      stopReason?: string;
+      usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+      checkpointId?: string;
+    }>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
@@ -136,7 +148,15 @@ const bridge: WanwuBridge = {
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
     search: (query) => ipcRenderer.invoke("fs:search", query),
+    listFiles: () => ipcRenderer.invoke("fs:listFiles"),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
+  },
+  git: {
+    status: () => ipcRenderer.invoke("git:status"),
+  },
+  media: {
+    saveImage: (payload) => ipcRenderer.invoke("media:saveImage", payload),
+    pickImages: () => ipcRenderer.invoke("media:pickImages"),
   },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),

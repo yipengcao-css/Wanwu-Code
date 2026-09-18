@@ -1,8 +1,47 @@
 # 对标 Cursor 的缺口审计与实施方案（2026-09-15）
 
+> **2026-09-18 状态**：阶段 A–E（#39–#56）已合入 `main`。#65–#69（流式默认开 / Shell @ 菜单 / 扩展 bundled ACP / 文档对齐 / MCP resources·贴图·记忆·SCM）已在集成分支合并。下文 §1–§3 是审计当日快照，**不要按空缺表再施工**。仍缺项见文首「仍未做」。
+
+## 2026-09-18 已落地（相对审计稿）
+
+| 阶段 | 已实现 | 证据 |
+|---|---|---|
+| A1 | `Edit` search/replace 块 + `Write`；`ask` 提案、`accept-edits`/`accept-all` 落盘 | `tools.ts` / `toolDispatch.ts` |
+| A2 | token 估算 + `compactMessages`；`maxTurns` 25 / `maxTokens` 8192 | `native/context/compact.ts` |
+| A3 | 超时/重试/`usage`/`assertMediaSupported` | `packages/wanwu-providers` |
+| A4 | `Todo` 会话任务清单 | `native/todo.ts` |
+| A5 | `WebFetch` / `WebSearch` | `native/web.ts` |
+| B1 | `@file` `@git:*` `@web:` `@terminal` `@diagnostics`（TUI Tab 补全） | `native/mentions.ts` / `tui.ts` |
+| B2 | `SearchCodebase` embeddings + 关键词降级 | `native/codebaseIndex/` |
+| B3 | `Diagnose` + 编辑后 lint 闭环 | `native/diagnose.ts` / `llmAgentLoop.ts` |
+| B4 | `.wanwu/rules` + `~/.wanwu/rules` | `rules.ts` |
+| C1 | Monaco Tab 幽灵文本 + FIM/chat | `inlineComplete.ts` |
+| C2 | Ctrl+K 内联改写 | `inlineEdit.ts` |
+| C3 | turn 检查点 + `wanwu undo` | `native/checkpoints.ts` |
+| C4 | 文件监听 / 搜索 / 命令面板 / 多终端 / 全 LSP | `apps/wanwu-shell` |
+| D1–D5 | allow-session 记忆、hooks 全接线、coder 互斥、TUI `/resume`、`commit-msg` | CLI / TUI |
+| E | protocol 再导出、去掉 WSL 假检测、Anthropic URL 图、扩展 Quick Fix 带诊断 | — |
+| 流式默认开 | `shouldStream` 默认 on；TUI/Shell 显示 token | `native/stream.ts` / `statusBar.ts` |
+| Shell @ 菜单 | Agent Studio `@` 补全 + 终端/诊断随 prompt | `mentionComplete.ts` |
+| 扩展 ACP | bundled 启动 + `vscode.diff` / WorkspaceEdit | `wanwu-acp-client/launch.ts` |
+| MCP resources | `resources/list`+`read`；`McpReadResource` | `mcp/client.ts` / `registry.ts` |
+| 聊天贴图 | ACP images / TUI `/image` / Shell 粘贴 | `promptAttachments.ts` |
+| 自动记忆 | 明确「记住」写入 WANWU.md | `autoMemory.ts` |
+| 轻量 SCM | FileTree porcelain 标记 | `git:status` / `shared/scm.ts` |
+
+## 仍未做（2026-09-18）
+
+1. MCP **prompts / OAuth / 远程**（stdio resources 已做）
+2. Shell 调试器；终端内 Ctrl+K
+3. `WorkflowMachine` 未进 UI；`crates/` 仍空
+4. 插件注册表 `registry.wanwu.dev` 未证实上线
+5. 扩展无侧栏 View
+
+---
+
 > 目标：**复刻 Cursor 级本地 coding agent**，明确排除 cloud agent / Bugbot / Web 端等重基础设施。
-> 范围：当前 `main`（`c810788`）全部代码 + 文档。审计方法：4 路子系统盘点（CLI runtime / providers 共享包 / Electron Shell / 扩展与文档）+ 关键路径人工复核。
-> 结论：**Wanwu 已有「能跑通的 Agent 骨架 + 安全基线 + 多模型」，但缺 Cursor 的三大招牌（Tab 补全、内联编辑、代码库索引）与上下文工程深度；另有约 15 处「定义了但没接线」的半成品。**
+> 范围：当时 `main`（`c810788`）全部代码 + 文档。审计方法：4 路子系统盘点（CLI runtime / providers 共享包 / Electron Shell / 扩展与文档）+ 关键路径人工复核。
+> 结论（**当时**）：**Wanwu 已有「能跑通的 Agent 骨架 + 安全基线 + 多模型」，但缺 Cursor 的三大招牌（Tab 补全、内联编辑、代码库索引）与上下文工程深度；另有约 15 处「定义了但没接线」的半成品。**
 
 ---
 

@@ -55,6 +55,29 @@ export class McpStdioClient {
     return Array.isArray(result.tools) ? result.tools : [];
   }
 
+  async listResources(): Promise<Array<{ uri: string; name?: string; description?: string; mimeType?: string }>> {
+    try {
+      const result = (await this.request("resources/list", {})) as {
+        resources?: Array<{ uri: string; name?: string; description?: string; mimeType?: string }>;
+      };
+      return Array.isArray(result.resources) ? result.resources : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async readResource(uri: string): Promise<string> {
+    const result = (await this.request("resources/read", { uri })) as {
+      contents?: Array<{ uri?: string; mimeType?: string; text?: string; blob?: string }>;
+    };
+    const parts = (result.contents ?? []).map((c) => {
+      if (typeof c.text === "string") return c.text;
+      if (typeof c.blob === "string") return `[binary ${c.mimeType ?? "blob"} ${c.blob.slice(0, 32)}…]`;
+      return "";
+    });
+    return parts.filter(Boolean).join("\n") || JSON.stringify(result);
+  }
+
   async callTool(name: string, args: Record<string, unknown>): Promise<string> {
     const result = (await this.request("tools/call", {
       name,

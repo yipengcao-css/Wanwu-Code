@@ -34,7 +34,31 @@ describe("McpRegistry + dispatch", () => {
     expect(tools.map((t) => t.qualifiedName)).toContain("mcp__fake__echo");
     const out = await reg.callTool("mcp__fake__echo", { message: "ping" });
     expect(out).toBe("ping");
+    expect(reg.listResources().map((r) => r.uri)).toContain("fake://notes");
+    expect(await reg.readResource("fake://notes")).toBe("resource:fake://notes");
+    expect(reg.listToolSpecs().some((t) => t.name === "McpReadResource")).toBe(true);
     reg.dispose();
+  });
+
+  it("reads MCP resources through dispatchTool", async () => {
+    const workspaceRoot = `/tmp/wanwu-mcp-res-${Date.now()}`;
+    roots.push(workspaceRoot);
+    await ensureMcpRegistry(workspaceRoot, {
+      servers: [{ name: "fake", command: "node", args: [fixtureServer] }],
+    });
+    const viaDispatch = await dispatchTool(
+      {
+        workspaceRoot,
+        sessionId: "s-res",
+        permissionMode: "ask",
+        mode: "agent",
+      },
+      "agent",
+      "McpReadResource",
+      JSON.stringify({ uri: "fake://notes" }),
+    );
+    expect(viaDispatch.ok).toBe(true);
+    expect(viaDispatch.text).toBe("resource:fake://notes");
   });
 
   it("routes mcp__ tools through dispatchTool + hooks", async () => {

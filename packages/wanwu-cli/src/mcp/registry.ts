@@ -4,7 +4,7 @@ import {
   loadMcpServers,
   qualifyMcpTool,
 } from "./loadConfig.js";
-import type { McpListedTool, McpServerConfig } from "./types.js";
+import type { McpListedTool, McpResource, McpServerConfig } from "./types.js";
 
 export interface McpRegistryOptions {
   workspaceRoot: string;
@@ -19,6 +19,7 @@ export interface McpRegistryOptions {
 export class McpRegistry {
   private readonly clients = new Map<string, McpStdioClient>();
   private readonly tools = new Map<string, McpListedTool>();
+  private readonly resources = new Map<string, McpResource>();
   private started = false;
 
   constructor(private readonly opts: McpRegistryOptions) {}
@@ -44,6 +45,11 @@ export class McpRegistry {
             qualifiedName,
           });
         }
+        const listedRes = await client.listResources();
+        for (const r of listedRes) {
+          if (!r.uri) continue;
+          this.resources.set(r.uri, { ...r, server: cfg.name });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(`[wanwu mcp] failed to start server "${cfg.name}": ${msg}`);
@@ -56,17 +62,45 @@ export class McpRegistry {
     return [...this.tools.values()];
   }
 
+  listResources(): McpResource[] {
+    return [...this.resources.values()];
+  }
+
   /** OpenAI-compat tool specs for the LLM loop. */
   listToolSpecs(): ToolSpec[] {
-    return this.listTools().map((t) => ({
+    const specs = this.listTools().map((t) => ({
       name: t.qualifiedName,
       description: `[MCP:${t.server}] ${t.description ?? t.name}`,
       parameters: t.inputSchema ?? { type: "object", properties: {} },
     }));
+    if (this.resources.size) {
+      specs.push({
+        name: "McpReadResource",
+        description: "Read an MCP resource by uri (from resources/list).",
+        parameters: {
+          type: "object",
+          properties: { uri: { type: "string" } },
+          required: ["uri"],
+        },
+      });
+    }
+    return specs;
   }
 
   hasTool(name: string): boolean {
     return this.tools.has(name);
+  }
+
+  async readResource(uri: string): Promise<string> {
+    const meta = this.resources.get(uri);
+    if (!meta) {
+      throw new Error(`unknown MCP resource: ${uri}`);
+    }
+    const client = this.clients.get(meta.server);
+    if (!client) {
+      throw new Error(`MCP server not running: ${meta.server}`);
+    }
+    return client.readResource(uri);
   }
 
   async callTool(name: string, args: Record<string, unknown>): Promise<string> {
@@ -85,6 +119,7 @@ export class McpRegistry {
     for (const c of this.clients.values()) c.dispose();
     this.clients.clear();
     this.tools.clear();
+    this.resources.clear();
     this.started = false;
   }
 }

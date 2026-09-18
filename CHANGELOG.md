@@ -2,7 +2,19 @@
 
 ## Unreleased
 
+### Fixed
+- **Windows `pnpm build:cli` / `shell:dev`**：生成 `dist-bin/wanwu.mjs` 改为 Node 脚本，不再依赖 `bash`（未装 Git Bash 时也能拉起 ACP）
+- **Windows `shell:dev` ERR_CONNECTION_REFUSED**：等 Vite 在 `127.0.0.1:5173` 真正就绪再启动 Electron（不再固定睡 1.2s；避免 `localhost` IPv6 与 `127.0.0.1` 不一致）
+
 ### Added
+- **默认流式输出**：LLM 循环默认走 SSE（`WANWU_STREAM=0` 关闭）；TUI 状态栏显示 `stream=on` 与本轮 token 用量；Shell 回合完成后在状态栏显示 in/out tokens；TUI 将流式增量拼到同一行，避免刷屏
+- **Shell @-mentions 补全**：Agent Studio 输入 `@` 弹出文件 / `@git:*` / `@web:` / `@terminal` / `@diagnostics` 列表；Tab/Enter 插入；终端最近输出与 LSP 诊断随 prompt 传给 ACP
+- **扩展独立 ACP + 真 Diff**：VS Code 扩展不再依赖 `pnpm exec tsx`；按 bundled `wanwu-cli` / `dist-bin` / 仓库 `tsx` 入口拉起 ACP。Diff 审阅改为 `vscode.diff` 并排视图，接受时用 WorkspaceEdit 落盘
+- **MCP resources**：stdio `resources/list` / `resources/read`；LLM 工具 `McpReadResource`
+- **聊天贴图**：ACP `session/prompt` 接受 `images` / content-block 图像；TUI `/image`；Shell 粘贴/选图经 ACP 发送
+- **自动记忆**：用户明确说「记住 / remember / always use」时写入 `WANWU.md` `## Learned`（`WANWU_AUTO_MEMORY=0` 关闭）
+- **轻量 SCM**：Shell FileTree 显示 git porcelain 状态标记（M/A/D/?）
+- **Cursor 对标 A2–E（已合入 #40–#56）**：上下文压缩与更高回合上限；providers 超时/重试/usage；Todo / WebFetch / WebSearch；@-mentions；代码库索引；Diagnose lint 闭环；分层 rules；Tab 补全与 Ctrl+K；检查点/undo；Shell 搜索/命令面板/多终端/全 LSP；allow-session 记忆与 hooks 全接线；TUI `/resume`；`wanwu commit-msg`
 - **编辑工具重做（A1）**：`Edit` 改为 search/replace 块（多块、replace_all、行尾空白容错、未命中给 near-miss 提示）；新增 `Write` 工具（创建/覆写）；`accept-edits`/`accept-all` 模式直接落盘并回传 diff，`ask` 模式保持提案审阅；acp-client 只对 pending diff 触发审阅
 - **IDE 深度集成**：VS Code 内联 diff（`vscode.diff` + WorkspaceEdit）；Quick Fix「用 Wanwu 修复」；Problems 桥接；ACP client 支持 `session/load` / `session/cancel`
 - **丰富 hooks 生命周期**：SessionStart/SessionEnd/UserPromptSubmit/ToolCallApproved/ToolCallDenied/SubagentStart/SubagentEnd/Error；`.wanwu/hooks/*.sh` 按事件前缀发现

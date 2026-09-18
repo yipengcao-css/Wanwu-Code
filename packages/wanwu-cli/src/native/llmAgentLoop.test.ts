@@ -36,7 +36,7 @@ describe("runLlmAgentLoop", () => {
       },
       config,
       "用工具读取 README 并给出标题",
-      { fetchImpl, maxTurns: 4 },
+      { fetchImpl, maxTurns: 4, stream: false },
     );
 
     expect(calls).toBe(2);
@@ -75,6 +75,7 @@ describe("runLlmAgentLoop", () => {
       {
         fetchImpl,
         maxTurns: 2,
+        stream: false,
         history: [
           { role: "user", content: "第一轮问题" },
           { role: "assistant", content: "第一轮回答" },
@@ -84,5 +85,41 @@ describe("runLlmAgentLoop", () => {
 
     // system + 2 history + new user
     expect(sawMessages).toBeGreaterThanOrEqual(4);
+  });
+
+  it("streams by default and records usage", async () => {
+    const sse = [
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "Hello" } }] })}\n\n`,
+      `data: ${JSON.stringify({
+        choices: [{ delta: { content: " world" } }],
+        usage: { prompt_tokens: 11, completion_tokens: 2, total_tokens: 13 },
+      })}\n\n`,
+      "data: [DONE]\n\n",
+    ].join("");
+    const fetchImpl: typeof fetch = async () =>
+      new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } });
+
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "openai",
+      model: "deepseek-chat",
+    });
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+    const result = await runLlmAgentLoop(
+      {
+        workspaceRoot: root,
+        sessionId: "test-stream",
+        permissionMode: "ask",
+        mode: "ask",
+      },
+      config,
+      "say hi",
+      { fetchImpl, maxTurns: 1 },
+    );
+
+    expect(result.text).toMatch(/Hello world/);
+    expect(result.usage?.inputTokens).toBe(11);
+    expect(result.usage?.outputTokens).toBe(2);
+    expect(result.usage?.totalTokens).toBe(13);
   });
 });

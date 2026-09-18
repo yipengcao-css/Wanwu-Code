@@ -87,7 +87,11 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
 
   ipcMain.handle(
     "acp:prompt",
-    async (_e, text: string, context?: { diagnostics?: string; terminal?: string }) => {
+    async (
+      _e,
+      text: string,
+      context?: { diagnostics?: string; terminal?: string; images?: string[] },
+    ) => {
       if (!client || !sessionId) throw new Error("ACP not ready");
       return client.prompt(sessionId, text, context);
     },

@@ -7,10 +7,12 @@ type TermSession = { id: string; title: string };
 
 let termSeq = 1;
 
-function TerminalInstance(props: { id: string; active: boolean }) {
+function TerminalInstance(props: { id: string; active: boolean; onOutput?: (data: string) => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const onOutputRef = useRef(props.onOutput);
+  onOutputRef.current = props.onOutput;
 
   useEffect(() => {
     if (!hostRef.current || termRef.current) return;
@@ -34,7 +36,10 @@ function TerminalInstance(props: { id: string; active: boolean }) {
 
     void window.wanwu.term.start(props.id, term.cols, term.rows);
     const off = window.wanwu.term.onData((payload) => {
-      if (payload.id === props.id) term.write(payload.data);
+      if (payload.id === props.id) {
+        term.write(payload.data);
+        onOutputRef.current?.(payload.data);
+      }
     });
     const disp = term.onData((data) => {
       void window.wanwu.term.write(props.id, data);
@@ -78,7 +83,7 @@ function TerminalInstance(props: { id: string; active: boolean }) {
 }
 
 /** Multi-terminal drawer: tabs of independent PTYs. */
-export function TerminalPane(props: { active: boolean }) {
+export function TerminalPane(props: { active: boolean; onOutput?: (data: string) => void }) {
   const [sessions, setSessions] = useState<TermSession[]>([{ id: "t1", title: "终端 1" }]);
   const [activeId, setActiveId] = useState("t1");
 
@@ -153,7 +158,12 @@ export function TerminalPane(props: { active: boolean }) {
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         {sessions.map((s) => (
-          <TerminalInstance key={s.id} id={s.id} active={s.id === activeId} />
+          <TerminalInstance
+            key={s.id}
+            id={s.id}
+            active={s.id === activeId}
+            onOutput={props.onOutput}
+          />
         ))}
       </div>
     </div>

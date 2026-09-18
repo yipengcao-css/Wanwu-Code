@@ -161,7 +161,12 @@ export class AcpClient extends EventEmitter {
   async prompt(
     sessionId: string,
     text: string,
-    context?: { diagnostics?: string; terminal?: string },
+    context?: {
+      diagnostics?: string;
+      terminal?: string;
+      images?: string[];
+      attachments?: Array<{ path?: string; data?: string; mediaType?: string }>;
+    },
   ): Promise<unknown> {
     return this.request("session/prompt", {
       sessionId,
@@ -169,6 +174,8 @@ export class AcpClient extends EventEmitter {
       text,
       ...(context?.diagnostics ? { diagnostics: context.diagnostics } : {}),
       ...(context?.terminal ? { terminal: context.terminal } : {}),
+      ...(context?.images?.length ? { images: context.images } : {}),
+      ...(context?.attachments?.length ? { attachments: context.attachments } : {}),
     });
   }
 
