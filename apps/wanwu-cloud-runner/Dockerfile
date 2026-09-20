@@ -4,8 +4,7 @@ FROM node:20.18.0-bookworm-slim
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git ca-certificates python3 make g++ \
   && rm -rf /var/lib/apt/lists/* \
-  && corepack enable \
-  && corepack prepare pnpm@10.33.3 --activate
+  && npm install -g pnpm@10.33.3
 
 WORKDIR /workspace
 

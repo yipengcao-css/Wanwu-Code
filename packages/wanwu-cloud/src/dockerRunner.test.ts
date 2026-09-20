@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   buildDockerRunArgs,
@@ -5,6 +8,8 @@ import {
   isNestedOverlayFailure,
   shouldRefuseDockerFallback,
 } from "./dockerRunner.js";
+
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
 describe("docker runner", () => {
   it("reports docker availability without throwing", () => {
@@ -34,5 +39,14 @@ describe("docker runner", () => {
   it("honors WANWU_DOCKER_REQUIRE for refusing fallback", () => {
     expect(shouldRefuseDockerFallback({ WANWU_DOCKER_REQUIRE: "1" })).toBe(true);
     expect(shouldRefuseDockerFallback({})).toBe(false);
+  });
+
+  it("installs pnpm via npm, not outdated corepack keys", () => {
+    const entry = readFileSync(join(repoRoot, "apps/wanwu-cloud-runner/scripts/entrypoint.sh"), "utf8");
+    const docker = readFileSync(join(repoRoot, "apps/wanwu-cloud-runner/Dockerfile"), "utf8");
+    expect(entry).not.toMatch(/corepack prepare/);
+    expect(entry).toMatch(/npm install -g pnpm@10\.33\.3/);
+    expect(docker).not.toMatch(/corepack prepare/);
+    expect(docker).toMatch(/npm install -g pnpm@10\.33\.3/);
   });
 });

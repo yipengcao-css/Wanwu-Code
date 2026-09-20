@@ -23,6 +23,7 @@ WANWU_CLOUD_PROMPT="fix demo" docker compose -f apps/wanwu-cloud-runner/docker-c
 
 - Docker Engine
 - 首次 build 会 `pnpm install`（需网络）
+- 未预构建 `wanwu-cloud-runner:local` 时，默认镜像 `node:20.18.0-bookworm-slim` 用 **`npm install -g pnpm@10.33.3`** 装包管理器（避开 stock corepack 的 `Cannot find matching keyid`）
 
 ## Nested overlay / CI
 
