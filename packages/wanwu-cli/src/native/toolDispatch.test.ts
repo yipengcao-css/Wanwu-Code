@@ -2,7 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CONFIG } from "@wanwu/config";
 import { dispatchTool, dispatchToolSync } from "./toolDispatch.js";
+
+const offSandbox = { ...DEFAULT_CONFIG, sandbox: "off" as const };
 
 describe("dispatchTool hooks", () => {
   it("blocks tool when PreToolUse hook fails", async () => {
@@ -199,6 +202,9 @@ describe("dispatchTool P0/P1 safety", () => {
         sessionId: "s1",
         permissionMode: "ask",
         mode: "ask",
+        // CI runners have docker; workspace sandbox would `docker run` and
+        // blow the 5s vitest budget pulling node:22-alpine.
+        config: offSandbox,
       },
       "ask",
       "Bash",

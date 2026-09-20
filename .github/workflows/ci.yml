@@ -87,8 +87,8 @@ jobs:
           OUT=$(pnpm wanwu -- cloud submit -p "gha pure docker" --docker)
           echo "$OUT"
           echo "$OUT" | tee /tmp/cloud-docker-out.json
-          # Extract task id from JSON
-          TASK_ID=$(node -e 'const s=require("fs").readFileSync(0,"utf8"); const m=s.match(/\{[\s\S]*\}/); if(!m) process.exit(2); const j=JSON.parse(m[0]); if(j.status!=="succeeded"){console.error(j); process.exit(1)}; console.log(j.id)') <<<"$OUT"
+          # here-string must be inside $() so node actually sees stdout JSON
+          TASK_ID=$(node -e 'const s=require("fs").readFileSync(0,"utf8"); const a=s.lastIndexOf("{"); const b=s.lastIndexOf("}"); if(a<0||b<=a) process.exit(2); const j=JSON.parse(s.slice(a,b+1)); if(j.status!=="succeeded"){console.error(j); process.exit(1)}; console.log(j.id)' <<<"$OUT")
           LOG=".wanwu/cloud-tasks/${TASK_ID}/docker-runner.log"
           test -f "$LOG"
           if grep -q '\[fallback\] docker run failed on nested overlay' "$LOG"; then
