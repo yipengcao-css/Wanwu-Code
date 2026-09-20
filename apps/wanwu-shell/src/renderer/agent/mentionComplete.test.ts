@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   applyMention,
   completeMentions,
+  foldersFromFiles,
   mentionTokenAt,
 } from "./mentionComplete.ts";
 
@@ -19,8 +20,19 @@ const git = completeMentions("git", files);
 assert.ok(git.some((s) => s.insert === "@git:status"));
 assert.ok(git.every((s) => s.kind === "special" || s.insert.startsWith("@")));
 
+const codebase = completeMentions("code", files);
+assert.ok(codebase.some((s) => s.insert === "@codebase"));
+
+assert.deepEqual(foldersFromFiles(["src/native/mentions.ts", "apps/a.ts"]).sort(), [
+  "apps",
+  "src",
+  "src/native",
+]);
+
 const filesHits = completeMentions("mentions", files);
 assert.ok(filesHits.some((s) => s.insert === "@src/native/mentions.ts"));
+const folderHits = completeMentions("src", files);
+assert.ok(folderHits.some((s) => s.kind === "folder" && s.insert === "@src/"));
 
 const readme = completeMentions("READ", files);
 assert.ok(readme.some((s) => s.insert === "@README.md"));

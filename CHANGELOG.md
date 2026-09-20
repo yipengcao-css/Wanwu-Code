@@ -6,6 +6,7 @@
 - **Windows `pnpm build:cli` / `shell:dev`**：生成 `dist-bin/wanwu.mjs` 改为 Node 脚本，不再依赖 `bash`（未装 Git Bash 时也能拉起 ACP）
 - **Windows `shell:dev` ERR_CONNECTION_REFUSED**：等 Vite 在 `127.0.0.1:5173` 真正就绪再启动 Electron（不再固定睡 1.2s；避免 `localhost` IPv6 与 `127.0.0.1` 不一致）
 - **WebFetch 权限超时**：Shell 用 `send` 回写 `session/request_permission`，避免卡在进行中的 `acp:prompt`；选项 id 改为 `allow-once`（兼容旧的 `allow_once`）；弹窗增加「本会话允许」
+- **Coding agent（对标 Cursor）**：`ListDir` + `Read` 行号/分页；只读工具并行；`@codebase`；系统提示先读后改/改完验证；打开标签进上下文；Shell 停止、忙时排队、检查点撤销、多文件全部接受、Todo 面板、会话恢复、终端 Ctrl+K；设置可改权限模式
 
 ### Added
 - **默认流式输出**：LLM 循环默认走 SSE（`WANWU_STREAM=0` 关闭）；TUI 状态栏显示 `stream=on` 与本轮 token 用量；Shell 回合完成后在状态栏显示 in/out tokens；TUI 将流式增量拼到同一行，避免刷屏

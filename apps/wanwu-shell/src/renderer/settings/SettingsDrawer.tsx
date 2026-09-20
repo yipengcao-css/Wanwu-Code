@@ -12,6 +12,7 @@ type Snapshot = {
   activeProvider: string;
   model: string;
   baseUrl: string;
+  permissionMode: string;
   hasApiKey: boolean;
   configPath: string;
 };
@@ -24,6 +25,7 @@ export function SettingsDrawer(props: {
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const [permissionMode, setPermissionMode] = useState("ask");
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [configPath, setConfigPath] = useState("");
@@ -36,6 +38,7 @@ export function SettingsDrawer(props: {
       setProvider(s.activeProvider);
       setModel(s.model);
       setBaseUrl(s.baseUrl);
+      setPermissionMode(s.permissionMode || "ask");
       setHasKey(s.hasApiKey);
       setConfigPath(s.configPath);
       setApiKey("");
@@ -62,6 +65,7 @@ export function SettingsDrawer(props: {
         activeProvider: provider,
         model,
         baseUrl,
+        permissionMode,
         apiKey: apiKey.trim() ? apiKey : undefined,
       });
       setHasKey(s.hasApiKey);
@@ -132,6 +136,15 @@ export function SettingsDrawer(props: {
               placeholder="https://api.deepseek.com"
               autoComplete="off"
             />
+          </label>
+
+          <label className="field">
+            <span className="field-label">权限模式</span>
+            <select value={permissionMode} onChange={(e) => setPermissionMode(e.target.value)}>
+              <option value="ask">ask · 每次确认（WebFetch / 写文件）</option>
+              <option value="accept-edits">accept-edits · 自动改文件并联网</option>
+              <option value="accept-all">accept-all · 最宽松</option>
+            </select>
           </label>
 
           <label className="field">

@@ -414,6 +414,89 @@ button {
   color: var(--ww-muted);
 }
 
+.chip.pending {
+  border-color: rgba(255, 196, 84, 0.45);
+  color: #f3d48a;
+}
+
+.chip.completed {
+  border-color: rgba(42, 212, 160, 0.45);
+  color: #9de9cc;
+}
+
+.chip.failed {
+  border-color: rgba(255, 92, 122, 0.5);
+  color: #ffb3c0;
+}
+
+.todo-panel {
+  border-radius: var(--ww-radius-lg);
+  border: 1px solid rgba(42, 212, 160, 0.28);
+  background: rgba(14, 28, 24, 0.85);
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.todo-head {
+  color: var(--ww-muted);
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.todo-panel ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.todo-item.completed {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.todo-item.in_progress {
+  color: #9de9cc;
+}
+
+.todo-mark {
+  font-family: var(--ww-font-mono);
+  width: 1em;
+}
+
+.term-ask {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ww-border);
+  background: rgba(15, 21, 36, 0.95);
+}
+
+.term-ask input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--ww-border);
+  border-radius: 8px;
+  background: rgba(7, 11, 20, 0.8);
+  color: inherit;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.term-ask-error {
+  font-size: 11px;
+  color: #ffb3c0;
+}
+
 .composer {
   position: relative;
   border-top: 1px solid var(--ww-border);

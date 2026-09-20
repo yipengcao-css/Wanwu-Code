@@ -18,6 +18,15 @@ export type WanwuBridge = {
   git: {
     status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
   };
+  ckpt: {
+    list: () => Promise<Array<{ id: string; createdAt: string; files: number }>>;
+    restore: (id?: string) => Promise<{
+      id: string;
+      restored: string[];
+      deleted: string[];
+      missing: string[];
+    }>;
+  };
   media: {
     saveImage: (payload: { name?: string; mime?: string; dataBase64: string }) => Promise<string>;
     pickImages: () => Promise<string[]>;
@@ -37,6 +46,10 @@ export type WanwuBridge = {
       before?: string;
       after?: string;
     }) => Promise<{ text: string; model?: string; error?: string }>;
+    terminalAsk: (req: {
+      instruction: string;
+      output?: string;
+    }) => Promise<{ text: string; model?: string; error?: string }>;
   };
   acp: {
     ensure: () => Promise<{ sessionId?: string; cwd?: string }>;
@@ -50,10 +63,23 @@ export type WanwuBridge = {
       usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
       checkpointId?: string;
     }>;
+    cancel: () => Promise<boolean>;
+    listSessions: () => Promise<{
+      sessions: Array<{
+        id: string;
+        createdAt?: string;
+        updatedAt?: string;
+        messages?: number;
+        preview?: string;
+      }>;
+    }>;
+    loadSession: (sessionId: string) => Promise<{ sessionId: string; history?: unknown[] }>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
-    onTool: (cb: (tool: { title: string; status: string; detail?: string }) => void) => () => void;
+    onTool: (
+      cb: (tool: { id?: string; title: string; status: string; detail?: string }) => void,
+    ) => () => void;
     onError: (cb: (text: string) => void) => () => void;
     onSession: (cb: (info: { sessionId?: string; cwd?: string }) => void) => () => void;
     onPermission: (
@@ -79,6 +105,7 @@ export type WanwuBridge = {
       activeProvider: string;
       model: string;
       baseUrl: string;
+      permissionMode: string;
       hasApiKey: boolean;
       configPath: string;
       sources: string[];
@@ -88,10 +115,12 @@ export type WanwuBridge = {
       model?: string;
       baseUrl?: string;
       apiKey?: string;
+      permissionMode?: string;
     }) => Promise<{
       activeProvider: string;
       model: string;
       baseUrl: string;
+      permissionMode: string;
       hasApiKey: boolean;
       configPath: string;
       sources: string[];
@@ -154,6 +183,10 @@ const bridge: WanwuBridge = {
   git: {
     status: () => ipcRenderer.invoke("git:status"),
   },
+  ckpt: {
+    list: () => ipcRenderer.invoke("ckpt:list"),
+    restore: (id) => ipcRenderer.invoke("ckpt:restore", id),
+  },
   media: {
     saveImage: (payload) => ipcRenderer.invoke("media:saveImage", payload),
     pickImages: () => ipcRenderer.invoke("media:pickImages"),
@@ -161,12 +194,16 @@ const bridge: WanwuBridge = {
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),
     inlineEdit: (req) => ipcRenderer.invoke("ai:inlineEdit", req),
+    terminalAsk: (req) => ipcRenderer.invoke("ai:terminalAsk", req),
   },
   acp: {
     ensure: () => ipcRenderer.invoke("acp:ensure"),
     newChat: () => ipcRenderer.invoke("acp:newChat"),
     setSession: (sessionId) => ipcRenderer.invoke("acp:setSession", sessionId),
     prompt: (text, context) => ipcRenderer.invoke("acp:prompt", text, context),
+    cancel: () => ipcRenderer.invoke("acp:cancel"),
+    listSessions: () => ipcRenderer.invoke("acp:listSessions"),
+    loadSession: (sessionId) => ipcRenderer.invoke("acp:loadSession", sessionId),
     respondPermission: (id, optionId) => {
       ipcRenderer.send("acp:respondPermission", id, optionId);
       return Promise.resolve(true);

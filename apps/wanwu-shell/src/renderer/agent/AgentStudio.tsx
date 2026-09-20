@@ -6,16 +6,20 @@ import {
   mentionTokenAt,
   type MentionSuggestion,
 } from "./mentionComplete";
-
-type LogItem =
-  | { kind: "user" | "assistant" | "error" | "status"; text: string }
-  | { kind: "tool"; title: string; status: string; detail?: string };
+import {
+  historyToLog,
+  parseTodoToolText,
+  upsertToolLog,
+  type LogItem,
+  type TodoRow,
+} from "./sessionLog";
 
 type ChatSession = {
   localId: string;
   title: string;
   acpSessionId?: string;
   log: LogItem[];
+  hydrated?: boolean;
 };
 
 type PendingImage = { id: string; name: string; path: string; preview?: string };
@@ -40,6 +44,7 @@ export function AgentStudio(props: {
   enabled: boolean;
   workspaceRoot: string | null;
   activePath: string | null;
+  openTabs?: string[];
   selectionHint?: string;
   /** Flattened LSP diagnostics for @diagnostics mention resolution. */
   diagnosticsSummary?: string;
@@ -59,8 +64,14 @@ export function AgentStudio(props: {
   const [mentionOpen, setMentionOpen] = useState(true);
   const [images, setImages] = useState<PendingImage[]>([]);
   const [perm, setPerm] = useState<PendingPermission | null>(null);
+  const [queued, setQueued] = useState(0);
+  const [lastCkpt, setLastCkpt] = useState<string | null>(null);
+  const [lastUsage, setLastUsage] = useState<{ in?: number; out?: number } | null>(null);
+  const [todos, setTodos] = useState<TodoRow[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
+  const busyRef = useRef(false);
+  const queueRef = useRef<Array<{ prompt: string; images: PendingImage[] }>>([]);
   activeLocalIdRef.current = activeLocalId;
 
   const active = chats.find((c) => c.localId === activeLocalId) ?? chats[0]!;
@@ -109,24 +120,68 @@ export function AgentStudio(props: {
   useEffect(() => {
     const next = props.workspaceRoot;
     if (!next) return;
-    if (prevRootRef.current && prevRootRef.current !== next) {
-      const id = newLocalId();
-      setChats([
-        {
-          localId: id,
-          title: "会话 1",
+    const switched = Boolean(prevRootRef.current && prevRootRef.current !== next);
+    prevRootRef.current = next;
+    if (switched) {
+      setBusy(false);
+      busyRef.current = false;
+      queueRef.current = [];
+      setQueued(0);
+      setTodos([]);
+    }
+    void (async () => {
+      try {
+        await window.wanwu.acp.ensure();
+        const { sessions } = await window.wanwu.acp.listSessions();
+        if (!sessions.length) {
+          if (switched) {
+            const id = newLocalId();
+            setChats([
+              {
+                localId: id,
+                title: "会话 1",
+                hydrated: true,
+                log: [
+                  {
+                    kind: "status",
+                    text: `工作区已切换 · ${next}（将创建新 ACP session）`,
+                  },
+                ],
+              },
+            ]);
+            setActiveLocalId(id);
+          }
+          return;
+        }
+        const mapped: ChatSession[] = sessions.map((s) => ({
+          localId: s.id,
+          title: (s.preview || "会话").slice(0, 24),
+          acpSessionId: s.id,
+          hydrated: false,
           log: [
             {
               kind: "status",
-              text: `工作区已切换 · ${next}（将创建新 ACP session）`,
+              text: `已保存 · ${(s.updatedAt ?? "").slice(0, 16).replace("T", " ")} · 点击加载`,
             },
           ],
-        },
-      ]);
-      setActiveLocalId(id);
-      setBusy(false);
-    }
-    prevRootRef.current = next;
+        }));
+        setChats(mapped);
+        setActiveLocalId(mapped[0]!.localId);
+        const first = mapped[0]!;
+        if (first.acpSessionId) {
+          const loaded = await window.wanwu.acp.loadSession(first.acpSessionId);
+          setChats((prev) =>
+            prev.map((c) =>
+              c.localId === first.localId
+                ? { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
+                : c,
+            ),
+          );
+        }
+      } catch {
+        /* first prompt still creates a session */
+      }
+    })();
   }, [props.workspaceRoot]);
 
   useEffect(() => {
@@ -140,12 +195,11 @@ export function AgentStudio(props: {
           return [...prev, { kind: "assistant", text: t }];
         }),
       ),
-      window.wanwu.acp.onTool((tool) =>
-        patchActive((prev) => [
-          ...prev,
-          { kind: "tool", title: tool.title, status: tool.status, detail: tool.detail },
-        ]),
-      ),
+      window.wanwu.acp.onTool((tool) => {
+        const parsed = tool.title === "Todo" ? parseTodoToolText(tool.detail) : null;
+        if (parsed) setTodos(parsed);
+        patchActive((prev) => upsertToolLog(prev, tool));
+      }),
       window.wanwu.acp.onError((t) =>
         patchActive((prev) => [...prev, { kind: "error", text: t }]),
       ),
@@ -189,13 +243,26 @@ export function AgentStudio(props: {
     const target = chats.find((c) => c.localId === localId);
     if (!target) return;
     setActiveLocalId(localId);
-    if (target.acpSessionId) {
-      try {
+    setTodos([]);
+    try {
+      if (target.acpSessionId && !target.hydrated) {
+        const loaded = await window.wanwu.acp.loadSession(target.acpSessionId);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.localId === localId
+              ? { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
+              : c,
+          ),
+        );
+        props.onStatus(`恢复会话 · ${target.title}`);
+        return;
+      }
+      if (target.acpSessionId) {
         await window.wanwu.acp.setSession(target.acpSessionId);
         props.onStatus(`切换会话 · ${target.title}`);
-      } catch (err) {
-        props.onStatus(err instanceof Error ? err.message : String(err));
       }
+    } catch (err) {
+      props.onStatus(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -213,6 +280,7 @@ export function AgentStudio(props: {
           localId,
           title,
           acpSessionId: sessionId,
+          hydrated: true,
           log: [
             {
               kind: "status",
@@ -267,35 +335,58 @@ export function AgentStudio(props: {
     }
   }
 
-  async function send(): Promise<void> {
-    const prompt = text.trim();
-    const pending = images;
-    if ((!prompt && pending.length === 0) || !props.enabled || busy) return;
+  async function send(override?: { prompt: string; images: PendingImage[] }): Promise<void> {
+    const prompt = override?.prompt ?? text.trim();
+    const pending = override?.images ?? images;
+    if ((!prompt && pending.length === 0) || !props.enabled) return;
+    if (busyRef.current && !override) {
+      queueRef.current.push({ prompt, images: pending });
+      setQueued(queueRef.current.length);
+      setText("");
+      setImages([]);
+      patchActive((prev) => [
+        ...prev,
+        {
+          kind: "user",
+          text:
+            (prompt || "（附图）") +
+            (pending.length ? `\n[已附加 ${pending.length} 张图片]` : "") +
+            "\n（已排队）",
+        },
+      ]);
+      props.onStatus(`已排队 · ${queueRef.current.length} 条（当前回合结束后发送）`);
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
-    setText("");
-    setImages([]);
-    const titleFromPrompt = (prompt || pending[0]?.name || "附图").slice(0, 24);
-    setChats((prev) =>
-      prev.map((c) =>
-        c.localId === activeLocalIdRef.current
-          ? {
-              ...c,
-              title: c.title.startsWith("会话") && c.log.filter((l) => l.kind === "user").length === 0
-                ? titleFromPrompt
-                : c.title,
-              log: [
-                ...c.log,
-                {
-                  kind: "user",
-                  text:
-                    (prompt || "（附图）") +
-                    (pending.length ? `\n[已附加 ${pending.length} 张图片]` : ""),
-                },
-              ],
-            }
-          : c,
-      ),
-    );
+    if (!override) {
+      setText("");
+      setImages([]);
+    }
+    if (!override) {
+      const titleFromPrompt = (prompt || pending[0]?.name || "附图").slice(0, 24);
+      setChats((prev) =>
+        prev.map((c) =>
+          c.localId === activeLocalIdRef.current
+            ? {
+                ...c,
+                title: c.title.startsWith("会话") && c.log.filter((l) => l.kind === "user").length === 0
+                  ? titleFromPrompt
+                  : c.title,
+                log: [
+                  ...c.log,
+                  {
+                    kind: "user",
+                    text:
+                      (prompt || "（附图）") +
+                      (pending.length ? `\n[已附加 ${pending.length} 张图片]` : ""),
+                  },
+                ],
+              }
+            : c,
+        ),
+      );
+    }
     try {
       props.onStatus("连接 ACP…");
       const { sessionId, cwd } = await window.wanwu.acp.ensure();
@@ -315,8 +406,11 @@ export function AgentStudio(props: {
             : props.mode === "verify"
               ? "[MODE=verify] 验证最近变更（测试/lint），不要继续写功能。\n"
               : "[MODE=agent] 可以在权限允许下修改代码。\n";
-      const ctx = props.activePath
-        ? `[EDITOR_CONTEXT]\nOpen file: ${props.activePath}\n${
+      const tabs = (props.openTabs ?? []).filter(Boolean);
+      const ctx = props.activePath || tabs.length
+        ? `[EDITOR_CONTEXT]\n${
+            props.activePath ? `Active file: ${props.activePath}\n` : ""
+          }${tabs.length ? `Open tabs: ${tabs.join(", ")}\n` : ""}${
             props.selectionHint ? `Preview:\n\`\`\`\n${props.selectionHint}\n\`\`\`\n` : ""
           }[/EDITOR_CONTEXT]\n`
         : "";
@@ -334,15 +428,50 @@ export function AgentStudio(props: {
           ? ` · in ${usage.inputTokens ?? 0} / out ${usage.outputTokens ?? 0}`
           : "";
       const ckpt = result?.checkpointId ? ` · ckpt ${result.checkpointId}` : "";
+      if (result?.checkpointId) setLastCkpt(result.checkpointId);
+      if (usage) setLastUsage({ in: usage.inputTokens, out: usage.outputTokens });
       const pics = pending.length ? ` · 已发送 ${pending.length} 张图` : "";
       props.onStatus(`回合完成${tokens}${ckpt}${pics}`);
     } catch (err) {
-      setImages(pending);
       const message = err instanceof Error ? err.message : String(err);
-      patchActive((prev) => [...prev, { kind: "error", text: message }]);
-      props.onStatus(`错误 · ${message}`);
+      if (/abort/i.test(message)) {
+        patchActive((prev) => [...prev, { kind: "status", text: "已停止生成" }]);
+        props.onStatus("已停止");
+      } else {
+        if (!override) setImages(pending);
+        patchActive((prev) => [...prev, { kind: "error", text: message }]);
+        props.onStatus(`错误 · ${message}`);
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
+      const next = queueRef.current.shift();
+      setQueued(queueRef.current.length);
+      if (next) void send(next);
+    }
+  }
+
+  async function stop(): Promise<void> {
+    queueRef.current = [];
+    setQueued(0);
+    try {
+      await window.wanwu.acp.cancel();
+    } catch (err) {
+      props.onStatus(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async function undoLast(): Promise<void> {
+    try {
+      const r = await window.wanwu.ckpt.restore(lastCkpt ?? undefined);
+      const n = r.restored.length + r.deleted.length;
+      props.onStatus(`已撤销 ${r.id} · ${n} 个文件`);
+      patchActive((prev) => [
+        ...prev,
+        { kind: "status", text: `已撤销检查点 ${r.id}（${n} 个文件）` },
+      ]);
+    } catch (err) {
+      props.onStatus(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -375,11 +504,28 @@ export function AgentStudio(props: {
         </button>
       </div>
       <div className="agent-log">
+        {todos.length ? (
+          <div className="todo-panel" aria-label="任务清单">
+            <div className="todo-head">
+              任务 {todos.filter((t) => t.status === "completed").length}/{todos.length}
+            </div>
+            <ul>
+              {todos.map((t, i) => (
+                <li key={`${t.content}-${i}`} className={`todo-item ${t.status}`}>
+                  <span className="todo-mark">
+                    {t.status === "completed" ? "●" : t.status === "in_progress" ? "◐" : "○"}
+                  </span>
+                  {t.content}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {active.log.map((item, i) => {
           if (item.kind === "tool") {
             return (
-              <div key={i} className="chip-row">
-                <span className="chip">
+              <div key={item.id ?? i} className="chip-row">
+                <span className={`chip ${item.status}`}>
                   {item.status} {item.title}
                   {item.detail ? ` · ${item.detail}` : ""}
                 </span>
@@ -441,11 +587,11 @@ export function AgentStudio(props: {
       <div
         className="composer"
         onDragOver={(e) => {
-          if (!props.enabled || busy) return;
+          if (!props.enabled) return;
           e.preventDefault();
         }}
         onDrop={(e) => {
-          if (!props.enabled || busy) return;
+          if (!props.enabled) return;
           e.preventDefault();
           void attachFiles(Array.from(e.dataTransfer.files));
         }}
@@ -481,7 +627,7 @@ export function AgentStudio(props: {
                   type="button"
                   className="attach-remove"
                   aria-label={`移除 ${img.name}`}
-                  disabled={busy}
+                  disabled={!props.enabled}
                   onClick={() => {
                     if (img.preview) URL.revokeObjectURL(img.preview);
                     setImages((prev) => prev.filter((x) => x.id !== img.id));
@@ -496,11 +642,13 @@ export function AgentStudio(props: {
         <textarea
           ref={inputRef}
           value={text}
-          disabled={!props.enabled || busy}
+          disabled={!props.enabled}
           placeholder={
-            props.enabled
-              ? "描述你的意图… 输入 @ 引用文件 / git / 终端 / 诊断，可粘贴或拖入图片"
-              : "请先打开工作区"
+            !props.enabled
+              ? "请先打开工作区"
+              : busy
+                ? "输入后续消息，当前回合结束后发送…"
+                : "描述你的意图… 输入 @ 引用文件 / 代码库 / git / 终端 / 诊断，可粘贴或拖入图片"
           }
           onChange={(e) => {
             setText(e.target.value);
@@ -550,24 +698,42 @@ export function AgentStudio(props: {
         />
         <div className="composer-row">
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
-            Mode={props.mode} · @ 引用 · Ctrl/Cmd+Enter 发送
+            {props.mode}
+            {lastUsage ? ` · in ${lastUsage.in ?? 0}/out ${lastUsage.out ?? 0}` : ""}
+            {queued ? ` · 队列 ${queued}` : ""}
+            {lastCkpt ? ` · ckpt` : ""}
+            {" · @ 引用 · Ctrl/Cmd+Enter · 忙时可排队"}
           </span>
           <div className="composer-actions">
             <button
               type="button"
               className="btn"
-              disabled={!props.enabled || busy}
+              disabled={!props.enabled || !lastCkpt}
+              onClick={() => void undoLast()}
+              title="撤销上一轮 Agent 改动"
+            >
+              撤销
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={!props.enabled}
               onClick={() => void pickImages()}
             >
               附加图片
             </button>
+            {busy ? (
+              <button type="button" className="btn danger" onClick={() => void stop()}>
+                停止
+              </button>
+            ) : null}
             <button
               type="button"
               className="btn primary"
-              disabled={!props.enabled || busy || (!text.trim() && images.length === 0)}
+              disabled={!props.enabled || (!text.trim() && images.length === 0)}
               onClick={() => void send()}
             >
-              {busy ? "运行中…" : "运行"}
+              {busy ? "排队" : "运行"}
             </button>
           </div>
         </div>

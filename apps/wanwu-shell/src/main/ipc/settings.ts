@@ -5,6 +5,7 @@ import {
   loadWanwuConfig,
   saveUserConfig,
   saveUserCredentials,
+  type PermissionMode,
   type ProviderId,
   userConfigPath,
 } from "@wanwu/config";
@@ -13,6 +14,7 @@ export type SettingsSnapshot = {
   activeProvider: ProviderId;
   model: string;
   baseUrl: string;
+  permissionMode: PermissionMode;
   hasApiKey: boolean;
   configPath: string;
   sources: string[];
@@ -28,6 +30,7 @@ export function registerSettingsIpc(getRoot: () => string | null): void {
       activeProvider: provider,
       model: config.model,
       baseUrl,
+      permissionMode: config.permissionMode,
       hasApiKey: hasStoredCredential(provider),
       configPath: userConfigPath(),
       sources,
@@ -43,6 +46,7 @@ export function registerSettingsIpc(getRoot: () => string | null): void {
         model?: string;
         baseUrl?: string;
         apiKey?: string;
+        permissionMode?: PermissionMode;
       },
     ): SettingsSnapshot => {
       const provider = patch.activeProvider ?? loadWanwuConfig(getRoot() ?? process.cwd()).config.activeProvider;
@@ -50,6 +54,7 @@ export function registerSettingsIpc(getRoot: () => string | null): void {
         activeProvider: patch.activeProvider,
         model: patch.model,
         baseUrl: patch.baseUrl,
+        permissionMode: patch.permissionMode,
       });
       if (patch.apiKey !== undefined) {
         saveUserCredentials({ apiKey: patch.apiKey }, provider);
@@ -61,6 +66,7 @@ export function registerSettingsIpc(getRoot: () => string | null): void {
         activeProvider: config.activeProvider,
         model: config.model,
         baseUrl: config.providers[config.activeProvider]?.baseUrl ?? "",
+        permissionMode: config.permissionMode,
         hasApiKey: hasStoredCredential(config.activeProvider),
         configPath: userConfigPath(),
         sources,

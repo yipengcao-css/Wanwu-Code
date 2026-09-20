@@ -29,13 +29,30 @@
 | 自动记忆 | 明确「记住」写入 WANWU.md | `autoMemory.ts` |
 | 轻量 SCM | FileTree porcelain 标记 | `git:status` / `shared/scm.ts` |
 
-## 仍未做（2026-09-18）
+## 仍未做（2026-09-20）
 
 1. MCP **prompts / OAuth / 远程**（stdio resources 已做）
-2. Shell 调试器；终端内 Ctrl+K
+2. Shell 调试器（终端 Ctrl+K 已做）
 3. `WorkflowMachine` 未进 UI；`crates/` 仍空
 4. 插件注册表 `registry.wanwu.dev` 未证实上线
 5. 扩展无侧栏 View
+
+## 2026-09-20 Cursor 模板优化
+
+| 项 | 落点 |
+|---|---|
+| ListDir + Read 行号 / offset/limit | `tools.ts` / `toolSpecs.ts` |
+| 只读工具并行（Read/ListDir/Glob/Grep/Diagnose/SearchCodebase） | `parallelTools.ts` / `llmAgentLoop.ts` |
+| 系统提示：先读后改、验证后再收工、打开标签进 system | `agentPrompt.ts` |
+| `@codebase` 语义检索 | `mentions.ts` / mentionComplete |
+| 回合上限可见提示 | `llmAgentLoop.ts` |
+| Shell 停止 / 忙时排队 / 检查点撤销 | Agent Studio |
+| 工具卡片就地更新 + Todo 面板 | AgentStudio / sessionLog |
+| 会话列表恢复（`session/list` + `session/load`） | acpServer / AgentStudio |
+| 打开标签进 `@EDITOR_CONTEXT`；`@目录/` 补全 | AgentStudio / mentionComplete |
+| 多文件 diff 队列 + 全部接受 | App / DiffReview |
+| 设置里改 `permission_mode` | SettingsDrawer |
+| 终端 Ctrl+K 生成命令 | TerminalPane / `ai:terminalAsk` |
 
 ---
 

@@ -109,10 +109,35 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     return { sessionId, cwd: root };
   });
 
+  ipcMain.handle("acp:cancel", async () => {
+    if (!client || !sessionId) return false;
+    await client.cancelSession(sessionId);
+    return true;
+  });
+
   ipcMain.handle("acp:setSession", (_e, nextId: string) => {
     if (!client) throw new Error("ACP not ready");
     sessionId = nextId;
     return { sessionId };
+  });
+
+  ipcMain.handle("acp:listSessions", async () => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
+    if (!client) throw new Error("ACP not ready");
+    return client.listSessions();
+  });
+
+  ipcMain.handle("acp:loadSession", async (_e, nextId: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
+    if (!client) throw new Error("ACP not ready");
+    const loaded = await client.loadSession(String(nextId));
+    sessionId = loaded.sessionId;
+    broadcast(getWin(), "acp:session", { sessionId, cwd: root });
+    return loaded;
   });
 
   // send/on — not invoke/handle. Nested invoke behind an in-flight acp:prompt

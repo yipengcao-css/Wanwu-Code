@@ -5,14 +5,29 @@ export const SPECIAL_MENTIONS = [
   { insert: "@web:", label: "@web:", hint: "联网搜索（接着输入关键词）" },
   { insert: "@terminal", label: "@terminal", hint: "最近终端输出" },
   { insert: "@diagnostics", label: "@diagnostics", hint: "当前 LSP 诊断" },
+  { insert: "@codebase", label: "@codebase", hint: "语义搜索整个代码库" },
 ] as const;
 
 export type MentionSuggestion = {
   insert: string;
   label: string;
   hint?: string;
-  kind: "file" | "special";
+  kind: "file" | "folder" | "special";
 };
+
+/** Unique parent directories of workspace files, for @folder completion. */
+export function foldersFromFiles(files: string[]): string[] {
+  const dirs = new Set<string>();
+  for (const f of files) {
+    const parts = f.replace(/\\/g, "/").split("/");
+    let acc = "";
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      acc = acc ? `${acc}/${parts[i]}` : parts[i]!;
+      dirs.add(acc);
+    }
+  }
+  return [...dirs];
+}
 
 export type MentionToken = {
   start: number;
@@ -54,12 +69,22 @@ export function completeMentions(
     (s) => s.insert.startsWith(needle) || s.insert.slice(1).startsWith(partial),
   ).map((s) => ({ insert: s.insert, label: s.label, hint: s.hint, kind: "special" }));
 
+  const folderHits: MentionSuggestion[] = foldersFromFiles(files)
+    .filter((d) => fileMatches(d, partial) || `${d}/`.startsWith(partial))
+    .slice(0, Math.min(6, limit))
+    .map((d) => ({
+      insert: `@${d}/`,
+      label: `@${d}/`,
+      hint: "目录",
+      kind: "folder" as const,
+    }));
+
   const pathHits: MentionSuggestion[] = files
     .filter((f) => fileMatches(f, partial))
     .slice(0, limit)
     .map((f) => ({ insert: `@${f}`, label: `@${f}`, kind: "file" as const }));
 
-  return [...specials, ...pathHits].slice(0, limit + specials.length);
+  return [...specials, ...folderHits, ...pathHits].slice(0, limit + specials.length + folderHits.length);
 }
 
 /** Replace the @token with `insert`, keeping the rest of the text. */

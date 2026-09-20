@@ -58,7 +58,7 @@ export function App() {
     summary: string;
     risk?: string;
   } | null>(null);
-  const [edit, setEdit] = useState<{ path: string; before: string; after: string } | null>(null);
+  const [edits, setEdits] = useState<Array<{ path: string; before: string; after: string }>>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   const activeTab = useMemo(
@@ -83,7 +83,9 @@ export function App() {
 
   useEffect(() => {
     const offP = window.wanwu.acp.onPermission((req) => setPerm(req));
-    const offE = window.wanwu.acp.onEdit((e) => setEdit(e));
+    const offE = window.wanwu.acp.onEdit((e) =>
+      setEdits((prev) => [...prev.filter((x) => x.path !== e.path), e]),
+    );
     return () => {
       offP();
       offE();
@@ -119,6 +121,22 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  useEffect(() => {
+    return window.wanwu.fs.onChanged((rel) => {
+      const norm = rel.replace(/\\/g, "/");
+      setTabs((prev) => {
+        const hit = prev.find((t) => t.path === norm || t.path === rel);
+        if (!hit || hit.dirty) return prev;
+        void window.wanwu.fs.read(hit.path).then((content) => {
+          setTabs((cur) =>
+            cur.map((t) => (t.path === hit.path && !t.dirty ? { ...t, content } : t)),
+          );
+        });
+        return prev;
+      });
+    });
+  }, []);
 
   useEffect(() => {
     return window.wanwu.workspace.onChanged((dir) => {
@@ -297,6 +315,7 @@ export function App() {
             enabled={Boolean(root)}
             workspaceRoot={root}
             activePath={activePath}
+            openTabs={tabs.map((t) => t.path)}
             selectionHint={activeTab?.content.slice(0, 500)}
             diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
             terminalSummary={termTail || undefined}
@@ -327,7 +346,7 @@ export function App() {
         <span className={`status-dot${hasApiKey === false ? " warn" : ""}`} />
         <span>{status}</span>
         <span className="status-hotkeys">
-          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑
+          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑/终端命令
         </span>
       </footer>
 
@@ -362,25 +381,46 @@ export function App() {
         />
       ) : null}
 
-      {edit ? (
+      {edits[0] ? (
         <Suspense fallback={null}>
           <DiffReview
-            path={edit.path}
-            before={edit.before}
-            after={edit.after}
+            path={edits[0].path}
+            before={edits[0].before}
+            after={edits[0].after}
+            queueLabel={edits.length > 1 ? `1/${edits.length}` : undefined}
             onAccept={() => {
+              const current = edits[0];
               void (async () => {
-                await window.wanwu.fs.write(edit.path, edit.after);
+                await window.wanwu.fs.write(current.path, current.after);
                 setTabs((prev) => {
-                  const others = prev.filter((t) => t.path !== edit.path);
-                  return [...others, { path: edit.path, content: edit.after, dirty: false }];
+                  const others = prev.filter((t) => t.path !== current.path);
+                  return [...others, { path: current.path, content: current.after, dirty: false }];
                 });
-                setActivePath(edit.path);
-                setEdit(null);
-                setStatus(`已接受编辑 · ${edit.path}`);
+                setActivePath(current.path);
+                setEdits((prev) => prev.slice(1));
+                setStatus(`已接受编辑 · ${current.path}`);
               })();
             }}
-            onReject={() => setEdit(null)}
+            onReject={() => setEdits((prev) => prev.slice(1))}
+            onAcceptAll={
+              edits.length > 1
+                ? () => {
+                    void (async () => {
+                      for (const e of edits) {
+                        await window.wanwu.fs.write(e.path, e.after);
+                        setTabs((prev) => {
+                          const others = prev.filter((t) => t.path !== e.path);
+                          return [...others, { path: e.path, content: e.after, dirty: false }];
+                        });
+                      }
+                      setActivePath(edits[edits.length - 1]?.path ?? null);
+                      setEdits([]);
+                      setStatus(`已接受 ${edits.length} 个文件`);
+                    })();
+                  }
+                : undefined
+            }
+            onRejectAll={edits.length > 1 ? () => setEdits([]) : undefined}
           />
         </Suspense>
       ) : null}
@@ -403,6 +443,12 @@ export function App() {
             title: "聚焦 Agent 输入",
             hint: "Ctrl+I",
             run: () => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(),
+          },
+          {
+            id: "term-ask",
+            title: "终端 Ctrl+K 生成命令",
+            hint: "Ctrl+K",
+            run: () => setTermOpen(true),
           },
           {
             id: "side-search",
