@@ -6,6 +6,7 @@ export const SPECIAL_MENTIONS = [
   { insert: "@terminal", label: "@terminal", hint: "最近终端输出" },
   { insert: "@diagnostics", label: "@diagnostics", hint: "当前 LSP 诊断" },
   { insert: "@codebase", label: "@codebase", hint: "语义搜索整个代码库" },
+  { insert: "@selection", label: "@selection", hint: "当前编辑器选区（随消息发送）" },
 ] as const;
 
 export type MentionSuggestion = {

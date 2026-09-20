@@ -565,6 +565,43 @@ button {
   box-shadow: 0 0 0 2px rgba(46, 230, 166, 0.15);
 }
 
+.context-chip-row,
+.plan-build-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(42, 212, 160, 0.35);
+  background: rgba(14, 28, 24, 0.85);
+  font-size: 11px;
+  color: #9de9cc;
+}
+
+.plan-build-hint {
+  font-size: 12px;
+  color: var(--ww-muted);
+}
+
+.model-link {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 .composer-row {
   display: flex;
   justify-content: space-between;

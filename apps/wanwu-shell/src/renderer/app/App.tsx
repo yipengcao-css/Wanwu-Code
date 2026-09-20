@@ -4,7 +4,7 @@ import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
-import type { EditorTab, MarkerDiag } from "../editor/MonacoPane";
+import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
@@ -60,6 +60,9 @@ export function App() {
   } | null>(null);
   const [edits, setEdits] = useState<Array<{ path: string; before: string; after: string }>>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [selection, setSelection] = useState<EditorSelection | null>(null);
+  const [addSelectionTick, setAddSelectionTick] = useState(0);
+  const [modelLabel, setModelLabel] = useState("");
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
@@ -74,7 +77,10 @@ export function App() {
     void window.wanwu.workspace.getRoot().then((r) => {
       if (r) setRoot(r);
     });
-    void window.wanwu.settings.get().then((s) => setHasApiKey(s.hasApiKey));
+    void window.wanwu.settings.get().then((s) => {
+      setHasApiKey(s.hasApiKey);
+      setModelLabel(`${s.activeProvider}/${s.model}`);
+    });
   }, []);
 
   useEffect(() => {
@@ -143,6 +149,7 @@ export function App() {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setSelection(null);
       setDiagnostics({});
       void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
@@ -172,6 +179,7 @@ export function App() {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setSelection(null);
       setDiagnostics({});
       void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
@@ -284,9 +292,13 @@ export function App() {
                 gotoLine={gotoLine}
                 onSelect={setActivePath}
                 onChange={onChange}
+                onSelectionChange={setSelection}
                 onClose={(p) => {
                   setTabs((prev) => prev.filter((t) => t.path !== p));
-                  if (activePath === p) setActivePath(null);
+                  if (activePath === p) {
+                    setActivePath(null);
+                    setSelection(null);
+                  }
                   setDiagnostics((prev) => {
                     const next = { ...prev };
                     delete next[p];
@@ -316,10 +328,14 @@ export function App() {
             workspaceRoot={root}
             activePath={activePath}
             openTabs={tabs.map((t) => t.path)}
-            selectionHint={activeTab?.content.slice(0, 500)}
+            selection={selection}
+            addSelectionTick={addSelectionTick}
+            modelLabel={modelLabel}
             diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
             terminalSummary={termTail || undefined}
             onStatus={setStatus}
+            onMode={setMode}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         </aside>
       </div>
@@ -355,6 +371,7 @@ export function App() {
         onClose={() => setSettingsOpen(false)}
         onSaved={(s) => {
           setHasApiKey(s.hasApiKey);
+          setModelLabel(`${s.activeProvider}/${s.model}`);
           setStatus(`已更新模型 · ${s.activeProvider}/${s.model}`);
         }}
       />
@@ -443,6 +460,12 @@ export function App() {
             title: "聚焦 Agent 输入",
             hint: "Ctrl+I",
             run: () => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(),
+          },
+          {
+            id: "add-selection",
+            title: "将编辑器选区加入 Agent",
+            hint: "选区",
+            run: () => setAddSelectionTick((n) => n + 1),
           },
           {
             id: "term-ask",

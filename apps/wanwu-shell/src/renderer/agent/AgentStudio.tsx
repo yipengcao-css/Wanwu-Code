@@ -39,18 +39,55 @@ function emptyWelcome(): LogItem[] {
   ];
 }
 
+export type StudioSelection = {
+  path: string;
+  text: string;
+  startLine: number;
+  endLine: number;
+};
+
+function buildEditorContext(opts: {
+  activePath: string | null;
+  openTabs?: string[];
+  selection?: StudioSelection | null;
+}): string {
+  const lines: string[] = [];
+  if (opts.activePath) lines.push(`Active file: ${opts.activePath}`);
+  const tabs = (opts.openTabs ?? []).filter(Boolean);
+  if (tabs.length) lines.push(`Open tabs: ${tabs.join(", ")}`);
+  if (opts.selection?.text.trim()) {
+    const s = opts.selection;
+    lines.push(`Selection (${s.path}:${s.startLine}-${s.endLine}):`);
+    lines.push("```");
+    lines.push(s.text.slice(0, 8000));
+    lines.push("```");
+  }
+  return lines.length ? `[EDITOR_CONTEXT]\n${lines.join("\n")}\n[/EDITOR_CONTEXT]\n` : "";
+}
+
+function modePrefix(mode: WanwuMode): string {
+  if (mode === "plan") return "[MODE=plan] 只产出计划，不要修改文件。\n";
+  if (mode === "ask") return "[MODE=ask] 只回答问题，不要修改文件。\n";
+  if (mode === "verify") return "[MODE=verify] 验证最近变更（测试/lint），不要继续写功能。\n";
+  return "[MODE=agent] 可以在权限允许下修改代码。\n";
+}
+
 export function AgentStudio(props: {
   mode: WanwuMode;
   enabled: boolean;
   workspaceRoot: string | null;
   activePath: string | null;
   openTabs?: string[];
-  selectionHint?: string;
+  selection?: StudioSelection | null;
+  addSelectionTick?: number;
+  modelLabel?: string;
   /** Flattened LSP diagnostics for @diagnostics mention resolution. */
   diagnosticsSummary?: string;
   /** Recent terminal output for @terminal mention resolution. */
   terminalSummary?: string;
   onStatus: (s: string) => void;
+  onMode?: (m: WanwuMode) => void;
+  onOpenSettings?: () => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
     { localId: newLocalId(), title: "会话 1", log: emptyWelcome() },
@@ -68,6 +105,9 @@ export function AgentStudio(props: {
   const [lastCkpt, setLastCkpt] = useState<string | null>(null);
   const [lastUsage, setLastUsage] = useState<{ in?: number; out?: number } | null>(null);
   const [todos, setTodos] = useState<TodoRow[]>([]);
+  const [includeSelection, setIncludeSelection] = useState(true);
+  const [planDraft, setPlanDraft] = useState<string | null>(null);
+  const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   const busyRef = useRef(false);
@@ -86,6 +126,23 @@ export function AgentStudio(props: {
   useEffect(() => {
     return window.wanwu.shell.onFocusAgent(() => inputRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    setIncludeSelection(true);
+  }, [props.selection?.path, props.selection?.startLine, props.selection?.endLine, props.selection?.text]);
+
+  useEffect(() => {
+    const tick = props.addSelectionTick;
+    const sel = props.selection;
+    if (!tick || !sel) return;
+    const pin = `@${sel.path}:${sel.startLine}-${sel.endLine}`;
+    setText((prev) => {
+      if (prev.includes(pin)) return prev;
+      return `${prev}${prev && !prev.endsWith(" ") && !prev.endsWith("\n") ? " " : ""}${pin} `;
+    });
+    setIncludeSelection(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [props.addSelectionTick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!props.workspaceRoot) {
@@ -335,9 +392,14 @@ export function AgentStudio(props: {
     }
   }
 
-  async function send(override?: { prompt: string; images: PendingImage[] }): Promise<void> {
+  async function send(override?: {
+    prompt: string;
+    images: PendingImage[];
+    mode?: WanwuMode;
+  }): Promise<void> {
     const prompt = override?.prompt ?? text.trim();
     const pending = override?.images ?? images;
+    const sendMode = override?.mode ?? props.mode;
     if ((!prompt && pending.length === 0) || !props.enabled) return;
     if (busyRef.current && !override) {
       queueRef.current.push({ prompt, images: pending });
@@ -398,22 +460,13 @@ export function AgentStudio(props: {
         ),
       );
       props.onStatus(`session=${sessionId ?? "?"} · ${cwd ?? props.workspaceRoot ?? "?"}`);
-      const prefix =
-        props.mode === "plan"
-          ? "[MODE=plan] 只产出计划，不要修改文件。\n"
-          : props.mode === "ask"
-            ? "[MODE=ask] 只回答问题，不要修改文件。\n"
-            : props.mode === "verify"
-              ? "[MODE=verify] 验证最近变更（测试/lint），不要继续写功能。\n"
-              : "[MODE=agent] 可以在权限允许下修改代码。\n";
-      const tabs = (props.openTabs ?? []).filter(Boolean);
-      const ctx = props.activePath || tabs.length
-        ? `[EDITOR_CONTEXT]\n${
-            props.activePath ? `Active file: ${props.activePath}\n` : ""
-          }${tabs.length ? `Open tabs: ${tabs.join(", ")}\n` : ""}${
-            props.selectionHint ? `Preview:\n\`\`\`\n${props.selectionHint}\n\`\`\`\n` : ""
-          }[/EDITOR_CONTEXT]\n`
-        : "";
+      if (!override) setLastPrompt(prompt);
+      const prefix = modePrefix(sendMode);
+      const ctx = buildEditorContext({
+        activePath: props.activePath,
+        openTabs: props.openTabs,
+        selection: includeSelection ? props.selection : null,
+      });
       const result = await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt || "请查看附图。"}`, {
         diagnostics: props.diagnosticsSummary,
         terminal: props.terminalSummary,
@@ -432,6 +485,14 @@ export function AgentStudio(props: {
       if (usage) setLastUsage({ in: usage.inputTokens, out: usage.outputTokens });
       const pics = pending.length ? ` · 已发送 ${pending.length} 张图` : "";
       props.onStatus(`回合完成${tokens}${ckpt}${pics}`);
+      if (sendMode === "plan") {
+        setChats((prev) => {
+          const c = prev.find((x) => x.localId === activeLocalIdRef.current);
+          const last = [...(c?.log ?? [])].reverse().find((i) => i.kind === "assistant");
+          if (last?.kind === "assistant" && last.text.trim()) setPlanDraft(last.text);
+          return prev;
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       if (/abort/i.test(message)) {
@@ -617,6 +678,41 @@ export function AgentStudio(props: {
             ))}
           </ul>
         ) : null}
+        {props.selection && includeSelection ? (
+          <div className="context-chip-row" aria-label="将随消息发送的选区">
+            <span className="context-chip">
+              选区 {props.selection.path}:{props.selection.startLine}–{props.selection.endLine}
+              <button
+                type="button"
+                className="attach-remove"
+                aria-label="本次不发送选区"
+                onClick={() => setIncludeSelection(false)}
+              >
+                ×
+              </button>
+            </span>
+          </div>
+        ) : null}
+        {props.mode === "plan" && planDraft && !busy ? (
+          <div className="plan-build-row">
+            <span className="plan-build-hint">计划已生成。确认后交给 Agent 实施。</span>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!props.enabled}
+              onClick={() => {
+                props.onMode?.("agent");
+                void send({
+                  prompt: `按已批准的计划实施，不要扩大范围。\n\n## 计划\n${planDraft}`,
+                  images: [],
+                  mode: "agent",
+                });
+              }}
+            >
+              按此计划执行
+            </button>
+          </div>
+        ) : null}
         {images.length ? (
           <div className="attach-row" aria-label="待发送图片">
             {images.map((img) => (
@@ -648,7 +744,11 @@ export function AgentStudio(props: {
               ? "请先打开工作区"
               : busy
                 ? "输入后续消息，当前回合结束后发送…"
-                : "描述你的意图… 输入 @ 引用文件 / 代码库 / git / 终端 / 诊断，可粘贴或拖入图片"
+                : props.mode === "plan"
+                  ? "描述要规划的任务… Agent 会先探索再出计划，不会改文件"
+                  : props.mode === "ask"
+                    ? "提问… 只读代码库，不会改文件"
+                    : "描述你的意图… 输入 @ 引用文件 / 选区 / 代码库，可粘贴或拖入图片"
           }
           onChange={(e) => {
             setText(e.target.value);
@@ -698,13 +798,33 @@ export function AgentStudio(props: {
         />
         <div className="composer-row">
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
-            {props.mode}
+            <button
+              type="button"
+              className="model-link"
+              onClick={() => props.onOpenSettings?.()}
+              title="打开模型设置"
+            >
+              {props.modelLabel || props.mode}
+            </button>
+            {` · ${props.mode}`}
             {lastUsage ? ` · in ${lastUsage.in ?? 0}/out ${lastUsage.out ?? 0}` : ""}
             {queued ? ` · 队列 ${queued}` : ""}
             {lastCkpt ? ` · ckpt` : ""}
-            {" · @ 引用 · Ctrl/Cmd+Enter · 忙时可排队"}
+            {" · @ 引用 · Ctrl/Cmd+Enter"}
           </span>
           <div className="composer-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={!props.enabled || busy || !lastPrompt}
+              onClick={() => {
+                if (!lastPrompt) return;
+                void send({ prompt: lastPrompt, images: [] });
+              }}
+              title="重试上一条用户消息"
+            >
+              重试
+            </button>
             <button
               type="button"
               className="btn"

@@ -16,7 +16,8 @@
 - **配置**：`~/.wanwu/config.toml` + 工作区 `.wanwu/`；密钥走 `credentials.env`
 - **工具**：Read（行号 + offset/limit）/ ListDir / Glob / Grep / Edit / Write / Bash / Todo / WebFetch / WebSearch / Diagnose / SearchCodebase / Task
 - **编辑落盘**：`ask` 只提案（宿主 Diff 接受才写）；`accept-edits` / `accept-all` 在权限通过后直接写盘并打检查点
-- **上下文**：打开标签进 system；`@codebase` 走语义检索；只读工具可并行
+- **上下文**：打开标签 + **真实选区** 进 system；`@codebase` / `@selection`；只读工具可并行
+- **模式工具面**：Ask/Plan/Verify 不向模型暴露写工具；Plan 可先探索再出计划，UI「按此计划执行」
 - **会话**：ACP `session/list` + `session/load`；Shell 侧栏可恢复 `.wanwu/sessions/`
 
 ## 决策记忆（勿擅自推翻）

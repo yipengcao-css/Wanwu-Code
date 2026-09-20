@@ -22,6 +22,8 @@ assert.ok(git.every((s) => s.kind === "special" || s.insert.startsWith("@")));
 
 const codebase = completeMentions("code", files);
 assert.ok(codebase.some((s) => s.insert === "@codebase"));
+const selection = completeMentions("sel", files);
+assert.ok(selection.some((s) => s.insert === "@selection"));
 
 assert.deepEqual(foldersFromFiles(["src/native/mentions.ts", "apps/a.ts"]).sort(), [
   "apps",

@@ -28,6 +28,13 @@ export type EditorTab = {
   dirty: boolean;
 };
 
+export type EditorSelection = {
+  path: string;
+  text: string;
+  startLine: number;
+  endLine: number;
+};
+
 export type MarkerDiag = {
   message: string;
   severity: "error" | "warning" | "info" | "hint";
@@ -76,6 +83,7 @@ export function MonacoPane(props: {
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
+  onSelectionChange?: (sel: EditorSelection | null) => void;
 }) {
   const active = props.tabs.find((t) => t.path === props.activePath);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -107,6 +115,28 @@ export function MonacoPane(props: {
     registerInlineCompletion();
     attachInlineEdit(editor);
     registerLspFeatures();
+    const emitSelection = (): void => {
+      const model = editor.getModel();
+      const range = editor.getSelection();
+      const path = props.activePath;
+      if (!model || !range || !path || range.isEmpty()) {
+        props.onSelectionChange?.(null);
+        return;
+      }
+      const text = model.getValueInRange(range);
+      if (!text.trim()) {
+        props.onSelectionChange?.(null);
+        return;
+      }
+      props.onSelectionChange?.({
+        path,
+        text,
+        startLine: range.startLineNumber,
+        endLine: range.endLineNumber,
+      });
+    };
+    editor.onDidChangeCursorSelection(emitSelection);
+    emitSelection();
   };
 
   // Jump to a line requested by global search.

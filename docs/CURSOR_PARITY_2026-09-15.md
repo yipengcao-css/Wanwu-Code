@@ -37,6 +37,17 @@
 4. 插件注册表 `registry.wanwu.dev` 未证实上线
 5. 扩展无侧栏 View
 
+## 2026-09-20 Cursor 模板优化（第二轮）
+
+| 项 | 落点 |
+|---|---|
+| Ask/Plan/Verify **不向模型暴露** Edit/Write/Task（Ask 另藏 Bash） | `modeTools.ts` / `llmAgentLoop.ts` |
+| Plan 有密钥时先探索再写计划（不再无工具 one-shot） | `acpServer.ts` / `writePlanArtifact` |
+| 编辑器**真实选区**进上下文（不再截文件头 500 字） | MonacoPane / AgentStudio |
+| Plan →「按此计划执行」切到 Agent | AgentStudio |
+| 重试上一条 / 作曲栏点模型进设置 | AgentStudio |
+| `@selection` | mentions / mentionComplete |
+
 ## 2026-09-20 Cursor 模板优化
 
 | 项 | 落点 |
