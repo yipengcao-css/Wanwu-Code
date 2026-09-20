@@ -4,17 +4,29 @@ import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
 import electronPath from "electron";
 import "./ensure-cli.mjs";
-import { waitForHttp } from "./waitForHttp.mjs";
+import { candidateDevUrls, waitForFirstHttp } from "./waitForHttp.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repoRoot = path.resolve(root, "../..");
-const devUrl = process.env.WANWU_SHELL_DEV_URL || "http://127.0.0.1:5173/";
+const preferredUrl = process.env.WANWU_SHELL_DEV_URL || "http://127.0.0.1:5173/";
+const viteConfig = path.join(root, "vite.config.ts");
 
 let viteExit = null;
+const viteCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const vite = spawn(
-  "pnpm",
-  ["exec", "vite", "--config", path.join(root, "vite.config.ts")],
-  { cwd: root, stdio: "inherit", shell: process.platform === "win32" },
+  viteCmd,
+  [
+    "exec",
+    "vite",
+    "--config",
+    viteConfig,
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "5173",
+    "--strictPort",
+  ],
+  { cwd: root, stdio: "inherit", shell: process.platform === "win32", windowsHide: true },
 );
 vite.on("exit", (code) => {
   viteExit = code;
@@ -34,11 +46,13 @@ await esbuild.build({
   sourcemap: true,
 });
 
-console.log(`==> waiting for Vite ${devUrl}`);
-await waitForHttp(devUrl, {
+const probeUrls = candidateDevUrls(preferredUrl);
+console.log(`==> waiting for Vite ${probeUrls.join(" 或 ")}`);
+const devUrl = await waitForFirstHttp(probeUrls, {
   shouldAbort: () =>
     viteExit !== null ? `Vite 已退出（exit ${viteExit}），无法启动 Electron` : null,
 });
+console.log(`==> Vite ready · ${devUrl}`);
 
 const workspace =
   process.env.WANWU_SHELL_WORKSPACE ||

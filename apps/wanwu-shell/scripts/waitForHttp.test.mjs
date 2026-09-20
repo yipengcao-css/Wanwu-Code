@@ -1,5 +1,12 @@
 import { createServer } from "node:http";
-import { waitForHttp } from "./waitForHttp.mjs";
+import { candidateDevUrls, waitForFirstHttp, waitForHttp } from "./waitForHttp.mjs";
+
+{
+  const both = candidateDevUrls("http://127.0.0.1:5173/");
+  if (!both.includes("http://127.0.0.1:5173/") || !both.includes("http://localhost:5173/")) {
+    throw new Error(`expected ipv4+localhost candidates, got ${both}`);
+  }
+}
 
 function listen(host = "127.0.0.1") {
   return new Promise((resolve) => {
@@ -29,6 +36,21 @@ try {
 }
 if (!failed) {
   throw new Error("expected timeout against a closed port");
+}
+
+{
+  const { server, url } = await listen();
+  try {
+    const ready = await waitForFirstHttp(["http://127.0.0.1:1/", url], {
+      timeoutMs: 3000,
+      intervalMs: 50,
+    });
+    if (ready !== url) {
+      throw new Error(`expected first live url ${url}, got ${ready}`);
+    }
+  } finally {
+    server.close();
+  }
 }
 
 console.log("waitForHttp OK");
