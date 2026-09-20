@@ -11,7 +11,7 @@
 - **Plan 先探索**：有密钥时 Plan 走只读 tool loop，再写入 `.wanwu/plans/`；Shell 提供「按此计划执行」
 - **真实选区**：Agent 只带 Monaco 当前选区，不再误发文件头 500 字；`@selection`；命令面板「将选区加入 Agent」
 - **作曲栏**：重试上一条；点击 provider/model 打开设置
-- **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`
+- **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
 - **默认流式输出**：LLM 循环默认走 SSE（`WANWU_STREAM=0` 关闭）；TUI 状态栏显示 `stream=on` 与本轮 token 用量；Shell 回合完成后在状态栏显示 in/out tokens；TUI 将流式增量拼到同一行，避免刷屏
