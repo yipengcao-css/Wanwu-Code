@@ -176,6 +176,23 @@ describe("dispatchTool P0/P1 safety", () => {
     expect(result.text).toMatch(/blocked in mode=plan/);
   });
 
+  it("Task is blocked in plan mode", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-task-plan-"));
+    const result = await dispatchTool(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "accept-edits",
+        mode: "plan",
+      },
+      "plan",
+      "Task",
+      JSON.stringify({ agents: [{ kind: "coder", prompt: "edit files" }] }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.text).toMatch(/Task blocked in mode=plan/);
+  });
+
   it("Bash blocked in ask mode for non-readonly commands", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-bash-ask-"));
     const result = await dispatchTool(

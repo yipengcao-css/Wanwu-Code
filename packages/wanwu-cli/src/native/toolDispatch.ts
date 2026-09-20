@@ -281,6 +281,13 @@ export async function dispatchTool(
         return toolWebSearch(query);
       }
       case "Task": {
+        if (writeBlocked) {
+          return {
+            ok: false,
+            title: "Task",
+            text: `Task blocked in mode=${mode} (coder subagents can write files)`,
+          };
+        }
         if (!ctx.config) {
           return { ok: false, title: "Task", text: "Task requires LLM config context" };
         }
@@ -475,6 +482,15 @@ export function dispatchToolSync(
       };
       break;
     }
+    case "Task":
+      result = {
+        ok: false,
+        title: "Task",
+        text: writeBlocked
+          ? `Task blocked in mode=${mode} (coder subagents can write files)`
+          : "Task is async-only in the deterministic path; use the LLM agent",
+      };
+      break;
     default:
       result = { ok: false, title: name, text: `unknown tool: ${name}` };
   }

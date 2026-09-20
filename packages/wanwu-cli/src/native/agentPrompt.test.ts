@@ -27,4 +27,20 @@ fix the bug`;
   it("returns empty when no block", () => {
     expect(parseEditorContext("hello")).toEqual({ openTabs: [] });
   });
+
+  it("extracts the current selection", () => {
+    const ctx = parseEditorContext(`[EDITOR_CONTEXT]
+Active file: src/a.ts
+Selection (src/a.ts:10-12):
+\`\`\`
+const x = 1
+\`\`\`
+[/EDITOR_CONTEXT]`);
+    expect(ctx.selection).toEqual({
+      path: "src/a.ts",
+      startLine: 10,
+      endLine: 12,
+      text: "const x = 1",
+    });
+  });
 });

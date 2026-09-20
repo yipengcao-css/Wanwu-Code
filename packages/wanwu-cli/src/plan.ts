@@ -44,6 +44,36 @@ Reply with \`wanwu\` Agent mode after reviewing this plan, or edit this file fir
 `;
 }
 
+/** Persist a plan markdown file under `.wanwu/plans/`. */
+export function writePlanArtifact(opts: {
+  cwd: string;
+  task: string;
+  body: string;
+  generatedBy: string;
+  workflowState?: string;
+}): string {
+  const outPath = planPathFor(opts.cwd);
+  const header = `# Wanwu Plan
+
+- created: ${new Date().toISOString()}
+- workflow_state: ${opts.workflowState ?? "plan_draft"}
+- generated_by: ${opts.generatedBy}
+- task: ${opts.task.slice(0, 200)}
+`;
+  const approval = `
+
+## Approval
+
+在 Agent 模式点击「按此计划执行」，或编辑本文件后再执行。
+`;
+  const text = opts.body.includes("## Approval") ? opts.body : `${header}\n${opts.body.trim()}\n${approval}`;
+  writeFileSync(outPath, text, "utf8");
+  if (process.env.WANWU_PLAN_QUIET !== "1") {
+    console.log(outPath);
+  }
+  return outPath;
+}
+
 /**
  * Write a Plan artifact under .wanwu/plans/.
  * When provider credentials exist, the plan body is LLM-generated;
@@ -60,7 +90,6 @@ export async function runPlanAsync(
   const outPath = planPathFor(cwd);
   const { config } = loadWanwuConfig(cwd);
 
-  let body: string;
   if (hasProviderCredentials(config)) {
     const memory = renderMemoryForPrompt(discoverMemory(cwd));
     const res = await completeChat({
@@ -82,23 +111,15 @@ export async function runPlanAsync(
         maxTokens: 2048,
       },
     });
-    body = `# Wanwu Plan
-
-- created: ${new Date().toISOString()}
-- workflow_state: ${wf.state}
-- generated_by: ${res.provider}/${res.model}
-
-${res.text}
-
-## Approval
-
-Reply with \`wanwu\` Agent mode after reviewing this plan, or edit this file first.
-`;
-  } else {
-    body = fallbackPlanBody(task, cwd, wf.state);
+    return writePlanArtifact({
+      cwd,
+      task,
+      body: res.text,
+      generatedBy: `${res.provider}/${res.model}`,
+      workflowState: wf.state,
+    });
   }
-
-  writeFileSync(outPath, body, "utf8");
+  writeFileSync(outPath, fallbackPlanBody(task, cwd, wf.state), "utf8");
   if (process.env.WANWU_PLAN_QUIET !== "1") {
     console.log(outPath);
   }

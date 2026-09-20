@@ -18,7 +18,15 @@ import { assertInsideWorkspace, PathSandboxError } from "./workspacePaths.js";
  *   @codebase:<query>  semantic search with an explicit query
  */
 
-export type MentionKind = "file" | "folder" | "git" | "web" | "terminal" | "diagnostics" | "codebase";
+export type MentionKind =
+  | "file"
+  | "folder"
+  | "git"
+  | "web"
+  | "terminal"
+  | "diagnostics"
+  | "codebase"
+  | "selection";
 
 export interface Mention {
   raw: string;
@@ -27,7 +35,7 @@ export interface Mention {
 }
 
 const MENTION_RE =
-  /@((git):(status|diff|log)|web:[^\s]+|terminal|diagnostics|codebase(?::[^\s]+)?|[\w./\\-]+)/g;
+  /@((git):(status|diff|log)|web:[^\s]+|terminal|diagnostics|selection|codebase(?::[^\s]+)?|[\w./\\-]+)/g;
 
 export function parseMentions(input: string): { text: string; mentions: Mention[] } {
   const mentions: Mention[] = [];
@@ -36,7 +44,7 @@ export function parseMentions(input: string): { text: string; mentions: Mention[
       mentions.push({ raw, kind: "git", arg: body.slice(4) });
     } else if (body.startsWith("web:")) {
       mentions.push({ raw, kind: "web", arg: body.slice(4) });
-    } else if (body === "terminal" || body === "diagnostics") {
+    } else if (body === "terminal" || body === "diagnostics" || body === "selection") {
       mentions.push({ raw, kind: body, arg: "" });
     } else if (body === "codebase" || body.startsWith("codebase:")) {
       mentions.push({
@@ -143,6 +151,11 @@ export async function resolveMentions(
         case "diagnostics":
           blocks.push(
             `[Context @diagnostics]\n${host?.diagnostics?.() ?? "(diagnostics unavailable in this host)"}`,
+          );
+          break;
+        case "selection":
+          blocks.push(
+            "[Context @selection]\n(editor selection is attached via EDITOR_CONTEXT when the host sent one)",
           );
           break;
         case "codebase": {

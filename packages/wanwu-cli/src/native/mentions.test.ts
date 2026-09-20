@@ -15,9 +15,9 @@ describe("parseMentions", () => {
   });
 
   it("parses git and special mentions", () => {
-    const { mentions } = parseMentions("@git:status @git:diff @terminal @diagnostics @web:react hooks");
-    expect(mentions.map((m) => m.kind)).toEqual(["git", "git", "terminal", "diagnostics", "web"]);
-    expect(mentions[4]!.arg).toBe("react");
+    const { mentions } = parseMentions("@git:status @git:diff @terminal @diagnostics @selection @web:react hooks");
+    expect(mentions.map((m) => m.kind)).toEqual(["git", "git", "terminal", "diagnostics", "selection", "web"]);
+    expect(mentions[5]!.arg).toBe("react");
   });
 
   it("parses @codebase and @codebase:query", () => {

@@ -6,9 +6,17 @@ import { discoverRules, renderRulesForPrompt } from "../rules.js";
 import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import type { AgentContext } from "./agentLoop.js";
 
+export interface EditorSelection {
+  path?: string;
+  startLine?: number;
+  endLine?: number;
+  text: string;
+}
+
 export interface EditorContext {
   activePath?: string;
   openTabs: string[];
+  selection?: EditorSelection;
 }
 
 const EDITOR_BLOCK = /\[EDITOR_CONTEXT\]([\s\S]*?)\[\/EDITOR_CONTEXT\]/;
@@ -27,7 +35,25 @@ export function parseEditorContext(prompt: string): EditorContext {
     .map((s) => s.trim())
     .filter(Boolean);
   if (activePath && !openTabs.includes(activePath)) openTabs.unshift(activePath);
-  return { activePath, openTabs };
+
+  const selHead = body.match(/Selection(?:\s+\(([^)]+)\))?:/i);
+  let selection: EditorSelection | undefined;
+  if (selHead) {
+    const loc = selHead[1] ?? "";
+    const locMatch = loc.match(/^(.+):(\d+)-(\d+)$/);
+    const fence = body.slice(body.indexOf(selHead[0]) + selHead[0].length);
+    const code = fence.match(/```(?:\w*)\n([\s\S]*?)```/)?.[1] ?? fence.trim();
+    if (code.trim()) {
+      selection = {
+        path: locMatch?.[1],
+        startLine: locMatch ? Number(locMatch[2]) : undefined,
+        endLine: locMatch ? Number(locMatch[3]) : undefined,
+        text: code.replace(/\n$/, ""),
+      };
+    }
+  }
+
+  return { activePath, openTabs, selection };
 }
 
 export function buildSystem(
@@ -66,6 +92,27 @@ export function buildSystem(
   const editorLines: string[] = [];
   if (editor.activePath) editorLines.push(`Active file: ${editor.activePath}`);
   if (editor.openTabs.length) editorLines.push(`Open editors: ${editor.openTabs.join(", ")}`);
+  if (editor.selection?.text) {
+    const loc =
+      editor.selection.path != null
+        ? `${editor.selection.path}${
+            editor.selection.startLine != null
+              ? `:${editor.selection.startLine}-${editor.selection.endLine ?? editor.selection.startLine}`
+              : ""
+          }`
+        : "";
+    editorLines.push(`Current selection${loc ? ` (${loc})` : ""}:`);
+    editorLines.push(editor.selection.text.slice(0, 4000));
+  }
+
+  const modeGuide =
+    mode === "ask"
+      ? "Ask mode: answer with read-only tools only (Read/ListDir/Glob/Grep/SearchCodebase/Diagnose/Web*). Never edit or run a shell."
+      : mode === "plan"
+        ? "Plan mode: explore with read-only tools, then output a markdown plan (任务理解 / 涉及文件 / 实施步骤 / 验证 / 风险). Do NOT implement. The user will approve and switch to Agent."
+        : mode === "verify"
+          ? "Verify mode: inspect recent changes with Diagnose/Read. Do not add features."
+          : "Agent mode: you may Edit/Write/Bash when needed (permissions still apply). User can undo this turn via checkpoint.";
 
   return [
     "You are Wanwu, a local coding agent (Cursor-style). Use tools for workspace facts; do not guess file contents.",
@@ -79,9 +126,7 @@ export function buildSystem(
     ].join(" "),
     `Workspace: ${ctx.workspaceRoot}`,
     `Mode: ${mode}`,
-    mode === "plan" || mode === "ask"
-      ? "Do NOT use Edit/Write. Avoid destructive Bash."
-      : "You may Edit/Write/Bash when needed (permissions still apply). User can undo the turn via checkpoint.",
+    modeGuide,
     editorLines.length ? `Editor context:\n${editorLines.join("\n")}` : "",
     mcpNames?.length
       ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`

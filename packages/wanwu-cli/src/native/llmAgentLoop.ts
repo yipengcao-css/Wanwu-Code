@@ -24,6 +24,7 @@ import { shouldStream } from "./stream.js";
 import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 import { maybeAutoRemember } from "./autoMemory.js";
 import { buildSystem, parseEditorContext } from "./agentPrompt.js";
+import { toolsForMode } from "./modeTools.js";
 import { canRunToolsInParallel } from "./parallelTools.js";
 
 function providerOverride(): ProviderId | undefined {
@@ -125,10 +126,10 @@ export async function runLlmAgentLoop(
   };
 
   await ensureMcpRegistry(ctx.workspaceRoot);
-  const tools = [
+  const tools = toolsForMode(mode, [
     ...WANWU_TOOL_SPECS,
     ...(peekMcpRegistry(ctx.workspaceRoot)?.listToolSpecs() ?? []),
-  ];
+  ]);
 
   const prior = (opts?.history ?? [])
     .filter((m) => m.role !== "system")

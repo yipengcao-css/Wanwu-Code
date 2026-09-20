@@ -122,4 +122,37 @@ describe("runLlmAgentLoop", () => {
     expect(result.usage?.outputTokens).toBe(2);
     expect(result.usage?.totalTokens).toBe(13);
   });
+
+  it("omits write tools from the request in ask mode", async () => {
+    const round2 = readFileSync(path.join(fixtures, "openai-tool-round2.json"), "utf8");
+    let names: string[] = [];
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        tools?: Array<{ function?: { name?: string } }>;
+      };
+      names = (body.tools ?? []).map((t) => t.function?.name ?? "").filter(Boolean);
+      return new Response(round2, { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "openai",
+      model: "deepseek-chat",
+    });
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+    await runLlmAgentLoop(
+      {
+        workspaceRoot: root,
+        sessionId: "test-ask-tools",
+        permissionMode: "ask",
+        mode: "ask",
+      },
+      config,
+      "[MODE=ask] 这段代码做什么",
+      { fetchImpl, maxTurns: 1, stream: false },
+    );
+    expect(names).toContain("Read");
+    expect(names).not.toContain("Edit");
+    expect(names).not.toContain("Write");
+    expect(names).not.toContain("Task");
+    expect(names).not.toContain("Bash");
+  });
 });

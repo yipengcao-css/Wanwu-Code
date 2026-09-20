@@ -7,7 +7,7 @@ import type { ChatMessage } from "@wanwu/providers";
 import { loadWanwuConfig } from "@wanwu/config";
 import { ensureMcpRegistry } from "../mcp/registry.js";
 import { findWorkspaceRoot } from "../workspaceRoot.js";
-import { runPlanAsync } from "../plan.js";
+import { runPlanAsync, writePlanArtifact } from "../plan.js";
 import { runVerifyWithReview } from "../verify.js";
 import { runDeterministicTurn } from "./agentLoop.js";
 import { runLlmAgentLoop, shouldUseLlm } from "./llmAgentLoop.js";
@@ -158,8 +158,9 @@ export function startNativeAcpStdioServer(): void {
         config,
       };
       try {
-        // Plan/Verify are real workflow gates (not prompt candy).
-        if (mode === "plan") {
+        // Plan without credentials: write a template and stop (no tool loop).
+        // With credentials: skip the no-tools one-shot — the LLM explores first.
+        if (mode === "plan" && !shouldUseLlm(config)) {
           const prev = process.env.WANWU_PLAN_QUIET;
           process.env.WANWU_PLAN_QUIET = "1";
           let planPath = "";
@@ -173,6 +174,8 @@ export function startNativeAcpStdioServer(): void {
             sessionUpdate: "agent_message_chunk",
             content: { type: "text", text: `已写入 Plan 工件：\n${planPath}\n` },
           });
+          sendResult(id, { stopReason: "end_turn" });
+          return;
         }
         if (mode === "verify") {
           sessionUpdate(sessionId, {
@@ -211,6 +214,28 @@ export function startNativeAcpStdioServer(): void {
               },
             });
             session.history = out.messages.filter((m) => m.role !== "system");
+            if (mode === "plan" && out.text.trim()) {
+              const prev = process.env.WANWU_PLAN_QUIET;
+              process.env.WANWU_PLAN_QUIET = "1";
+              try {
+                const planPath = writePlanArtifact({
+                  cwd: workspaceRoot,
+                  task: stripModeTags(text) || "Untitled task",
+                  body: out.text,
+                  generatedBy: `${out.provider}/${out.model}`,
+                });
+                sessionUpdate(sessionId, {
+                  sessionUpdate: "agent_message_chunk",
+                  content: {
+                    type: "text",
+                    text: `\n已写入 Plan 工件：${planPath}\n在 Agent 模式点击「按此计划执行」。\n`,
+                  },
+                });
+              } finally {
+                if (prev === undefined) delete process.env.WANWU_PLAN_QUIET;
+                else process.env.WANWU_PLAN_QUIET = prev;
+              }
+            }
             saveSession({
               id: sessionId,
               workspaceRoot,
@@ -223,11 +248,8 @@ export function startNativeAcpStdioServer(): void {
           } finally {
             session.abort = undefined;
           }
-        } else if (mode !== "plan") {
-          // Deterministic path also handles plan/verify; skip double-plan when already written.
-          runDeterministicTurn(ctx, text);
         } else {
-          // Plan artifact already written; deterministic would duplicate — skip.
+          runDeterministicTurn(ctx, text);
         }
         sendResult(id, { stopReason: "end_turn" });
       } catch (err) {
