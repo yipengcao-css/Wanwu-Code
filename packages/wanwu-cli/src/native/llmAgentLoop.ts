@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import {
   completeChat,
   hasProviderCredentials,
@@ -9,12 +8,9 @@ import {
   type FetchLike,
   type Usage,
 } from "@wanwu/providers";
-import type { ProviderId, WanwuConfig, WanwuMode } from "@wanwu/config";
-import { discoverMemory } from "../memory.js";
+import type { ProviderId, WanwuConfig } from "@wanwu/config";
 import { runHooks } from "../hooks.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
-import { discoverRules, renderRulesForPrompt } from "../rules.js";
-import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
 import { compactMessages } from "./context/compact.js";
 import { newTurnId, pruneCheckpoints } from "./checkpoints.js";
 import { runDiagnose } from "./diagnose.js";
@@ -27,6 +23,8 @@ import { dispatchTool } from "./toolDispatch.js";
 import { shouldStream } from "./stream.js";
 import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 import { maybeAutoRemember } from "./autoMemory.js";
+import { buildSystem, parseEditorContext } from "./agentPrompt.js";
+import { canRunToolsInParallel } from "./parallelTools.js";
 
 function providerOverride(): ProviderId | undefined {
   const raw = process.env.WANWU_PROVIDER?.trim();
@@ -40,56 +38,6 @@ function providerOverride(): ProviderId | undefined {
 export function shouldUseLlm(config: WanwuConfig): boolean {
   if (process.env.WANWU_FORCE_DETERMINISTIC === "1") return false;
   return hasProviderCredentials(config, { providerId: providerOverride() });
-}
-
-function buildSystem(ctx: AgentContext, mode: WanwuMode, activeFiles: string[] = []): string {
-  const memory = discoverMemory(ctx.workspaceRoot)
-    .slice(0, 2)
-    .map((f) => {
-      try {
-        return readFileSync(f.path, "utf8").slice(0, 1200);
-      } catch {
-        return "";
-      }
-    })
-    .filter(Boolean)
-    .join("\n---\n");
-
-  const mcpReg = peekMcpRegistry(ctx.workspaceRoot);
-  const mcpNames = mcpReg
-    ?.listTools()
-    .map((t) => t.qualifiedName)
-    .slice(0, 40);
-  const mcpResources = mcpReg
-    ?.listResources()
-    .slice(0, 20)
-    .map((r) => `${r.uri}${r.name ? ` (${r.name})` : ""}`);
-  const skills = renderSkillsForPrompt(discoverSkills(ctx.workspaceRoot));
-  const rules = renderRulesForPrompt(discoverRules(ctx.workspaceRoot), activeFiles);
-
-  return [
-    "You are Wanwu, an AI coding agent. Use tools when you need workspace facts.",
-    "Prefer Read/Glob/Grep before answering about files. Be concise.",
-    "For conceptual questions ('where is X handled', 'how does Y work') use SearchCodebase (semantic index) before falling back to Grep.",
-    "Editing: use Write to create or fully rewrite a file; use Edit with exact old_string/new_string blocks for targeted changes. old_string must match the file exactly and uniquely — include surrounding context lines. Read the file first if unsure.",
-    "Use Todo for multi-step tasks (3+ steps). WebSearch/WebFetch are available for fresh public information — prefer workspace facts first.",
-    `Workspace: ${ctx.workspaceRoot}`,
-    `Mode: ${mode}`,
-    mode === "plan" || mode === "ask"
-      ? "Do NOT use Edit/Write. Avoid destructive Bash."
-      : "You may Edit/Write/Bash when needed (permissions still apply).",
-    mcpNames?.length
-      ? `MCP tools available (namespaced mcp__server__tool): ${mcpNames.join(", ")}`
-      : "",
-    mcpResources?.length
-      ? `MCP resources (use McpReadResource with uri): ${mcpResources.join(", ")}`
-      : "",
-    skills ? `Project skills:\n${skills}` : "",
-    rules ? `Project rules:\n${rules}` : "",
-    memory ? `Project memory:\n${memory}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
 }
 
 export interface LlmLoopResult {
@@ -188,10 +136,19 @@ export async function runLlmAgentLoop(
 
   const expanded = await expandMentions(ctx.workspaceRoot, prompt, {
     webSearch: async (q) => (await toolWebSearch(q)).text,
+    codebaseSearch: async (q) => {
+      const { searchCodebase, formatSearchHits } = await import("./codebaseIndex/search.js");
+      const r = await searchCodebase(ctx.workspaceRoot, q, { config, limit: 8 });
+      return `[index ${r.stats}]\n${formatSearchHits(r.hits)}`;
+    },
     ...opts?.hostContext,
   });
   const finalPrompt = expanded.context ? `${expanded.text}\n\n${expanded.context}` : prompt;
-  const activeFiles = expanded.mentions.filter((m) => m.kind === "file").map((m) => m.arg);
+  const editor = parseEditorContext(finalPrompt);
+  const activeFiles = [
+    ...expanded.mentions.filter((m) => m.kind === "file").map((m) => m.arg),
+    ...editor.openTabs,
+  ];
 
   const userContent =
     opts?.attachments?.length
@@ -199,7 +156,7 @@ export async function runLlmAgentLoop(
       : finalPrompt;
 
   let messages: ChatMessage[] = [
-    { role: "system", content: buildSystem(ctx, mode, activeFiles) },
+    { role: "system", content: buildSystem(ctx, mode, activeFiles, editor) },
     ...prior,
     { role: "user", content: userContent },
   ];
@@ -304,7 +261,7 @@ export async function runLlmAgentLoop(
         content: last.text || "",
         toolCalls: last.toolCalls,
       });
-      for (const call of last.toolCalls) {
+      const planned = last.toolCalls.map((call) => {
         toolsUsed.push(call.name);
         const toolCallId = `native-tool-${toolsUsed.length}`;
         sessionUpdate(ctx.sessionId, {
@@ -314,27 +271,23 @@ export async function runLlmAgentLoop(
           status: "pending",
           content: { type: "text", text: call.arguments.slice(0, 500) },
         });
+        return { call, toolCallId };
+      });
+
+      const runOne = async (item: (typeof planned)[number]) => {
         if (opts?.signal?.aborted) {
           throw new Error("aborted");
         }
-        const result = await dispatchTool(ctx, mode, call.name, call.arguments);
-        if (
-          (call.name === "Edit" || call.name === "Write") &&
-          result.ok &&
-          result.applied === true &&
-          result.diff
-        ) {
-          appliedEdits.push(result.diff.path);
-        }
+        const result = await dispatchTool(ctx, mode, item.call.name, item.call.arguments);
         const isProposal =
-          (call.name === "Edit" || call.name === "Write") &&
+          (item.call.name === "Edit" || item.call.name === "Write") &&
           result.ok &&
           Boolean(result.diff) &&
           result.applied === false;
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "tool_call",
-          toolCallId,
-          title: call.name,
+          toolCallId: item.toolCallId,
+          title: item.call.name,
           status: result.ok ? (isProposal ? "pending" : "completed") : "failed",
           content: {
             type: result.diff ? "diff" : "text",
@@ -344,6 +297,26 @@ export async function runLlmAgentLoop(
             after: result.diff?.after,
           },
         });
+        return { call: item.call, result };
+      };
+
+      const executed = canRunToolsInParallel(planned.map((p) => p.call.name))
+        ? await Promise.all(planned.map(runOne))
+        : await (async () => {
+            const out: Awaited<ReturnType<typeof runOne>>[] = [];
+            for (const item of planned) out.push(await runOne(item));
+            return out;
+          })();
+
+      for (const { call, result } of executed) {
+        if (
+          (call.name === "Edit" || call.name === "Write") &&
+          result.ok &&
+          result.applied === true &&
+          result.diff
+        ) {
+          appliedEdits.push(result.diff.path);
+        }
         messages.push({
           role: "tool",
           toolCallId: call.id,
@@ -387,6 +360,15 @@ export async function runLlmAgentLoop(
       });
     }
     break;
+  }
+
+  if (turns >= maxTurns && last?.toolCalls?.length) {
+    const notice = `\n\n[回合上限 ${maxTurns} 已到。已完成的步骤见上方；再说一次即可继续。可用检查点 ${turnId} 撤销本轮文件改动。]`;
+    last = { ...last, text: `${last.text ?? ""}${notice}` };
+    sessionUpdate(ctx.sessionId, {
+      sessionUpdate: "agent_message_chunk",
+      content: { type: "text", text: notice },
+    });
   }
 
   if (opts?.autoMemory !== false && !opts?.fetchImpl) {

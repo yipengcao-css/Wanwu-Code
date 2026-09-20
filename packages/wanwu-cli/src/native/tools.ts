@@ -107,19 +107,103 @@ function matchGlob(relPath: string, pattern: string): boolean {
   return globToRegExp(pattern).test(path);
 }
 
-export function toolRead(workspaceRoot: string, pathArg: string): ToolResult {
+function formatNumbered(lines: string[], start: number): string {
+  return lines.map((line, i) => `${String(start + i).padStart(6)}|${line}`).join("\n");
+}
+
+export function toolRead(
+  workspaceRoot: string,
+  pathArg: string,
+  opts?: { offset?: number; limit?: number },
+): ToolResult {
   try {
     const abs = assertInsideWorkspace(workspaceRoot, pathArg);
     if (!existsSync(abs) || isDirectory(abs)) {
       return { ok: false, title: "Read", text: `not a file: ${pathArg}` };
     }
     const text = readFileSync(abs, "utf8");
-    const clipped = text.length > 80_000 ? `${text.slice(0, 80_000)}\n…(truncated)` : text;
-    return { ok: true, title: "Read", text: clipped };
+    const lines = text.split(/\r?\n/);
+    const paged = opts?.offset !== undefined || opts?.limit !== undefined;
+    const start = Math.max(1, Math.floor(opts?.offset ?? 1));
+    const count = paged ? Math.max(1, Math.floor(opts?.limit ?? 200)) : lines.length;
+    const slice = lines.slice(start - 1, start - 1 + count);
+    let numbered = formatNumbered(slice, start);
+    const remaining = lines.length - (start - 1 + slice.length);
+    if (numbered.length > 80_000) {
+      numbered = numbered.slice(0, 80_000);
+      return {
+        ok: true,
+        title: "Read",
+        text: `${numbered}\n…(truncated at 80k chars; ${lines.length} lines — use offset/limit)`,
+      };
+    }
+    const more = remaining > 0 ? `\n…(${remaining} more lines; use offset/limit)` : "";
+    return { ok: true, title: "Read", text: numbered + more };
   } catch (err) {
     return {
       ok: false,
       title: "Read",
+      text: err instanceof PathSandboxError ? err.message : String(err),
+    };
+  }
+}
+
+const LIST_DIR_MAX = 200;
+
+export function toolListDir(
+  workspaceRoot: string,
+  pathArg = ".",
+  depth = 1,
+): ToolResult {
+  try {
+    const rel = pathArg.trim() || ".";
+    const abs = assertInsideWorkspace(workspaceRoot, rel);
+    if (!existsSync(abs) || !isDirectory(abs)) {
+      return { ok: false, title: "ListDir", text: `not a directory: ${rel}` };
+    }
+    const maxDepth = Math.min(4, Math.max(1, Math.floor(depth)));
+    const out: string[] = [];
+    const walk = (dir: string, prefix: string, level: number): void => {
+      if (out.length >= LIST_DIR_MAX) return;
+      let names: string[];
+      try {
+        names = readdirSync(dir);
+      } catch {
+        return;
+      }
+      names.sort((a, b) => a.localeCompare(b));
+      for (const name of names) {
+        if (SKIP_DIRS.has(name)) continue;
+        const full = join(dir, name);
+        const child = prefix === "." ? name : `${prefix.replace(/\\/g, "/")}/${name}`;
+        let st;
+        try {
+          st = statSync(full);
+        } catch {
+          continue;
+        }
+        if (st.isDirectory()) {
+          out.push(`${child}/`);
+          if (level < maxDepth) walk(full, child, level + 1);
+        } else if (st.isFile()) {
+          out.push(child);
+        }
+        if (out.length >= LIST_DIR_MAX) return;
+      }
+    };
+    walk(abs, rel === "." ? "." : rel.replace(/\\/g, "/"), 1);
+    const body = out
+      .map((p) => (p.startsWith("./") ? p.slice(2) : p === "." ? p : p.replace(/^\.\//, "")))
+      .join("\n");
+    return {
+      ok: true,
+      title: "ListDir",
+      text: body || "(empty)",
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      title: "ListDir",
       text: err instanceof PathSandboxError ? err.message : String(err),
     };
   }

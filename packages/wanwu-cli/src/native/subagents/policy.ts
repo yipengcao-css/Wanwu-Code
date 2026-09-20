@@ -7,13 +7,13 @@ export function policyFor(kind: SubagentKind): SubagentToolPolicy {
   switch (kind) {
     case "explore":
       return {
-        allowedTools: new Set(["Read", "Glob", "Grep", "Bash", "SearchCodebase", "Diagnose"]),
+        allowedTools: new Set(["Read", "ListDir", "Glob", "Grep", "Bash", "SearchCodebase", "Diagnose"]),
         mode: "ask",
         maxTurns: 4,
       };
     case "plan":
       return {
-        allowedTools: new Set(["Read", "Glob", "Grep", "SearchCodebase"]),
+        allowedTools: new Set(["Read", "ListDir", "Glob", "Grep", "SearchCodebase"]),
         mode: "plan",
         maxTurns: 4,
       };
@@ -21,6 +21,7 @@ export function policyFor(kind: SubagentKind): SubagentToolPolicy {
       return {
         allowedTools: new Set([
           "Read",
+          "ListDir",
           "Glob",
           "Grep",
           "SearchCodebase",

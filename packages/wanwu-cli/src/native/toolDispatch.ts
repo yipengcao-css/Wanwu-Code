@@ -12,6 +12,7 @@ import {
   toolEdit,
   toolGlob,
   toolGrep,
+  toolListDir,
   toolRead,
   toolWrite,
   type EditBlock,
@@ -134,8 +135,20 @@ export async function dispatchTool(
       return dispatchMcp(ctx, name, args);
     }
     switch (name) {
-      case "Read":
-        return toolRead(ctx.workspaceRoot, String(args.path ?? ""));
+      case "Read": {
+        const offset = args.offset !== undefined ? Number(args.offset) : undefined;
+        const limit = args.limit !== undefined ? Number(args.limit) : undefined;
+        return toolRead(ctx.workspaceRoot, String(args.path ?? ""), {
+          offset: Number.isFinite(offset) ? offset : undefined,
+          limit: Number.isFinite(limit) ? limit : undefined,
+        });
+      }
+      case "ListDir":
+        return toolListDir(
+          ctx.workspaceRoot,
+          String(args.path ?? "."),
+          args.depth !== undefined ? Number(args.depth) : 1,
+        );
       case "Glob":
         return toolGlob(ctx.workspaceRoot, String(args.pattern ?? "**/*"));
       case "Grep":
@@ -341,7 +354,17 @@ export function dispatchToolSync(
   let result: ToolResult;
   switch (name) {
     case "Read":
-      result = toolRead(ctx.workspaceRoot, String(args.path ?? ""));
+      result = toolRead(ctx.workspaceRoot, String(args.path ?? ""), {
+        offset: args.offset !== undefined ? Number(args.offset) : undefined,
+        limit: args.limit !== undefined ? Number(args.limit) : undefined,
+      });
+      break;
+    case "ListDir":
+      result = toolListDir(
+        ctx.workspaceRoot,
+        String(args.path ?? "."),
+        args.depth !== undefined ? Number(args.depth) : 1,
+      );
       break;
     case "Glob":
       result = toolGlob(ctx.workspaceRoot, String(args.pattern ?? "**/*"));

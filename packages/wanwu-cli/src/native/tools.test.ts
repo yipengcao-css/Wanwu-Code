@@ -7,6 +7,7 @@ import {
   toolBash,
   toolEdit,
   toolGlob,
+  toolListDir,
   toolRead,
   toolWrite,
 } from "./tools.js";
@@ -23,7 +24,29 @@ describe("native tools sandbox", () => {
     writeFileSync(join(root, "hello.md"), "# Hi\n");
     const r = toolRead(root, "hello.md");
     expect(r.ok).toBe(true);
-    expect(r.text).toContain("# Hi");
+    expect(r.text).toMatch(/1\|# Hi/);
+  });
+
+  it("pages Read with offset/limit and line numbers", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
+    writeFileSync(join(root, "n.txt"), "a\nb\nc\nd\n");
+    const r = toolRead(root, "n.txt", { offset: 2, limit: 2 });
+    expect(r.ok).toBe(true);
+    expect(r.text).toMatch(/^\s*2\|b/m);
+    expect(r.text).toMatch(/3\|c/);
+    expect(r.text).not.toMatch(/\|a/);
+  });
+
+  it("lists a directory", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-ls-"));
+    mkdirSync(join(root, "src"));
+    writeFileSync(join(root, "src", "a.ts"), "x");
+    writeFileSync(join(root, "README.md"), "hi");
+    const r = toolListDir(root, ".", 2);
+    expect(r.ok).toBe(true);
+    expect(r.text).toMatch(/README\.md/);
+    expect(r.text).toMatch(/src\//);
+    expect(r.text).toMatch(/src\/a\.ts/);
   });
 
   it("globs markdown files", () => {

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ChatMessage } from "@wanwu/providers";
+import { flattenText, type ChatMessage } from "@wanwu/providers";
 
 export interface StoredSession {
   id: string;
@@ -45,4 +45,36 @@ export function listSessions(workspaceRoot: string): StoredSession[] {
     .map((n) => loadSession(workspaceRoot, n.slice(0, -5)))
     .filter((s): s is StoredSession => Boolean(s))
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+/** First user-visible line of a session, for history rails. */
+export function sessionPreview(history: ChatMessage[]): string {
+  for (const m of history) {
+    if (m.role !== "user") continue;
+    const t = flattenText(m.content)
+      .replace(/\[MODE=\w+\][^\n]*\n?/g, "")
+      .replace(/\[EDITOR_CONTEXT\][\s\S]*?\[\/EDITOR_CONTEXT\]\n?/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (t) return t.slice(0, 48);
+  }
+  return "空会话";
+}
+
+export interface SessionSummary {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: number;
+  preview: string;
+}
+
+export function listSessionSummaries(workspaceRoot: string): SessionSummary[] {
+  return listSessions(workspaceRoot).map((s) => ({
+    id: s.id,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+    messages: s.history.length,
+    preview: sessionPreview(s.history),
+  }));
 }

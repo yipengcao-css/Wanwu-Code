@@ -15,7 +15,7 @@ import type { JsonRpc } from "./jsonRpcStdio.js";
 import { sendError, sendResult, sessionUpdate } from "./jsonRpcStdio.js";
 import { detectMode, stripModeTags } from "./mode.js";
 import { resolvePermissionRequest } from "./permissions.js";
-import { loadSession, saveSession } from "./sessionStore.js";
+import { listSessionSummaries, loadSession, saveSession } from "./sessionStore.js";
 import { runHooks } from "../hooks.js";
 import { normalizePromptText, resolvePromptAttachments } from "./promptAttachments.js";
 
@@ -80,17 +80,22 @@ export function startNativeAcpStdioServer(): void {
       void warmMcp();
       sendResult(id, {
         protocolVersion: "0.1.0-wanwu-native",
-        agentCapabilities: { loadSession: true },
+        agentCapabilities: { loadSession: true, listSessions: true },
         agentInfo: { name: "wanwu-native", version: "1.0.0-beta" },
       });
       return;
     }
 
     if (method === "session/new" || method === "newSession") {
-      const sessionId = `wanwu-native-${++sessionCounter}`;
+      const sessionId = `wanwu-${Date.now().toString(36)}-${(++sessionCounter).toString(36)}`;
       sessions.set(sessionId, { id: sessionId, history: [] });
       runHooks(workspaceRoot, "SessionStart", { sessionId, sessionSource: "new" });
       sendResult(id, { sessionId });
+      return;
+    }
+
+    if (method === "session/list" || method === "listSessions") {
+      sendResult(id, { sessions: listSessionSummaries(workspaceRoot) });
       return;
     }
 

@@ -154,6 +154,27 @@ export class AcpClient extends EventEmitter {
     return { sessionId: result.sessionId ?? sessionId, history: result.history };
   }
 
+  async listSessions(): Promise<{
+    sessions: Array<{
+      id: string;
+      createdAt?: string;
+      updatedAt?: string;
+      messages?: number;
+      preview?: string;
+    }>;
+  }> {
+    const result = (await this.request("session/list", {})) as {
+      sessions?: Array<{
+        id: string;
+        createdAt?: string;
+        updatedAt?: string;
+        messages?: number;
+        preview?: string;
+      }>;
+    };
+    return { sessions: result.sessions ?? [] };
+  }
+
   async cancelSession(sessionId?: string): Promise<void> {
     await this.request("session/cancel", sessionId ? { sessionId } : {});
   }
@@ -196,7 +217,9 @@ function extractText(params: unknown): string | undefined {
   return typeof text === "string" ? text : undefined;
 }
 
-function extractTool(params: unknown): { title: string; status: string; detail?: string } | undefined {
+function extractTool(
+  params: unknown,
+): { id?: string; title: string; status: string; detail?: string } | undefined {
   if (!params || typeof params !== "object") return undefined;
   const p = params as Record<string, unknown>;
   const update = p.update as Record<string, unknown> | undefined;
@@ -207,6 +230,7 @@ function extractTool(params: unknown): { title: string; status: string; detail?:
   const detail = content?.text;
   if (typeof title !== "string" || typeof status !== "string") return undefined;
   return {
+    id: typeof update.toolCallId === "string" ? update.toolCallId : undefined,
     title,
     status,
     detail: typeof detail === "string" ? detail.slice(0, 200) : undefined,

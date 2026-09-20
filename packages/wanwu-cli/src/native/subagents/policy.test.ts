@@ -6,6 +6,7 @@ describe("subagent policy", () => {
     const p = policyFor("explore");
     expect(p.mode).toBe("ask");
     expect(isToolAllowed("explore", "Read")).toBe(true);
+    expect(isToolAllowed("explore", "ListDir")).toBe(true);
     expect(isToolAllowed("explore", "Edit")).toBe(false);
     expect(isBashAllowedForKind("explore", "ls -la")).toBe(true);
     expect(isBashAllowedForKind("explore", "rm -rf x")).toBe(false);

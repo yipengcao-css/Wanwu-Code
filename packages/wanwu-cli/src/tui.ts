@@ -56,6 +56,7 @@ const HELP = `命令：
   @文件/@目录    附带文件内容或目录列表
   @git:status|diff|log  附带 git 状态/差异/日志
   @web:关键词    联网搜索
+  @codebase / @codebase:查询  语义搜索代码库
   @terminal / @diagnostics  终端输出 / 诊断（宿主支持时）
 
 快捷键：
@@ -99,7 +100,7 @@ export async function runTui(): Promise<number> {
 
   // @-mention path completion (workspace files + special mentions)
   const workspaceFiles = listWorkspaceFiles(cwd);
-  const SPECIAL_MENTIONS = ["@git:status", "@git:diff", "@git:log", "@web:", "@terminal", "@diagnostics"];
+  const SPECIAL_MENTIONS = ["@git:status", "@git:diff", "@git:log", "@web:", "@codebase", "@terminal", "@diagnostics"];
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,

@@ -20,6 +20,13 @@ describe("parseMentions", () => {
     expect(mentions[4]!.arg).toBe("react");
   });
 
+  it("parses @codebase and @codebase:query", () => {
+    const bare = parseMentions("where is auth @codebase");
+    expect(bare.mentions).toEqual([{ raw: "@codebase", kind: "codebase", arg: "" }]);
+    const q = parseMentions("see @codebase:login handler");
+    expect(q.mentions[0]).toEqual({ raw: "@codebase:login", kind: "codebase", arg: "login" });
+  });
+
   it("returns input unchanged without mentions", () => {
     const { text, mentions } = parseMentions("plain prompt");
     expect(mentions).toEqual([]);
@@ -69,6 +76,16 @@ describe("resolveMentions", () => {
     );
     expect(out).toContain("results for news");
   });
+
+  it("resolves @codebase via host search", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-mention-"));
+    const out = await resolveMentions(
+      root,
+      [{ raw: "@codebase:auth", kind: "codebase", arg: "auth" }],
+      { codebaseSearch: async (q) => `hits for ${q}` },
+    );
+    expect(out).toContain("hits for auth");
+  });
 });
 
 describe("expandMentions", () => {
@@ -78,5 +95,14 @@ describe("expandMentions", () => {
     const r = await expandMentions(root, "read @b.md please");
     expect(r.text).toBe("read b.md please");
     expect(r.context).toContain("hello");
+  });
+
+  it("fills a bare @codebase query from the rest of the prompt", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-mention-"));
+    const r = await expandMentions(root, "where is the login form @codebase", {
+      codebaseSearch: async (q) => q,
+    });
+    expect(r.mentions[0]?.arg).toMatch(/where is the login form/);
+    expect(r.context).toContain("where is the login form");
   });
 });
