@@ -62,17 +62,17 @@ async function ensureClient(
   if (!client) {
     client = startNativeAcp(root);
     clientCwd = root;
-    const win = getWin();
-    client.on("message", (text: string) => broadcast(win, "acp:message", text));
-    client.on("tool", (tool) => broadcast(win, "acp:tool", tool));
-    client.on("error", (err: Error) => broadcast(win, "acp:error", err.message));
+    client.on("message", (text: string) => broadcast(getWin(), "acp:message", text));
+    client.on("tool", (tool) => broadcast(getWin(), "acp:tool", tool));
+    client.on("error", (err: Error) => broadcast(getWin(), "acp:error", err.message));
+    // Always re-read the window: a captured `win` is null if ensure() raced createWindow.
     client.on("permission", (req: AcpPermissionRequest) =>
-      broadcast(win, "acp:permission", req),
+      broadcast(getWin(), "acp:permission", req),
     );
-    client.on("edit", (edit: AcpEditProposal) => broadcast(win, "acp:edit", edit));
+    client.on("edit", (edit: AcpEditProposal) => broadcast(getWin(), "acp:edit", edit));
     await client.initialize();
     sessionId = await client.newSession(root);
-    broadcast(win, "acp:session", { sessionId, cwd: root });
+    broadcast(getWin(), "acp:session", { sessionId, cwd: root });
   }
   return sessionId;
 }
@@ -87,7 +87,11 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
 
   ipcMain.handle(
     "acp:prompt",
-    async (_e, text: string, context?: { diagnostics?: string; terminal?: string }) => {
+    async (
+      _e,
+      text: string,
+      context?: { diagnostics?: string; terminal?: string; images?: string[] },
+    ) => {
       if (!client || !sessionId) throw new Error("ACP not ready");
       return client.prompt(sessionId, text, context);
     },
@@ -105,16 +109,41 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     return { sessionId, cwd: root };
   });
 
+  ipcMain.handle("acp:cancel", async () => {
+    if (!client || !sessionId) return false;
+    await client.cancelSession(sessionId);
+    return true;
+  });
+
   ipcMain.handle("acp:setSession", (_e, nextId: string) => {
     if (!client) throw new Error("ACP not ready");
     sessionId = nextId;
     return { sessionId };
   });
 
-  ipcMain.handle("acp:respondPermission", (_e, id: number, optionId: string) => {
+  ipcMain.handle("acp:listSessions", async () => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
     if (!client) throw new Error("ACP not ready");
-    client.respond(id, { optionId });
-    return true;
+    return client.listSessions();
+  });
+
+  ipcMain.handle("acp:loadSession", async (_e, nextId: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
+    if (!client) throw new Error("ACP not ready");
+    const loaded = await client.loadSession(String(nextId));
+    sessionId = loaded.sessionId;
+    broadcast(getWin(), "acp:session", { sessionId, cwd: root });
+    return loaded;
+  });
+
+  // send/on — not invoke/handle. Nested invoke behind an in-flight acp:prompt
+  // deadlocks on Electron (permission click never reaches the ACP child → 120s timeout).
+  ipcMain.on("acp:respondPermission", (_e, id: number, optionId: string) => {
+    client?.respond(Number(id), { optionId: String(optionId) });
   });
 
   ipcMain.handle("acp:dispose", () => {

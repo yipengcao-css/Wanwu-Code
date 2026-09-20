@@ -16,6 +16,13 @@ type PendingPermission = {
 const pending = new Map<number, PendingPermission>();
 let nextRequestId = 1_000_000;
 
+/** Accept hyphen or underscore ids from older Shell builds (`allow_once`). */
+export function normalizePermissionOptionId(optionId: string): PermissionOptionId {
+  const id = optionId.trim().replace(/_/g, "-").toLowerCase();
+  if (id === "allow-once" || id === "allow-session" || id === "deny") return id;
+  return "deny";
+}
+
 /** Called by acpServer when the client responds to session/request_permission. */
 export function resolvePermissionRequest(
   id: number,
@@ -25,11 +32,7 @@ export function resolvePermissionRequest(
   if (!p) return false;
   pending.delete(id);
   clearTimeout(p.timer);
-  const normalized: PermissionOptionId =
-    optionId === "allow-once" || optionId === "allow-session" || optionId === "deny"
-      ? optionId
-      : "deny";
-  p.resolve(normalized);
+  p.resolve(normalizePermissionOptionId(optionId));
   return true;
 }
 
@@ -39,6 +42,13 @@ function requestPermission(
   verdict: PermissionVerdict,
   timeoutMs = 120_000,
 ): Promise<PermissionOptionId> {
+  if (process.env.WANWU_ACP_STDIO !== "1") {
+    return Promise.reject(
+      new Error(
+        "需要确认网络/工具权限，但当前进程没有 ACP 权限弹窗。请将 permission_mode 设为 accept-edits 或 accept-all，或在 .wanwu/permissions.toml 写入 allow 规则",
+      ),
+    );
+  }
   const id = nextRequestId + randomInt(1_000_000);
   nextRequestId += 1;
   return new Promise((resolve, reject) => {

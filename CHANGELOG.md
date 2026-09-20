@@ -2,7 +2,27 @@
 
 ## Unreleased
 
+### Fixed
+- **Windows `pnpm build:cli` / `shell:dev`**：生成 `dist-bin/wanwu.mjs` 改为 Node 脚本，不再依赖 `bash`（未装 Git Bash 时也能拉起 ACP）
+- **Windows `shell:dev` ERR_CONNECTION_REFUSED**：等 Vite 在 `127.0.0.1:5173` 真正就绪再启动 Electron（不再固定睡 1.2s；避免 `localhost` IPv6 与 `127.0.0.1` 不一致）
+- **Windows Vite `localhost` vs Electron `127.0.0.1`**：强制 `--host 127.0.0.1`；探测/重试两个地址，避免 IPv6-only `localhost` 导致窗口空白
+- **WebFetch 权限超时**：Shell 用 `send` 回写 `session/request_permission`，避免卡在进行中的 `acp:prompt`；选项 id 改为 `allow-once`（兼容旧的 `allow_once`）；弹窗增加「本会话允许」
+- **Coding agent（对标 Cursor）**：`ListDir` + `Read` 行号/分页；只读工具并行；`@codebase`；系统提示先读后改/改完验证；打开标签进上下文；Shell 停止、忙时排队、检查点撤销、多文件全部接受、Todo 面板、会话恢复、终端 Ctrl+K；设置可改权限模式
+- **Ask/Plan/Verify 工具面**：模型请求里不再带 Edit/Write/Task（Ask 也不带 Bash）；Task 在只读模式被 dispatch 拒绝
+- **Plan 先探索**：有密钥时 Plan 走只读 tool loop，再写入 `.wanwu/plans/`；Shell 提供「按此计划执行」
+- **真实选区**：Agent 只带 Monaco 当前选区，不再误发文件头 500 字；`@selection`；命令面板「将选区加入 Agent」
+- **作曲栏**：重试上一条；点击 provider/model 打开设置
+- **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
+
 ### Added
+- **默认流式输出**：LLM 循环默认走 SSE（`WANWU_STREAM=0` 关闭）；TUI 状态栏显示 `stream=on` 与本轮 token 用量；Shell 回合完成后在状态栏显示 in/out tokens；TUI 将流式增量拼到同一行，避免刷屏
+- **Shell @-mentions 补全**：Agent Studio 输入 `@` 弹出文件 / `@git:*` / `@web:` / `@terminal` / `@diagnostics` 列表；Tab/Enter 插入；终端最近输出与 LSP 诊断随 prompt 传给 ACP
+- **扩展独立 ACP + 真 Diff**：VS Code 扩展不再依赖 `pnpm exec tsx`；按 bundled `wanwu-cli` / `dist-bin` / 仓库 `tsx` 入口拉起 ACP。Diff 审阅改为 `vscode.diff` 并排视图，接受时用 WorkspaceEdit 落盘
+- **MCP resources**：stdio `resources/list` / `resources/read`；LLM 工具 `McpReadResource`
+- **聊天贴图**：ACP `session/prompt` 接受 `images` / content-block 图像；TUI `/image`；Shell 粘贴/选图经 ACP 发送
+- **自动记忆**：用户明确说「记住 / remember / always use」时写入 `WANWU.md` `## Learned`（`WANWU_AUTO_MEMORY=0` 关闭）
+- **轻量 SCM**：Shell FileTree 显示 git porcelain 状态标记（M/A/D/?）
+- **Cursor 对标 A2–E（已合入 #40–#56）**：上下文压缩与更高回合上限；providers 超时/重试/usage；Todo / WebFetch / WebSearch；@-mentions；代码库索引；Diagnose lint 闭环；分层 rules；Tab 补全与 Ctrl+K；检查点/undo；Shell 搜索/命令面板/多终端/全 LSP；allow-session 记忆与 hooks 全接线；TUI `/resume`；`wanwu commit-msg`
 - **编辑工具重做（A1）**：`Edit` 改为 search/replace 块（多块、replace_all、行尾空白容错、未命中给 near-miss 提示）；新增 `Write` 工具（创建/覆写）；`accept-edits`/`accept-all` 模式直接落盘并回传 diff，`ask` 模式保持提案审阅；acp-client 只对 pending diff 触发审阅
 - **IDE 深度集成**：VS Code 内联 diff（`vscode.diff` + WorkspaceEdit）；Quick Fix「用 Wanwu 修复」；Problems 桥接；ACP client 支持 `session/load` / `session/cancel`
 - **丰富 hooks 生命周期**：SessionStart/SessionEnd/UserPromptSubmit/ToolCallApproved/ToolCallDenied/SubagentStart/SubagentEnd/Error；`.wanwu/hooks/*.sh` 按事件前缀发现

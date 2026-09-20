@@ -36,7 +36,7 @@ describe("runLlmAgentLoop", () => {
       },
       config,
       "用工具读取 README 并给出标题",
-      { fetchImpl, maxTurns: 4 },
+      { fetchImpl, maxTurns: 4, stream: false },
     );
 
     expect(calls).toBe(2);
@@ -75,6 +75,7 @@ describe("runLlmAgentLoop", () => {
       {
         fetchImpl,
         maxTurns: 2,
+        stream: false,
         history: [
           { role: "user", content: "第一轮问题" },
           { role: "assistant", content: "第一轮回答" },
@@ -84,5 +85,74 @@ describe("runLlmAgentLoop", () => {
 
     // system + 2 history + new user
     expect(sawMessages).toBeGreaterThanOrEqual(4);
+  });
+
+  it("streams by default and records usage", async () => {
+    const sse = [
+      `data: ${JSON.stringify({ choices: [{ delta: { content: "Hello" } }] })}\n\n`,
+      `data: ${JSON.stringify({
+        choices: [{ delta: { content: " world" } }],
+        usage: { prompt_tokens: 11, completion_tokens: 2, total_tokens: 13 },
+      })}\n\n`,
+      "data: [DONE]\n\n",
+    ].join("");
+    const fetchImpl: typeof fetch = async () =>
+      new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } });
+
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "openai",
+      model: "deepseek-chat",
+    });
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+
+    const result = await runLlmAgentLoop(
+      {
+        workspaceRoot: root,
+        sessionId: "test-stream",
+        permissionMode: "ask",
+        mode: "ask",
+      },
+      config,
+      "say hi",
+      { fetchImpl, maxTurns: 1 },
+    );
+
+    expect(result.text).toMatch(/Hello world/);
+    expect(result.usage?.inputTokens).toBe(11);
+    expect(result.usage?.outputTokens).toBe(2);
+    expect(result.usage?.totalTokens).toBe(13);
+  });
+
+  it("omits write tools from the request in ask mode", async () => {
+    const round2 = readFileSync(path.join(fixtures, "openai-tool-round2.json"), "utf8");
+    let names: string[] = [];
+    const fetchImpl: typeof fetch = async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        tools?: Array<{ function?: { name?: string } }>;
+      };
+      names = (body.tools ?? []).map((t) => t.function?.name ?? "").filter(Boolean);
+      return new Response(round2, { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "openai",
+      model: "deepseek-chat",
+    });
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+    await runLlmAgentLoop(
+      {
+        workspaceRoot: root,
+        sessionId: "test-ask-tools",
+        permissionMode: "ask",
+        mode: "ask",
+      },
+      config,
+      "[MODE=ask] 这段代码做什么",
+      { fetchImpl, maxTurns: 1, stream: false },
+    );
+    expect(names).toContain("Read");
+    expect(names).not.toContain("Edit");
+    expect(names).not.toContain("Write");
+    expect(names).not.toContain("Task");
+    expect(names).not.toContain("Bash");
   });
 });

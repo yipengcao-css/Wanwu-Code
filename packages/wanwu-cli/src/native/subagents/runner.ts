@@ -106,6 +106,8 @@ export async function runSubagent(
       maxTurns: policy.maxTurns,
       fetchImpl: opts.fetchImpl,
       history: [],
+      // Fixture fetchImpls return JSON, not SSE — keep them on the complete path.
+      stream: opts.fetchImpl ? false : undefined,
     });
 
     const summary = out.text || "(no text output)";

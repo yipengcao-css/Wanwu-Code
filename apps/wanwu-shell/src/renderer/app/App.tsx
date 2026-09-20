@@ -4,7 +4,7 @@ import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
-import type { EditorTab, MarkerDiag } from "../editor/MonacoPane";
+import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { ConfirmModal } from "../agent/ConfirmModal";
@@ -48,6 +48,7 @@ export function App() {
   const [agentW, setAgentW] = useState(initial.agentW);
   const [termH, setTermH] = useState(initial.termH);
   const [status, setStatus] = useState("就绪 · Wanwu Lattice");
+  const [termTail, setTermTail] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const changeTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -57,8 +58,11 @@ export function App() {
     summary: string;
     risk?: string;
   } | null>(null);
-  const [edit, setEdit] = useState<{ path: string; before: string; after: string } | null>(null);
+  const [edits, setEdits] = useState<Array<{ path: string; before: string; after: string }>>([]);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [selection, setSelection] = useState<EditorSelection | null>(null);
+  const [addSelectionTick, setAddSelectionTick] = useState(0);
+  const [modelLabel, setModelLabel] = useState("");
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
@@ -73,7 +77,10 @@ export function App() {
     void window.wanwu.workspace.getRoot().then((r) => {
       if (r) setRoot(r);
     });
-    void window.wanwu.settings.get().then((s) => setHasApiKey(s.hasApiKey));
+    void window.wanwu.settings.get().then((s) => {
+      setHasApiKey(s.hasApiKey);
+      setModelLabel(`${s.activeProvider}/${s.model}`);
+    });
   }, []);
 
   useEffect(() => {
@@ -82,7 +89,9 @@ export function App() {
 
   useEffect(() => {
     const offP = window.wanwu.acp.onPermission((req) => setPerm(req));
-    const offE = window.wanwu.acp.onEdit((e) => setEdit(e));
+    const offE = window.wanwu.acp.onEdit((e) =>
+      setEdits((prev) => [...prev.filter((x) => x.path !== e.path), e]),
+    );
     return () => {
       offP();
       offE();
@@ -120,10 +129,27 @@ export function App() {
   }, [activeTab]);
 
   useEffect(() => {
+    return window.wanwu.fs.onChanged((rel) => {
+      const norm = rel.replace(/\\/g, "/");
+      setTabs((prev) => {
+        const hit = prev.find((t) => t.path === norm || t.path === rel);
+        if (!hit || hit.dirty) return prev;
+        void window.wanwu.fs.read(hit.path).then((content) => {
+          setTabs((cur) =>
+            cur.map((t) => (t.path === hit.path && !t.dirty ? { ...t, content } : t)),
+          );
+        });
+        return prev;
+      });
+    });
+  }, []);
+
+  useEffect(() => {
     return window.wanwu.workspace.onChanged((dir) => {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setSelection(null);
       setDiagnostics({});
       void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
@@ -153,6 +179,7 @@ export function App() {
       setRoot(dir);
       setTabs([]);
       setActivePath(null);
+      setSelection(null);
       setDiagnostics({});
       void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
@@ -265,9 +292,13 @@ export function App() {
                 gotoLine={gotoLine}
                 onSelect={setActivePath}
                 onChange={onChange}
+                onSelectionChange={setSelection}
                 onClose={(p) => {
                   setTabs((prev) => prev.filter((t) => t.path !== p));
-                  if (activePath === p) setActivePath(null);
+                  if (activePath === p) {
+                    setActivePath(null);
+                    setSelection(null);
+                  }
                   setDiagnostics((prev) => {
                     const next = { ...prev };
                     delete next[p];
@@ -296,9 +327,15 @@ export function App() {
             enabled={Boolean(root)}
             workspaceRoot={root}
             activePath={activePath}
-            selectionHint={activeTab?.content.slice(0, 500)}
+            openTabs={tabs.map((t) => t.path)}
+            selection={selection}
+            addSelectionTick={addSelectionTick}
+            modelLabel={modelLabel}
             diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
+            terminalSummary={termTail || undefined}
             onStatus={setStatus}
+            onMode={setMode}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         </aside>
       </div>
@@ -309,7 +346,15 @@ export function App() {
             onDrag={(d) => setTermH((h) => Math.min(480, Math.max(120, h - d)))}
           />
           <div className="terminal-drawer">
-            <TerminalPane key={root ?? "no-ws"} active={termOpen} />
+            <TerminalPane
+              key={root ?? "no-ws"}
+              active={termOpen}
+              onOutput={(data) => {
+                const clean = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+                if (!clean) return;
+                setTermTail((prev) => `${prev}${clean}`.slice(-4000));
+              }}
+            />
           </div>
         </>
       ) : null}
@@ -317,7 +362,7 @@ export function App() {
         <span className={`status-dot${hasApiKey === false ? " warn" : ""}`} />
         <span>{status}</span>
         <span className="status-hotkeys">
-          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑
+          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑/终端命令
         </span>
       </footer>
 
@@ -326,6 +371,7 @@ export function App() {
         onClose={() => setSettingsOpen(false)}
         onSaved={(s) => {
           setHasApiKey(s.hasApiKey);
+          setModelLabel(`${s.activeProvider}/${s.model}`);
           setStatus(`已更新模型 · ${s.activeProvider}/${s.model}`);
         }}
       />
@@ -335,9 +381,14 @@ export function App() {
           title={`权限 · ${perm.toolName}`}
           body={`${perm.summary}\nrisk=${perm.risk ?? "?"}`}
           acceptLabel="允许一次"
+          sessionLabel="本会话允许"
           rejectLabel="拒绝"
           onAccept={() => {
-            void window.wanwu.acp.respondPermission(perm.id, "allow_once");
+            void window.wanwu.acp.respondPermission(perm.id, "allow-once");
+            setPerm(null);
+          }}
+          onSession={() => {
+            void window.wanwu.acp.respondPermission(perm.id, "allow-session");
             setPerm(null);
           }}
           onReject={() => {
@@ -347,25 +398,46 @@ export function App() {
         />
       ) : null}
 
-      {edit ? (
+      {edits[0] ? (
         <Suspense fallback={null}>
           <DiffReview
-            path={edit.path}
-            before={edit.before}
-            after={edit.after}
+            path={edits[0].path}
+            before={edits[0].before}
+            after={edits[0].after}
+            queueLabel={edits.length > 1 ? `1/${edits.length}` : undefined}
             onAccept={() => {
+              const current = edits[0];
               void (async () => {
-                await window.wanwu.fs.write(edit.path, edit.after);
+                await window.wanwu.fs.write(current.path, current.after);
                 setTabs((prev) => {
-                  const others = prev.filter((t) => t.path !== edit.path);
-                  return [...others, { path: edit.path, content: edit.after, dirty: false }];
+                  const others = prev.filter((t) => t.path !== current.path);
+                  return [...others, { path: current.path, content: current.after, dirty: false }];
                 });
-                setActivePath(edit.path);
-                setEdit(null);
-                setStatus(`已接受编辑 · ${edit.path}`);
+                setActivePath(current.path);
+                setEdits((prev) => prev.slice(1));
+                setStatus(`已接受编辑 · ${current.path}`);
               })();
             }}
-            onReject={() => setEdit(null)}
+            onReject={() => setEdits((prev) => prev.slice(1))}
+            onAcceptAll={
+              edits.length > 1
+                ? () => {
+                    void (async () => {
+                      for (const e of edits) {
+                        await window.wanwu.fs.write(e.path, e.after);
+                        setTabs((prev) => {
+                          const others = prev.filter((t) => t.path !== e.path);
+                          return [...others, { path: e.path, content: e.after, dirty: false }];
+                        });
+                      }
+                      setActivePath(edits[edits.length - 1]?.path ?? null);
+                      setEdits([]);
+                      setStatus(`已接受 ${edits.length} 个文件`);
+                    })();
+                  }
+                : undefined
+            }
+            onRejectAll={edits.length > 1 ? () => setEdits([]) : undefined}
           />
         </Suspense>
       ) : null}
@@ -388,6 +460,18 @@ export function App() {
             title: "聚焦 Agent 输入",
             hint: "Ctrl+I",
             run: () => document.querySelector<HTMLTextAreaElement>(".composer textarea")?.focus(),
+          },
+          {
+            id: "add-selection",
+            title: "将编辑器选区加入 Agent",
+            hint: "选区",
+            run: () => setAddSelectionTick((n) => n + 1),
+          },
+          {
+            id: "term-ask",
+            title: "终端 Ctrl+K 生成命令",
+            hint: "Ctrl+K",
+            run: () => setTermOpen(true),
           },
           {
             id: "side-search",

@@ -19,7 +19,30 @@ function run(
   const result = spawnSync(cmd, args, { cwd, encoding: "utf8", env });
   if (result.stdout) appendFileSync(logFile, result.stdout, "utf8");
   if (result.stderr) appendFileSync(logFile, result.stderr, "utf8");
+  appendFileSync(logFile, `exit=${result.status ?? 1}\n`, "utf8");
   return result.status ?? 1;
+}
+
+/** Empty hooks dir so missing git-lfs (common in slim images) cannot fail worktree/commit. */
+export function emptyHooksDir(repoRoot: string): string {
+  const dir = join(repoRoot, ".wanwu", "empty-hooks");
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+/** Git argv that skips LFS/checkout hooks (exported for tests). */
+export function isolatedGitArgs(repoRoot: string, args: string[]): string[] {
+  return [
+    "-c",
+    `core.hooksPath=${emptyHooksDir(repoRoot)}`,
+    "-c",
+    "filter.lfs.required=false",
+    ...args,
+  ];
+}
+
+function gitEnv(base: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  return { ...base, GIT_LFS_SKIP_SMUDGE: "1" };
 }
 
 export function worktreePath(repoRoot: string, taskId: string): string {
@@ -50,17 +73,26 @@ export function runCloudTaskLocally(opts: RunOptions): StoredTask {
   if (!existsSync(wt)) {
     const addCode = run(
       "git",
-      ["worktree", "add", "-b", branch, wt, "HEAD"],
+      isolatedGitArgs(repoRoot, ["worktree", "add", "-b", branch, wt, "HEAD"]),
       repoRoot,
       logPath,
+      gitEnv(),
     );
-    if (addCode !== 0) {
+    // LFS post-checkout often exits 2 after the worktree already exists.
+    if (addCode !== 0 && !existsSync(wt)) {
       return updateTaskStatus(repoRoot, taskId, "failed", {
         exitCode: addCode,
         logPath,
         worktree: wt,
         branch,
       });
+    }
+    if (addCode !== 0) {
+      appendFileSync(
+        logPath,
+        `[warn] git worktree add exited ${addCode} but worktree exists; continuing (hooks/LFS ignored)\n`,
+        "utf8",
+      );
     }
   }
 
@@ -106,10 +138,10 @@ export function runCloudTaskLocally(opts: RunOptions): StoredTask {
     "utf8",
   );
 
-  run("git", ["add", ".wanwu"], wt, logPath);
+  run("git", isolatedGitArgs(repoRoot, ["add", ".wanwu"]), wt, logPath, gitEnv());
   run(
     "git",
-    [
+    isolatedGitArgs(repoRoot, [
       "-c",
       "user.email=wanwu@example.com",
       "-c",
@@ -117,13 +149,18 @@ export function runCloudTaskLocally(opts: RunOptions): StoredTask {
       "commit",
       "-m",
       `wanwu cloud task ${taskId}: review artifact (no merge)`,
-    ],
+    ]),
     wt,
     logPath,
+    gitEnv(),
   );
 
   const diffPath = join(taskDir, "review.diff");
-  const diff = spawnSync("git", ["diff", "HEAD~1..HEAD"], { cwd: wt, encoding: "utf8" });
+  const diff = spawnSync("git", isolatedGitArgs(repoRoot, ["diff", "HEAD~1..HEAD"]), {
+    cwd: wt,
+    encoding: "utf8",
+    env: gitEnv(),
+  });
   writeFileSync(diffPath, diff.stdout ?? "", "utf8");
   appendFileSync(logPath, `\n[review.diff written — review-first, not merged to main]\n`, "utf8");
 

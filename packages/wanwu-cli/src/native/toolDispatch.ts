@@ -12,6 +12,7 @@ import {
   toolEdit,
   toolGlob,
   toolGrep,
+  toolListDir,
   toolRead,
   toolWrite,
   type EditBlock,
@@ -134,8 +135,20 @@ export async function dispatchTool(
       return dispatchMcp(ctx, name, args);
     }
     switch (name) {
-      case "Read":
-        return toolRead(ctx.workspaceRoot, String(args.path ?? ""));
+      case "Read": {
+        const offset = args.offset !== undefined ? Number(args.offset) : undefined;
+        const limit = args.limit !== undefined ? Number(args.limit) : undefined;
+        return toolRead(ctx.workspaceRoot, String(args.path ?? ""), {
+          offset: Number.isFinite(offset) ? offset : undefined,
+          limit: Number.isFinite(limit) ? limit : undefined,
+        });
+      }
+      case "ListDir":
+        return toolListDir(
+          ctx.workspaceRoot,
+          String(args.path ?? "."),
+          args.depth !== undefined ? Number(args.depth) : 1,
+        );
       case "Glob":
         return toolGlob(ctx.workspaceRoot, String(args.pattern ?? "**/*"));
       case "Grep":
@@ -268,6 +281,13 @@ export async function dispatchTool(
         return toolWebSearch(query);
       }
       case "Task": {
+        if (writeBlocked) {
+          return {
+            ok: false,
+            title: "Task",
+            text: `Task blocked in mode=${mode} (coder subagents can write files)`,
+          };
+        }
         if (!ctx.config) {
           return { ok: false, title: "Task", text: "Task requires LLM config context" };
         }
@@ -284,6 +304,22 @@ export async function dispatchTool(
           concurrency,
         });
         return { ok: true, title: "Task", text: result.aggregateText };
+      }
+      case "McpReadResource": {
+        const uri = String(args.uri ?? "");
+        const reg = peekMcpRegistry(ctx.workspaceRoot);
+        if (!uri) return { ok: false, title: "McpReadResource", text: "uri required" };
+        if (!reg) return { ok: false, title: "McpReadResource", text: "MCP not started" };
+        try {
+          const text = await reg.readResource(uri);
+          return { ok: true, title: "McpReadResource", text };
+        } catch (err) {
+          return {
+            ok: false,
+            title: "McpReadResource",
+            text: err instanceof Error ? err.message : String(err),
+          };
+        }
       }
       default:
         return { ok: false, title: name, text: `unknown tool: ${name}` };
@@ -325,7 +361,17 @@ export function dispatchToolSync(
   let result: ToolResult;
   switch (name) {
     case "Read":
-      result = toolRead(ctx.workspaceRoot, String(args.path ?? ""));
+      result = toolRead(ctx.workspaceRoot, String(args.path ?? ""), {
+        offset: args.offset !== undefined ? Number(args.offset) : undefined,
+        limit: args.limit !== undefined ? Number(args.limit) : undefined,
+      });
+      break;
+    case "ListDir":
+      result = toolListDir(
+        ctx.workspaceRoot,
+        String(args.path ?? "."),
+        args.depth !== undefined ? Number(args.depth) : 1,
+      );
       break;
     case "Glob":
       result = toolGlob(ctx.workspaceRoot, String(args.pattern ?? "**/*"));
@@ -436,6 +482,15 @@ export function dispatchToolSync(
       };
       break;
     }
+    case "Task":
+      result = {
+        ok: false,
+        title: "Task",
+        text: writeBlocked
+          ? `Task blocked in mode=${mode} (coder subagents can write files)`
+          : "Task is async-only in the deterministic path; use the LLM agent",
+      };
+      break;
     default:
       result = { ok: false, title: name, text: `unknown tool: ${name}` };
   }

@@ -2,7 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DEFAULT_CONFIG } from "@wanwu/config";
 import { dispatchTool, dispatchToolSync } from "./toolDispatch.js";
+
+const offSandbox = { ...DEFAULT_CONFIG, sandbox: "off" as const };
 
 describe("dispatchTool hooks", () => {
   it("blocks tool when PreToolUse hook fails", async () => {
@@ -173,6 +176,23 @@ describe("dispatchTool P0/P1 safety", () => {
     expect(result.text).toMatch(/blocked in mode=plan/);
   });
 
+  it("Task is blocked in plan mode", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-task-plan-"));
+    const result = await dispatchTool(
+      {
+        workspaceRoot: root,
+        sessionId: "s1",
+        permissionMode: "accept-edits",
+        mode: "plan",
+      },
+      "plan",
+      "Task",
+      JSON.stringify({ agents: [{ kind: "coder", prompt: "edit files" }] }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.text).toMatch(/Task blocked in mode=plan/);
+  });
+
   it("Bash blocked in ask mode for non-readonly commands", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-bash-ask-"));
     const result = await dispatchTool(
@@ -199,6 +219,9 @@ describe("dispatchTool P0/P1 safety", () => {
         sessionId: "s1",
         permissionMode: "ask",
         mode: "ask",
+        // CI runners have docker; workspace sandbox would `docker run` and
+        // blow the 5s vitest budget pulling node:22-alpine.
+        config: offSandbox,
       },
       "ask",
       "Bash",

@@ -19,8 +19,11 @@ export function DiffReview(props: {
   path: string;
   before: string;
   after: string;
+  queueLabel?: string;
   onAccept: () => void;
   onReject: () => void;
+  onAcceptAll?: () => void;
+  onRejectAll?: () => void;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -35,16 +38,26 @@ export function DiffReview(props: {
       <div className="modal modal-diff">
         <header className="diff-head">
           <div>
-            <h3 id="diff-title">审阅编辑</h3>
+            <h3 id="diff-title">审阅编辑{props.queueLabel ? ` · ${props.queueLabel}` : ""}</h3>
             <p className="diff-path">{props.path}</p>
           </div>
           <div className="modal-actions" style={{ marginTop: 0 }}>
+            {props.onRejectAll ? (
+              <button type="button" className="btn" onClick={props.onRejectAll}>
+                全部拒绝
+              </button>
+            ) : null}
             <button type="button" className="btn danger" onClick={props.onReject}>
               拒绝
             </button>
             <button type="button" className="btn primary" onClick={props.onAccept}>
               写入文件
             </button>
+            {props.onAcceptAll ? (
+              <button type="button" className="btn primary" onClick={props.onAcceptAll}>
+                全部接受
+              </button>
+            ) : null}
           </div>
         </header>
         <div className="diff-host">

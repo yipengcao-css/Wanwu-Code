@@ -5,8 +5,31 @@ import { join } from "node:path";
 import {
   clearSessionPermissions,
   gateToolCall,
+  normalizePermissionOptionId,
   noteSessionAllow,
 } from "./permissions.js";
+
+describe("normalizePermissionOptionId", () => {
+  it("accepts hyphen, underscore, and case variants", () => {
+    expect(normalizePermissionOptionId("allow-once")).toBe("allow-once");
+    expect(normalizePermissionOptionId("allow_once")).toBe("allow-once");
+    expect(normalizePermissionOptionId("ALLOW_SESSION")).toBe("allow-session");
+    expect(normalizePermissionOptionId("deny")).toBe("deny");
+    expect(normalizePermissionOptionId("nope")).toBe("deny");
+  });
+});
+
+describe("ask-mode prompt without ACP stdio", () => {
+  it("fails fast instead of waiting 120s", async () => {
+    const prev = process.env.WANWU_ACP_STDIO;
+    delete process.env.WANWU_ACP_STDIO;
+    const r = await gateToolCall("WebFetch", "https://example.com", "ask");
+    expect(r.allow).toBe(false);
+    expect(r.text).toMatch(/权限弹窗|permission_mode/);
+    if (prev === undefined) delete process.env.WANWU_ACP_STDIO;
+    else process.env.WANWU_ACP_STDIO = prev;
+  });
+});
 
 describe("session allow cache (allow-session)", () => {
   it("cached exact input skips the prompt in ask mode", async () => {

@@ -14,9 +14,19 @@ import { assertInsideWorkspace, PathSandboxError } from "./workspacePaths.js";
  *   @web:<query>       resolved by caller via web search (loop injects results)
  *   @terminal          host-provided terminal output (when available)
  *   @diagnostics       host-provided LSP diagnostics (when available)
+ *   @codebase          semantic search using the rest of the prompt as query
+ *   @codebase:<query>  semantic search with an explicit query
  */
 
-export type MentionKind = "file" | "folder" | "git" | "web" | "terminal" | "diagnostics";
+export type MentionKind =
+  | "file"
+  | "folder"
+  | "git"
+  | "web"
+  | "terminal"
+  | "diagnostics"
+  | "codebase"
+  | "selection";
 
 export interface Mention {
   raw: string;
@@ -24,7 +34,8 @@ export interface Mention {
   arg: string;
 }
 
-const MENTION_RE = /@((git):(status|diff|log)|web:[^\s]+|terminal|diagnostics|[\w./\\-]+)/g;
+const MENTION_RE =
+  /@((git):(status|diff|log)|web:[^\s]+|terminal|diagnostics|selection|codebase(?::[^\s]+)?|[\w./\\-]+)/g;
 
 export function parseMentions(input: string): { text: string; mentions: Mention[] } {
   const mentions: Mention[] = [];
@@ -33,8 +44,15 @@ export function parseMentions(input: string): { text: string; mentions: Mention[
       mentions.push({ raw, kind: "git", arg: body.slice(4) });
     } else if (body.startsWith("web:")) {
       mentions.push({ raw, kind: "web", arg: body.slice(4) });
-    } else if (body === "terminal" || body === "diagnostics") {
+    } else if (body === "terminal" || body === "diagnostics" || body === "selection") {
       mentions.push({ raw, kind: body, arg: "" });
+    } else if (body === "codebase" || body.startsWith("codebase:")) {
+      mentions.push({
+        raw,
+        kind: "codebase",
+        arg: body.startsWith("codebase:") ? body.slice("codebase:".length) : "",
+      });
+      return body.startsWith("codebase:") ? body.slice("codebase:".length) : "";
     } else {
       mentions.push({ raw, kind: "file", arg: body });
     }
@@ -97,6 +115,7 @@ export interface MentionHostProviders {
   terminal?: () => string;
   diagnostics?: () => string;
   webSearch?: (query: string) => Promise<string>;
+  codebaseSearch?: (query: string) => Promise<string>;
 }
 
 /** Resolve mentions to context blocks. Unknown/unavailable kinds degrade to notes. */
@@ -134,6 +153,24 @@ export async function resolveMentions(
             `[Context @diagnostics]\n${host?.diagnostics?.() ?? "(diagnostics unavailable in this host)"}`,
           );
           break;
+        case "selection":
+          blocks.push(
+            "[Context @selection]\n(editor selection is attached via EDITOR_CONTEXT when the host sent one)",
+          );
+          break;
+        case "codebase": {
+          const query = m.arg.trim();
+          if (!query) {
+            blocks.push("[Context @codebase]\n(no query — agent should call SearchCodebase)");
+            break;
+          }
+          if (host?.codebaseSearch) {
+            blocks.push(`[Context @codebase:${query}]\n${await host.codebaseSearch(query)}`);
+          } else {
+            blocks.push(`[Context @codebase:${query}]\n(use SearchCodebase tool)`);
+          }
+          break;
+        }
       }
     } catch (err) {
       const msg = err instanceof PathSandboxError ? err.message : String(err);
@@ -151,6 +188,15 @@ export async function expandMentions(
 ): Promise<{ text: string; context: string; mentions: Mention[] }> {
   const { text, mentions } = parseMentions(input);
   if (!mentions.length) return { text: input, context: "", mentions };
-  const context = await resolveMentions(root, mentions, host);
-  return { text, context, mentions };
+  const fallbackQuery = text
+    .replace(/\[MODE=\w+\][^\n]*\n?/g, "")
+    .replace(/\[EDITOR_CONTEXT\][\s\S]*?\[\/EDITOR_CONTEXT\]\n?/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+  const resolved = mentions.map((m) =>
+    m.kind === "codebase" && !m.arg.trim() ? { ...m, arg: fallbackQuery } : m,
+  );
+  const context = await resolveMentions(root, resolved, host);
+  return { text, context, mentions: resolved };
 }

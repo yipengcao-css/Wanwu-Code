@@ -13,8 +13,13 @@ git config --global user.email "wanwu-cloud@example.com" || true
 git config --global user.name "Wanwu Cloud Runner" || true
 
 if ! command -v pnpm >/dev/null 2>&1; then
-  corepack enable
-  corepack prepare pnpm@10.33.3 --activate
+  # Stock Node slim images ship outdated corepack keys and fail with
+  # "Cannot find matching keyid" when verifying pnpm@10.x signatures.
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "npm not found; cannot install pnpm" >&2
+    exit 1
+  fi
+  npm install -g pnpm@10.33.3
 fi
 
 if [[ ! -d node_modules/.pnpm ]]; then

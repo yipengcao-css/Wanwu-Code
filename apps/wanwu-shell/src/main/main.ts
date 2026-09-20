@@ -17,6 +17,9 @@ import {
 import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
 import { registerAiIpc } from "./ipc/ai.js";
+import { registerGitIpc } from "./ipc/git.js";
+import { registerCkptIpc } from "./ipc/ckpt.js";
+import { registerMediaIpc } from "./ipc/media.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -70,7 +73,33 @@ function createWindow(): void {
 
   const devUrl = process.env.WANWU_SHELL_DEV_URL;
   if (devUrl) {
-    void mainWindow.loadURL(devUrl);
+    const alts = [devUrl];
+    try {
+      const u = new URL(devUrl);
+      if (u.hostname === "127.0.0.1") {
+        u.hostname = "localhost";
+        alts.push(u.toString());
+      } else if (u.hostname === "localhost") {
+        u.hostname = "127.0.0.1";
+        alts.push(u.toString());
+      }
+    } catch {
+      /* keep primary */
+    }
+    let tries = 0;
+    const loadDev = (): void => {
+      const url = alts[tries % alts.length] ?? devUrl;
+      void mainWindow?.loadURL(url);
+    };
+    loadDev();
+    mainWindow.webContents.on("did-fail-load", (_event, _code, desc, _url, isMainFrame) => {
+      if (!isMainFrame || tries >= 24) return;
+      if (!/ERR_CONNECTION_REFUSED|ERR_ADDRESS_UNREACHABLE|ERR_CONNECTION_RESET|ERR_NAME_NOT_RESOLVED/.test(desc)) {
+        return;
+      }
+      tries += 1;
+      setTimeout(loadDev, 350);
+    });
   } else {
     void mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
@@ -101,6 +130,9 @@ app.whenReady().then(() => {
   );
   registerSettingsIpc(() => workspaceRoot);
   registerAiIpc(() => workspaceRoot);
+  registerGitIpc(() => workspaceRoot);
+  registerCkptIpc(() => workspaceRoot);
+  registerMediaIpc(() => workspaceRoot);
   registerAcpIpc(
     () => workspaceRoot,
     () => mainWindow,

@@ -15,7 +15,7 @@ pnpm exec esbuild packages/wanwu-cli/src/index.ts \
   --outfile=dist-bin/wanwu.cjs \
   --packages=bundle
 
-bash scripts/build-cli.sh
+node scripts/build-cli.mjs
 
 echo "==> pkg multi-target (node22)"
 TARGETS="node22-linux-x64,node22-macos-x64,node22-macos-arm64,node22-win-x64"

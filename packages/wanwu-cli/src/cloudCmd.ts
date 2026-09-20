@@ -11,7 +11,7 @@ import {
   loadTask,
   openTaskPullRequest,
   orchestrateCloudTasks,
-  runCloudTaskInContainer,
+  runCloudTaskInDocker,
   runCloudTaskLocally,
   startCloudTaskAsync,
 } from "@wanwu/cloud";
@@ -63,6 +63,7 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       let runNow = false;
       let useDocker = false;
       let asyncRun = false;
+      let rebuild = false;
       for (let i = 0; i < rest.length; i += 1) {
         const a = rest[i];
         if (a === "-p" || a === "--prompt") {
@@ -74,6 +75,8 @@ export async function runCloudCommand(args: string[]): Promise<number> {
         } else if (a === "--docker") {
           useDocker = true;
           runNow = true;
+        } else if (a === "--rebuild") {
+          rebuild = true;
         } else if (!prompt && a && !a.startsWith("-")) {
           prompt = a;
         }
@@ -105,7 +108,7 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       }
       if (useDocker) {
         const task = await client.submit(prompt);
-        const done = runCloudTaskInContainer({ repoRoot: cwd, taskId: task.id });
+        const done = runCloudTaskInDocker({ repoRoot: cwd, taskId: task.id, rebuild });
         console.log(JSON.stringify(done, null, 2));
         return done.status === "succeeded" ? 0 : 1;
       }
@@ -160,7 +163,11 @@ export async function runCloudCommand(args: string[]): Promise<number> {
       }
       const useDocker = rest.includes("--docker");
       const done = useDocker
-        ? runCloudTaskInContainer({ repoRoot: cwd, taskId: id })
+        ? runCloudTaskInDocker({
+            repoRoot: cwd,
+            taskId: id,
+            rebuild: rest.includes("--rebuild"),
+          })
         : runCloudTaskLocally({ repoRoot: cwd, taskId: id });
       console.log(JSON.stringify(done, null, 2));
       return done.status === "succeeded" ? 0 : 1;

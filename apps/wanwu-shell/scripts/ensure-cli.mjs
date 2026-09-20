@@ -16,6 +16,10 @@ if (!existsSync(mjs)) {
   });
   if (r.status !== 0) {
     console.error("failed to build CLI bundle — shell ACP will not start");
+    if (process.platform === "win32") {
+      console.error("Windows 请在仓库根目录执行: pnpm build:cli");
+      console.error("该命令已改为 node scripts/build-cli.mjs，不再需要 Git Bash。");
+    }
     process.exit(r.status ?? 1);
   }
 }

@@ -4,13 +4,28 @@ import type { ToolSpec } from "@wanwu/providers";
 export const WANWU_TOOL_SPECS: ToolSpec[] = [
   {
     name: "Read",
-    description: "Read a UTF-8 text file inside the workspace.",
+    description:
+      "Read a UTF-8 text file inside the workspace. Output is line-numbered (NNNNNN|text). Use offset/limit for large files.",
     parameters: {
       type: "object",
       properties: {
         path: { type: "string", description: "Relative path from workspace root" },
+        offset: { type: "number", description: "1-based start line (optional pagination)" },
+        limit: { type: "number", description: "Max lines to return (default 200 when offset/limit set)" },
       },
       required: ["path"],
+    },
+  },
+  {
+    name: "ListDir",
+    description:
+      "List files and subdirectories in a folder (gitignore-style skips node_modules/.git). Prefer this over Glob **/* or Bash ls for exploration.",
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative directory (default .)" },
+        depth: { type: "number", description: "How many levels to recurse (1-4, default 1)" },
+      },
     },
   },
   {

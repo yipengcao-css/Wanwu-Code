@@ -7,10 +7,19 @@ type TermSession = { id: string; title: string };
 
 let termSeq = 1;
 
-function TerminalInstance(props: { id: string; active: boolean }) {
+function TerminalInstance(props: {
+  id: string;
+  active: boolean;
+  onOutput?: (data: string) => void;
+  onCtrlK?: () => void;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const onOutputRef = useRef(props.onOutput);
+  const onCtrlKRef = useRef(props.onCtrlK);
+  onOutputRef.current = props.onOutput;
+  onCtrlKRef.current = props.onCtrlK;
 
   useEffect(() => {
     if (!hostRef.current || termRef.current) return;
@@ -32,9 +41,19 @@ function TerminalInstance(props: { id: string; active: boolean }) {
     termRef.current = term;
     fitRef.current = fit;
 
+    term.attachCustomKeyEventHandler((ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "k" && ev.type === "keydown") {
+        onCtrlKRef.current?.();
+        return false;
+      }
+      return true;
+    });
     void window.wanwu.term.start(props.id, term.cols, term.rows);
     const off = window.wanwu.term.onData((payload) => {
-      if (payload.id === props.id) term.write(payload.data);
+      if (payload.id === props.id) {
+        term.write(payload.data);
+        onOutputRef.current?.(payload.data);
+      }
     });
     const disp = term.onData((data) => {
       void window.wanwu.term.write(props.id, data);
@@ -78,11 +97,49 @@ function TerminalInstance(props: { id: string; active: boolean }) {
 }
 
 /** Multi-terminal drawer: tabs of independent PTYs. */
-export function TerminalPane(props: { active: boolean }) {
+export function TerminalPane(props: { active: boolean; onOutput?: (data: string) => void }) {
   const [sessions, setSessions] = useState<TermSession[]>([{ id: "t1", title: "终端 1" }]);
   const [activeId, setActiveId] = useState("t1");
+  const [askOpen, setAskOpen] = useState(false);
+  const [ask, setAsk] = useState("");
+  const [askBusy, setAskBusy] = useState(false);
+  const [askError, setAskError] = useState<string | null>(null);
+  const tailRef = useRef("");
+  const askRef = useRef<HTMLInputElement>(null);
 
   if (!props.active) return null;
+
+  const handleOutput = (data: string): void => {
+    const clean = data.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+    if (clean) tailRef.current = `${tailRef.current}${clean}`.slice(-4000);
+    props.onOutput?.(data);
+  };
+
+  async function runAsk(): Promise<void> {
+    const instruction = ask.trim();
+    if (!instruction || askBusy) return;
+    setAskBusy(true);
+    setAskError(null);
+    try {
+      const r = await window.wanwu.ai.terminalAsk({
+        instruction,
+        output: tailRef.current,
+      });
+      if (r.error) {
+        setAskError(r.error);
+        return;
+      }
+      if (r.text) {
+        await window.wanwu.term.write(activeId, r.text);
+      }
+      setAsk("");
+      setAskOpen(false);
+    } catch (err) {
+      setAskError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setAskBusy(false);
+    }
+  }
 
   const addTerminal = (): void => {
     const id = `t${++termSeq}`;
@@ -150,10 +207,59 @@ export function TerminalPane(props: { active: boolean }) {
         >
           ＋
         </button>
+        <button
+          type="button"
+          className="btn"
+          style={{ padding: "1px 8px", fontSize: 11, marginLeft: "auto" }}
+          onClick={() => {
+            setAskOpen(true);
+            setAskError(null);
+            requestAnimationFrame(() => askRef.current?.focus());
+          }}
+          title="Ctrl/Cmd+K 根据终端输出生成命令"
+        >
+          Ctrl+K
+        </button>
       </div>
+      {askOpen ? (
+        <div className="term-ask" role="dialog" aria-label="终端内联命令">
+          <input
+            ref={askRef}
+            value={ask}
+            disabled={askBusy}
+            placeholder="描述要生成的命令（Enter 插入到终端 · Esc 取消）"
+            autoFocus
+            onChange={(e) => setAsk(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setAskOpen(false);
+              }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void runAsk();
+              }
+            }}
+          />
+          <button type="button" className="btn primary" disabled={askBusy || !ask.trim()} onClick={() => void runAsk()}>
+            {askBusy ? "生成中…" : "插入"}
+          </button>
+          {askError ? <span className="term-ask-error">{askError}</span> : null}
+        </div>
+      ) : null}
       <div style={{ flex: 1, minHeight: 0 }}>
         {sessions.map((s) => (
-          <TerminalInstance key={s.id} id={s.id} active={s.id === activeId} />
+          <TerminalInstance
+            key={s.id}
+            id={s.id}
+            active={s.id === activeId}
+            onOutput={handleOutput}
+            onCtrlK={() => {
+              setAskOpen(true);
+              setAskError(null);
+              requestAnimationFrame(() => askRef.current?.focus());
+            }}
+          />
         ))}
       </div>
     </div>

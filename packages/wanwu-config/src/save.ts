@@ -3,13 +3,20 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { stringify as stringifyToml } from "smol-toml";
 import { loadTomlFile, userConfigPath } from "./load.js";
-import { DEFAULT_CONFIG, mergeConfig, type ProviderId, type WanwuConfig } from "./index.js";
+import {
+  DEFAULT_CONFIG,
+  mergeConfig,
+  type PermissionMode,
+  type ProviderId,
+  type WanwuConfig,
+} from "./index.js";
 
 export interface UserSettingsPatch {
   activeProvider?: ProviderId;
   model?: string;
   /** OpenAI-compatible / custom base URL */
   baseUrl?: string;
+  permissionMode?: PermissionMode;
 }
 
 export interface CredentialPatch {
@@ -33,6 +40,7 @@ export function saveUserConfig(patch: UserSettingsPatch): string {
     ...merged,
     activeProvider: patch.activeProvider ?? merged.activeProvider,
     model: patch.model?.trim() || merged.model,
+    permissionMode: patch.permissionMode ?? merged.permissionMode,
     providers: { ...merged.providers },
   };
   if (patch.baseUrl !== undefined) {

@@ -32,6 +32,44 @@ export function registerAiIpc(getRoot: () => string | null): void {
     }
   });
 
+  ipcMain.handle(
+    "ai:terminalAsk",
+    async (_e, req: { instruction: string; output?: string }) => {
+      try {
+        const cwd = getRoot() ?? process.cwd();
+        const { config } = loadWanwuConfig(cwd);
+        const env = { ...process.env, ...loadUserCredentials() };
+        const r = await completeChat({
+          config,
+          env,
+          request: {
+            temperature: 0.1,
+            maxTokens: 400,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You write a single shell command for the user's terminal (Cursor-style Ctrl+K). Output ONLY the command — no explanation, no markdown fences, no trailing newline commentary. If you cannot produce a safe command, output an empty string.",
+              },
+              {
+                role: "user",
+                content: [
+                  req.output ? `Recent terminal output:\n${String(req.output).slice(-4000)}` : "",
+                  `Request: ${String(req.instruction ?? "").trim()}`,
+                ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+              },
+            ],
+          },
+        });
+        return { text: sanitizeCompletion(r.text).replace(/\n+/g, " ").trim(), model: r.model };
+      } catch (err) {
+        return { text: "", error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+      }
+    },
+  );
+
   ipcMain.handle("ai:inlineEdit", async (_e, req: InlineEditRequest) => {
     try {
       const cwd = getRoot() ?? process.cwd();
