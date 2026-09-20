@@ -396,6 +396,7 @@ export function AgentStudio(props: {
     prompt: string;
     images: PendingImage[];
     mode?: WanwuMode;
+    userLabel?: string;
   }): Promise<void> {
     const prompt = override?.prompt ?? text.trim();
     const pending = override?.images ?? images;
@@ -425,8 +426,11 @@ export function AgentStudio(props: {
       setText("");
       setImages([]);
     }
-    if (!override) {
-      const titleFromPrompt = (prompt || pending[0]?.name || "附图").slice(0, 24);
+    if (!override || override.userLabel) {
+      const shown =
+        override?.userLabel ??
+        ((prompt || "（附图）") + (pending.length ? `\n[已附加 ${pending.length} 张图片]` : ""));
+      const titleFromPrompt = (override?.userLabel ?? (prompt || pending[0]?.name || "附图")).slice(0, 24);
       setChats((prev) =>
         prev.map((c) =>
           c.localId === activeLocalIdRef.current
@@ -435,15 +439,7 @@ export function AgentStudio(props: {
                 title: c.title.startsWith("会话") && c.log.filter((l) => l.kind === "user").length === 0
                   ? titleFromPrompt
                   : c.title,
-                log: [
-                  ...c.log,
-                  {
-                    kind: "user",
-                    text:
-                      (prompt || "（附图）") +
-                      (pending.length ? `\n[已附加 ${pending.length} 张图片]` : ""),
-                  },
-                ],
+                log: [...c.log, { kind: "user", text: shown }],
               }
             : c,
         ),
@@ -706,6 +702,7 @@ export function AgentStudio(props: {
                   prompt: `按已批准的计划实施，不要扩大范围。\n\n## 计划\n${planDraft}`,
                   images: [],
                   mode: "agent",
+                  userLabel: "按此计划执行",
                 });
               }}
             >
@@ -819,7 +816,7 @@ export function AgentStudio(props: {
               disabled={!props.enabled || busy || !lastPrompt}
               onClick={() => {
                 if (!lastPrompt) return;
-                void send({ prompt: lastPrompt, images: [] });
+                void send({ prompt: lastPrompt, images: [], userLabel: lastPrompt });
               }}
               title="重试上一条用户消息"
             >
