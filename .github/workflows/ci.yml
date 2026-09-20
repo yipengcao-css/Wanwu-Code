@@ -89,8 +89,13 @@ jobs:
           echo "$OUT" | tee /tmp/cloud-docker-out.json
           # here-string must be inside $() so node actually sees stdout JSON
           TASK_ID=$(node -e 'const s=require("fs").readFileSync(0,"utf8"); const a=s.lastIndexOf("{"); const b=s.lastIndexOf("}"); if(a<0||b<=a) process.exit(2); const j=JSON.parse(s.slice(a,b+1)); if(j.status!=="succeeded"){console.error(j); process.exit(1)}; console.log(j.id)' <<<"$OUT")
+          echo "TASK_ID=$TASK_ID"
           LOG=".wanwu/cloud-tasks/${TASK_ID}/docker-runner.log"
-          test -f "$LOG"
+          if [[ ! -f "$LOG" ]]; then
+            echo "missing $LOG" >&2
+            ls -la ".wanwu/cloud-tasks/${TASK_ID}/" >&2 || true
+            exit 1
+          fi
           if grep -q '\[fallback\] docker run failed on nested overlay' "$LOG"; then
             echo "UNEXPECTED FALLBACK in pure-docker CI job" >&2
             cat "$LOG" >&2
