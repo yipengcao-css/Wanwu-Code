@@ -20,6 +20,8 @@ type ChatSession = {
 
 type PendingImage = { id: string; name: string; path: string; preview?: string };
 
+type PendingPermission = { id: number; toolName: string; summary: string; risk?: string };
+
 function newLocalId(): string {
   return `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -56,6 +58,7 @@ export function AgentStudio(props: {
   const [activeSug, setActiveSug] = useState(0);
   const [mentionOpen, setMentionOpen] = useState(true);
   const [images, setImages] = useState<PendingImage[]>([]);
+  const [perm, setPerm] = useState<PendingPermission | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   activeLocalIdRef.current = activeLocalId;
@@ -146,6 +149,16 @@ export function AgentStudio(props: {
       window.wanwu.acp.onError((t) =>
         patchActive((prev) => [...prev, { kind: "error", text: t }]),
       ),
+      window.wanwu.acp.onPermission((req) => {
+        setPerm(req);
+        patchActive((prev) => [
+          ...prev,
+          {
+            kind: "status",
+            text: `等待权限确认 · ${req.toolName} · ${req.summary.slice(0, 80)}`,
+          },
+        ]);
+      }),
       window.wanwu.acp.onSession((info) => {
         const sid = info.sessionId;
         if (!sid) return;
@@ -387,6 +400,44 @@ export function AgentStudio(props: {
           );
         })}
       </div>
+      {perm ? (
+        <div className="card" role="alertdialog" aria-label="权限确认">
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>权限 · {perm.toolName}</div>
+          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 10 }}>{perm.summary}</div>
+          <div className="chip-row">
+            <button
+              type="button"
+              className="btn danger"
+              onClick={() => {
+                void window.wanwu.acp.respondPermission(perm.id, "deny");
+                setPerm(null);
+              }}
+            >
+              拒绝
+            </button>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                void window.wanwu.acp.respondPermission(perm.id, "allow-session");
+                setPerm(null);
+              }}
+            >
+              本会话允许
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => {
+                void window.wanwu.acp.respondPermission(perm.id, "allow-once");
+                setPerm(null);
+              }}
+            >
+              允许一次
+            </button>
+          </div>
+        </div>
+      ) : null}
       <div
         className="composer"
         onDragOver={(e) => {

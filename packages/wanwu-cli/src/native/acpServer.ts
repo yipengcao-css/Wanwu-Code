@@ -28,6 +28,7 @@ type SessionState = {
 };
 
 export function startNativeAcpStdioServer(): void {
+  process.env.WANWU_ACP_STDIO = "1";
   const workspaceRoot = process.env.WANWU_WORKSPACE_ROOT?.trim() || findWorkspaceRoot();
   const { config } = loadWanwuConfig(workspaceRoot);
 

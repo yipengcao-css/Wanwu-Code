@@ -107,5 +107,6 @@ xattr -cr "Wanwu Code.app"
 - 建议 **Node 22 LTS**。Node 24.16+ 会让 Electron 的 `extract-zip` 解压失败（`path.txt` 缺失）。
 - `pnpm build:cli` / `pnpm shell:dev` **不需要 Git Bash**（已改为 `node scripts/build-cli.mjs`）。
 - `shell:dev` 会等 Vite 在 `http://127.0.0.1:5173/` 就绪再开窗口（避免 Windows 上 `ERR_CONNECTION_REFUSED`）。
+- WebFetch 默认 `ask` 模式会弹权限。点「允许一次 / 本会话允许」。若一直 `permission request timed out`，在用户配置写入 `permission_mode = "accept-edits"`，或工作区 `.wanwu/permissions.toml` 增加 `action = "allow"` / `pattern = "WebFetch *"`。
 - 必须在仓库**根目录**执行 `pnpm install`，不要进 `apps/wanwu-shell` 单独装依赖。
 - 国内 Electron 二进制可设：`$env:ELECTRON_MIRROR="https://mirrors.huaweicloud.com/electron/"`

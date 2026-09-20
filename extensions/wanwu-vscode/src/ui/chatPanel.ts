@@ -94,9 +94,7 @@ export class WanwuChatPanel {
     client.on("permission", (req: AcpPermissionRequest) => {
       void (async () => {
         const decision = await askToolPermission(req.toolName, `${req.summary} (risk=${req.risk ?? "?"})`);
-        const optionId =
-          decision === "allow-once" || decision === "allow-session" ? "allow_once" : "deny";
-        client.respond(req.id, { optionId });
+        client.respond(req.id, { optionId: decision });
         void this.panel.webview.postMessage({
           type: "status",
           text: `permission ${decision} for ${req.toolName}`,

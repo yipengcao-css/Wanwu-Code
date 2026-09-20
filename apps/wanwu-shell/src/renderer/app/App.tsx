@@ -345,9 +345,14 @@ export function App() {
           title={`权限 · ${perm.toolName}`}
           body={`${perm.summary}\nrisk=${perm.risk ?? "?"}`}
           acceptLabel="允许一次"
+          sessionLabel="本会话允许"
           rejectLabel="拒绝"
           onAccept={() => {
-            void window.wanwu.acp.respondPermission(perm.id, "allow_once");
+            void window.wanwu.acp.respondPermission(perm.id, "allow-once");
+            setPerm(null);
+          }}
+          onSession={() => {
+            void window.wanwu.acp.respondPermission(perm.id, "allow-session");
             setPerm(null);
           }}
           onReject={() => {

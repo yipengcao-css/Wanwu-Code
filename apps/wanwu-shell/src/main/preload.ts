@@ -167,7 +167,10 @@ const bridge: WanwuBridge = {
     newChat: () => ipcRenderer.invoke("acp:newChat"),
     setSession: (sessionId) => ipcRenderer.invoke("acp:setSession", sessionId),
     prompt: (text, context) => ipcRenderer.invoke("acp:prompt", text, context),
-    respondPermission: (id, optionId) => ipcRenderer.invoke("acp:respondPermission", id, optionId),
+    respondPermission: (id, optionId) => {
+      ipcRenderer.send("acp:respondPermission", id, optionId);
+      return Promise.resolve(true);
+    },
     dispose: () => ipcRenderer.invoke("acp:dispose"),
     onMessage: (cb) => on("acp:message", (t) => cb(String(t))),
     onTool: (cb) => on("acp:tool", (t) => cb(t as never)),
