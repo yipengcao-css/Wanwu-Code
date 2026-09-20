@@ -44,6 +44,7 @@ export function parseMentions(input: string): { text: string; mentions: Mention[
         kind: "codebase",
         arg: body.startsWith("codebase:") ? body.slice("codebase:".length) : "",
       });
+      return body.startsWith("codebase:") ? body.slice("codebase:".length) : "";
     } else {
       mentions.push({ raw, kind: "file", arg: body });
     }

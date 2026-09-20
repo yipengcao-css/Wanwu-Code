@@ -102,7 +102,7 @@ describe("expandMentions", () => {
     const r = await expandMentions(root, "where is the login form @codebase", {
       codebaseSearch: async (q) => q,
     });
-    expect(r.mentions[0]?.arg).toMatch(/where is the login form/);
+    expect(r.mentions[0]?.arg).toBe("where is the login form");
     expect(r.context).toContain("where is the login form");
   });
 });
