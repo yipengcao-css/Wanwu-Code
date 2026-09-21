@@ -24,7 +24,7 @@
 | Diff / Problems / 多根工作区 | Agent 上下文与 Review UI |
 | 扩展生态与用户习惯 | Extension-first，降低迁移成本 |
 
-**策略**：先做 `extensions/wanwu-vscode`，再考虑 `apps/wanwu-ide` 品牌化发行。
+**策略**：可选宿主走 `extensions/wanwu-vscode`；品牌整机是 `apps/wanwu-shell`（ADR 0005）。`apps/wanwu-ide`（Code-OSS）已退役。
 
 ## 3. OpenAI Codex
 

@@ -90,4 +90,4 @@
 5. E2-F+ Shell polish
 6. 商业就绪：MCP / LSP / 签名 / P0 安全 / P1 Agent 质量 / P2 体验
 
-**下一步（2026-09-18）**：Cursor 对标 A–E 已合入。后续按体感：默认流式 + token 状态栏、Shell `@` 补全、扩展独立 ACP + 真 Diff、MCP resources、聊天贴图、自动记忆、轻量 SCM。不要再按 `CURSOR_PARITY` 旧空缺表施工。
+**下一步（2026-09-21）**：上列体感项与 Debug / Browser / Tab 下一跳 / Ctrl+K 升格 / MCP HTTP+OAuth / 扩展侧栏均已落地。余下是产品选择，不是漏做：Cloud Agents、Bugbot、DAP、Browser 点击、MCP prompts、`crates/` 空、插件注册表未上线。不要再按 `CURSOR_PARITY` 旧空缺表施工。

@@ -16,12 +16,12 @@ This file is informational and does not modify license terms of those projects.
 
 ## Model Context Protocol
 - Project: https://modelcontextprotocol.io /
-- Use in Wanwu: planned/external tool servers via MCP configuration discovery
+- Use in Wanwu: external tool servers via MCP (stdio + HTTP/SSE); see `docs/MCP.md`
 
 ## Visual Studio Code / Code-OSS
 - Project: https://github.com/microsoft/vscode
 - License: MIT
-- Use in Wanwu: extension host for `wanwu-code` VSIX; future IDE shell may fork Code-OSS
+- Use in Wanwu: optional extension host for `wanwu-code` VSIX. Brand IDE is `apps/wanwu-shell`; the Code-OSS `apps/wanwu-ide` path is retired.
 
 ## OpenAI Codex (reference)
 - Project: https://github.com/openai/codex

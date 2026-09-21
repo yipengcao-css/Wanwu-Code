@@ -13,8 +13,4 @@
 | 7 | 产品窗口标题为 Wanwu Code，无 Visual Studio Code 品牌 | [x] |
 | 8 | 终端为底部抽屉，非默认 Panel 图标体系 | [x] |
 
-改造前基线（Code-OSS 套壳）：`/opt/cursor/artifacts/wanwu-ide-desktop.png`  
-改造后证据：
-- `/opt/cursor/artifacts/wanwu-shell-desktop.png`
-- `/opt/cursor/artifacts/wanwu-shell-agent-success.png`
-- `/opt/cursor/artifacts/wanwu-shell-walkthrough.mp4`
+对照对象：已退役的 Code-OSS 套壳 vs 自研 `apps/wanwu-shell`。本清单已验收完成；不要再按 Code-OSS 外观复刻。

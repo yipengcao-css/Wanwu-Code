@@ -40,5 +40,7 @@
 - (2026-08-10) Verify must stay isolated from Act context
 - (2026-08-12) `ask` 模式 Edit/Write 先提案再 apply；`accept-edits`/`accept-all` 可直接落盘
 - (2026-08-12) Bash spawns with minimal env by default
-- (2026-09-15) Cursor 对标 A–E 已合入；流式/Shell @/扩展独立 ACP 为后续小 PR
+- (2026-09-15) Cursor 对标 A–E 已合入
+- (2026-09-18) 流式默认开、Shell @、扩展独立 ACP、MCP resources、贴图、自动记忆、轻量 SCM 已落地
 - (2026-09-21) Debug Mode / Browser / Tab 下一跳 / Ctrl+K 升格 Agent / MCP HTTP+OAuth / 扩展侧栏已落地
+- 明确不做：Cloud Agents / Bugbot / DAP（Debug 是插桩约定，不是调试器协议）

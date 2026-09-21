@@ -1,7 +1,9 @@
 # 产品缺陷与改进对照（2026-08-12）
 
-> 范围：当前仓库代码 + 文档；对照 **Kimi Code CLI**（Moonshot，2026-06+）公开能力。
-> 结论：**Wanwu-Code 是“能跑通的 beta 骨架”，不是 Kimi 级成品 Agent**。差距主要在 Agent 质量、安全执行、会话/工具生态、文档一致性。
+> **冻结快照**：下文是 2026-08-12 的对照，不是当前能力表。流式、TUI、MCP、LSP、`useMockAcp=false`、sandbox 等当时缺口多数已落地。看现状请用 `WANWU.md` / `CHANGELOG.md` / `docs/CURSOR_PARITY_2026-09-15.md` 文首。
+>
+> 范围（当时）：仓库代码 + 文档；对照 **Kimi Code CLI**（Moonshot，2026-06+）公开能力。
+> 结论（当时）：**Wanwu-Code 是“能跑通的 beta 骨架”，不是 Kimi 级成品 Agent**。
 
 ---
 

@@ -1,6 +1,8 @@
 # 竞品对照：Kimi Code / Claude Code / Codex（2026-08-12）
 
-> 基于当前 `main`（`68a0161`）与公开文档。结论：**Wanwu 是“能跑通的集成骨架”，还不是日常主力 coding agent**。
+> **冻结快照**：基于当时 `main`（`68a0161`）。表内「无流式 / 最小 TUI / 无 sandbox」等已过时。当前能力看 `WANWU.md` 与 `CHANGELOG.md`。
+>
+> 结论（当时）：**Wanwu 是“能跑通的集成骨架”，还不是日常主力 coding agent**。
 
 ---
 
