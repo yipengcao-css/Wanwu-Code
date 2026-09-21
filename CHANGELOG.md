@@ -16,6 +16,8 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **思考过程 / 收起代码**：ACP 不再把工具结果当对话正文；思考走独立块；长代码默认折叠
+- **附加 Skill**：Agent Studio 可点选 `.wanwu/skills` / `.agents/skills` / `~/.wanwu/skills`；每轮任务按附加顺序注入
 - **Debug 模式**：假设 → WANWU_DEBUG 插桩 → 等用户复现 → 定点修 → 清理；`Debug` 工具；Shell 复现横幅。不是 DAP。
 - **Browser 工具**：navigate / snapshot / screenshot（有 Chrome 则 PNG，否则文本快照）。无点击。
 - **Tab 吃 lint + 下一处**：补全带上附近诊断；接受后跳到下一处 Error/Warning 再触发幽灵文本。

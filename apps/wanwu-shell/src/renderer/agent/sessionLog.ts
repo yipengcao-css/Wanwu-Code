@@ -1,6 +1,64 @@
 export type LogItem =
-  | { kind: "user" | "assistant" | "error" | "status"; text: string }
+  | { kind: "user" | "assistant" | "error" | "status" | "thought"; text: string }
   | { kind: "tool"; id?: string; title: string; status: string; detail?: string };
+
+export type MessageBlock =
+  | { type: "text"; text: string }
+  | { type: "think"; text: string }
+  | { type: "code"; lang: string; text: string; lines: number };
+
+const CODE_FENCE = /```([^\n`]*)\n([\s\S]*?)```/g;
+const THINK_TAG = /<think(?:ing)?>\s*([\s\S]*?)<\/think(?:ing)?>/gi;
+
+/** Collapse tool dumps to a one-line process hint. */
+export function summarizeToolDetail(_title: string, detail?: string): string {
+  if (!detail?.trim()) return "";
+  const trimmed = detail.trim();
+  try {
+    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const path = typeof parsed.path === "string" ? parsed.path : undefined;
+    const url = typeof parsed.url === "string" ? parsed.url : undefined;
+    const action = typeof parsed.action === "string" ? parsed.action : undefined;
+    const bits = [action, path, url].filter(Boolean);
+    if (bits.length) return bits.join(" · ");
+  } catch {
+    /* not json */
+  }
+  const pathHit = trimmed.match(/(?:^|\s)((?:[\w.-]+\/)+[\w.-]+\.\w+)/);
+  const lines = trimmed.split("\n").length;
+  if (pathHit && lines > 3) return `${pathHit[1]} · ${lines} 行`;
+  if (lines > 4) return `${lines} 行`;
+  const first = trimmed.split("\n")[0] ?? trimmed;
+  return first.replace(/\s+/g, " ").slice(0, 64);
+}
+
+/** Split assistant text so thinking and long fences can be folded. */
+export function splitMessageBlocks(text: string): MessageBlock[] {
+  const blocks: MessageBlock[] = [];
+  const thinkPieces: string[] = [];
+  const withoutThink = text.replace(THINK_TAG, (_m, inner: string) => {
+    if (inner.trim()) thinkPieces.push(inner.trim());
+    return "";
+  });
+  for (const t of thinkPieces) blocks.push({ type: "think", text: t });
+
+  let last = 0;
+  CODE_FENCE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  const body = withoutThink;
+  while ((m = CODE_FENCE.exec(body))) {
+    const before = body.slice(last, m.index).trim();
+    if (before) blocks.push({ type: "text", text: before });
+    const lang = (m[1] ?? "").trim();
+    const code = (m[2] ?? "").replace(/\n$/, "");
+    blocks.push({ type: "code", lang, text: code, lines: code.split("\n").length });
+    last = m.index + m[0].length;
+  }
+  const tail = body.slice(last).trim();
+  if (tail) blocks.push({ type: "text", text: tail });
+  if (!blocks.length && text.trim()) blocks.push({ type: "text", text: text.trim() });
+  return blocks;
+}
 
 function flattenContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -14,6 +72,7 @@ function flattenContent(content: unknown): string {
 export function stripPromptChrome(text: string): string {
   return text
     .replace(/\[MODE=\w+\][^\n]*\n?/g, "")
+    .replace(/\[SKILLS=[^\]]*\]\n?/g, "")
     .replace(/\[EDITOR_CONTEXT\][\s\S]*?\[\/EDITOR_CONTEXT\]\n?/g, "")
     .replace(/\s+\n/g, "\n")
     .trim();
@@ -89,4 +148,12 @@ export function upsertToolLog(
     }
   }
   return [...prev, next];
+}
+
+export function appendThought(prev: LogItem[], text: string): LogItem[] {
+  const last = prev[prev.length - 1];
+  if (last?.kind === "thought") {
+    return [...prev.slice(0, -1), { kind: "thought", text: last.text + text }];
+  }
+  return [...prev, { kind: "thought", text }];
 }

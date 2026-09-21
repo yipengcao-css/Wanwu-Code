@@ -20,6 +20,7 @@ import { registerAiIpc } from "./ipc/ai.js";
 import { registerGitIpc } from "./ipc/git.js";
 import { registerCkptIpc } from "./ipc/ckpt.js";
 import { registerMediaIpc } from "./ipc/media.js";
+import { registerSkillsIpc } from "./ipc/skills.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -133,6 +134,7 @@ app.whenReady().then(() => {
   registerGitIpc(() => workspaceRoot);
   registerCkptIpc(() => workspaceRoot);
   registerMediaIpc(() => workspaceRoot);
+  registerSkillsIpc(() => workspaceRoot);
   registerAcpIpc(
     () => workspaceRoot,
     () => mainWindow,

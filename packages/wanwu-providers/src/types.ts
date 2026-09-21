@@ -35,6 +35,8 @@ export interface ChatRequest {
 
 export interface StreamChunk {
   text?: string;
+  /** Provider reasoning / thinking delta (not shown as the answer). */
+  thought?: string;
   toolCalls?: ToolCall[];
   done: boolean;
 }

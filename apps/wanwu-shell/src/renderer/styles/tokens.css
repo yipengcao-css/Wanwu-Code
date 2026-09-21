@@ -429,6 +429,148 @@ button {
   color: #ffb3c0;
 }
 
+.process-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tool-detail {
+  margin: 0;
+  max-width: 100%;
+  max-height: 160px;
+  overflow: auto;
+  padding: 8px 10px;
+  border-radius: var(--ww-radius-md);
+  border: 1px solid var(--ww-border);
+  background: rgba(7, 11, 20, 0.7);
+  font-family: var(--ww-font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+
+.card.thought {
+  border-color: rgba(145, 160, 184, 0.35);
+  background: rgba(16, 22, 34, 0.75);
+}
+
+.card.assistant {
+  white-space: normal;
+}
+
+.message-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.prose-block {
+  white-space: pre-wrap;
+}
+
+.think-block,
+.code-fold {
+  border-radius: var(--ww-radius-md);
+  border: 1px solid rgba(145, 160, 184, 0.28);
+  background: rgba(10, 16, 28, 0.65);
+  padding: 4px 8px;
+}
+
+.think-block summary,
+.code-fold summary {
+  cursor: pointer;
+  color: var(--ww-muted);
+  font-size: 12px;
+  list-style-position: outside;
+}
+
+.think-body,
+.code-block {
+  margin: 6px 0 2px;
+  white-space: pre-wrap;
+  font-family: var(--ww-font-mono);
+  font-size: 12px;
+}
+
+.code-label {
+  color: var(--ww-muted);
+  font-size: 11px;
+  margin-bottom: 4px;
+  font-family: var(--ww-font-ui);
+}
+
+.skill-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.skill-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(79, 140, 255, 0.4);
+  background: rgba(20, 28, 48, 0.9);
+  font-size: 11px;
+  color: var(--ww-text);
+}
+
+.skill-source {
+  font-size: 10px;
+  color: var(--ww-muted);
+}
+
+.skill-picker-wrap {
+  position: relative;
+}
+
+.skill-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 240px;
+  max-height: 220px;
+  overflow: auto;
+  border-radius: 10px;
+  border: 1px solid var(--ww-border);
+  background: var(--ww-surface-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 6;
+}
+
+.skill-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.skill-item.active,
+.skill-item:hover {
+  background: rgba(79, 140, 255, 0.12);
+}
+
+.skill-empty {
+  margin: 0;
+  padding: 8px;
+  color: var(--ww-muted);
+  font-size: 12px;
+}
+
 .debug-banner {
   border-radius: var(--ww-radius-lg);
   border: 1px solid rgba(232, 176, 74, 0.45);

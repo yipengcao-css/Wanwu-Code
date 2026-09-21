@@ -3,7 +3,7 @@ import type { WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
 import { peekMcpRegistry } from "../mcp/registry.js";
 import { discoverRules, renderRulesForPrompt } from "../rules.js";
-import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
+import { renderSkillsForPrompt, resolvePromptSkills, type SkillFile } from "../skills.js";
 import type { AgentContext } from "./agentLoop.js";
 
 export interface EditorSelection {
@@ -61,6 +61,8 @@ export function buildSystem(
   mode: WanwuMode,
   activeFiles: string[] = [],
   editor: EditorContext = { openTabs: [] },
+  prompt = "",
+  selectedSkills?: SkillFile[],
 ): string {
   const memory = discoverMemory(ctx.workspaceRoot)
     .slice(0, 2)
@@ -83,7 +85,8 @@ export function buildSystem(
     ?.listResources()
     .slice(0, 20)
     .map((r) => `${r.uri}${r.name ? ` (${r.name})` : ""}`);
-  const skills = renderSkillsForPrompt(discoverSkills(ctx.workspaceRoot));
+  const skillFiles = selectedSkills ?? resolvePromptSkills(ctx.workspaceRoot, prompt);
+  const skills = renderSkillsForPrompt(skillFiles);
   const rules = renderRulesForPrompt(discoverRules(ctx.workspaceRoot), [
     ...activeFiles,
     ...editor.openTabs,
@@ -132,6 +135,8 @@ export function buildSystem(
       "After edits: Diagnose (or project tests). Do not claim done until checks pass or you explain why they cannot run.",
       "Todo for 3+ steps. Task subagents for parallel explore/plan. WebSearch/WebFetch only for fresh public info.",
       "Be concise. If you hit a turn limit, summarize progress and remaining work.",
+      "Do not paste full files or long patches in the chat. Use Read/Edit/Write; in chat cite paths and a one-line change.",
+      "Put brief planning in <think>...</think>. After </think>, write the user-visible answer only.",
     ].join(" "),
     `Workspace: ${ctx.workspaceRoot}`,
     `Mode: ${mode}`,
@@ -143,7 +148,9 @@ export function buildSystem(
     mcpResources?.length
       ? `MCP resources (use McpReadResource with uri): ${mcpResources.join(", ")}`
       : "",
-    skills ? `Project skills:\n${skills}` : "",
+    skills
+      ? `Attached skills (read and apply at the start of every task, in order):\n${skills}`
+      : "",
     rules ? `Project rules:\n${rules}` : "",
     memory ? `Project memory:\n${memory}` : "",
   ]

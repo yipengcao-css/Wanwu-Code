@@ -157,7 +157,7 @@ export async function runLlmAgentLoop(
       : finalPrompt;
 
   let messages: ChatMessage[] = [
-    { role: "system", content: buildSystem(ctx, mode, activeFiles, editor) },
+    { role: "system", content: buildSystem(ctx, mode, activeFiles, editor, finalPrompt) },
     ...prior,
     { role: "user", content: userContent },
   ];
@@ -208,6 +208,12 @@ export async function runLlmAgentLoop(
             toolChoice: "auto",
           },
           onChunk: (chunk) => {
+            if (chunk.thought) {
+              sessionUpdate(ctx.sessionId, {
+                sessionUpdate: "agent_thought_chunk",
+                content: { type: "text", text: chunk.thought },
+              });
+            }
             if (chunk.text) {
               sessionUpdate(ctx.sessionId, {
                 sessionUpdate: "agent_message_chunk",

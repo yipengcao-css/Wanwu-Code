@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PermissionMode, WanwuConfig, WanwuMode } from "@wanwu/config";
 import { discoverMemory } from "../memory.js";
-import { discoverSkills, renderSkillsForPrompt } from "../skills.js";
+import { renderSkillsForPrompt, resolvePromptSkills } from "../skills.js";
 import { runPlan } from "../plan.js";
 import { runVerifyDetailed } from "../verify.js";
 import { sessionUpdate } from "./jsonRpcStdio.js";
@@ -24,7 +24,7 @@ export interface AgentContext {
 
 function memoryPreamble(workspaceRoot: string): string {
   const files = discoverMemory(workspaceRoot);
-  const skills = renderSkillsForPrompt(discoverSkills(workspaceRoot));
+  const skills = renderSkillsForPrompt(resolvePromptSkills(workspaceRoot, ""));
   const chunks: string[] = [];
   if (skills) chunks.push(`# Skills\n${skills}`);
   for (const f of files.slice(0, 3)) {

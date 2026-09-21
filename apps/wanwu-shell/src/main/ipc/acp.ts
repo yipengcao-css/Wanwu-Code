@@ -63,6 +63,7 @@ async function ensureClient(
     client = startNativeAcp(root);
     clientCwd = root;
     client.on("message", (text: string) => broadcast(getWin(), "acp:message", text));
+    client.on("thought", (text: string) => broadcast(getWin(), "acp:thought", text));
     client.on("tool", (tool) => broadcast(getWin(), "acp:tool", tool));
     client.on("error", (err: Error) => broadcast(getWin(), "acp:error", err.message));
     // Always re-read the window: a captured `win` is null if ensure() raced createWindow.
