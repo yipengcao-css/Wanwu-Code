@@ -1,3 +1,3 @@
-export type WanwuMode = "ask" | "plan" | "agent" | "verify";
+export type WanwuMode = "ask" | "plan" | "agent" | "verify" | "debug";
 
-export const WANWU_MODES: WanwuMode[] = ["ask", "plan", "agent", "verify"];
+export const WANWU_MODES: WanwuMode[] = ["ask", "plan", "agent", "verify", "debug"];

@@ -15,6 +15,12 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **Debug 模式**：假设 → WANWU_DEBUG 插桩 → 等用户复现 → 定点修 → 清理；`Debug` 工具；Shell 复现横幅。不是 DAP。
+- **Browser 工具**：navigate / snapshot / screenshot（有 Chrome 则 PNG，否则文本快照）。无点击。
+- **Tab 吃 lint + 下一处**：补全带上附近诊断；接受后跳到下一处 Error/Warning 再触发幽灵文本。
+- **Ctrl+K 升格 Agent**：内联编辑「送到 Agent」把选区+指令丢进 Agent Studio。
+- **MCP HTTP + OAuth**：`url` 走 JSON-RPC POST/SSE；`wanwu mcp-config login` 本机回调，token 只写 `~/.wanwu/mcp-oauth`。
+- **扩展侧栏**：Activity Bar Agent 视图；停止 / 恢复会话；Debug 模式。
 - **默认流式输出**：LLM 循环默认走 SSE（`WANWU_STREAM=0` 关闭）；TUI 状态栏显示 `stream=on` 与本轮 token 用量；Shell 回合完成后在状态栏显示 in/out tokens；TUI 将流式增量拼到同一行，避免刷屏
 - **Shell @-mentions 补全**：Agent Studio 输入 `@` 弹出文件 / `@git:*` / `@web:` / `@terminal` / `@diagnostics` 列表；Tab/Enter 插入；终端最近输出与 LSP 诊断随 prompt 传给 ACP
 - **扩展独立 ACP + 真 Diff**：VS Code 扩展不再依赖 `pnpm exec tsx`；按 bundled `wanwu-cli` / `dist-bin` / 仓库 `tsx` 入口拉起 ACP。Diff 审阅改为 `vscode.diff` 并排视图，接受时用 WorkspaceEdit 落盘

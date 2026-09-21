@@ -15,17 +15,46 @@
   },
   "categories": ["AI", "Chat"],
   "activationEvents": [
+    "onView:wanwu.chatView",
     "onCommand:wanwu.newChat",
+    "onCommand:wanwu.cancel",
+    "onCommand:wanwu.resumeSession",
     "onCommand:wanwu.doctor",
     "onCommand:wanwu.planTask",
     "onCommand:wanwu.runVerify"
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "wanwu",
+          "title": "Wanwu",
+          "icon": "media/wanwu.svg"
+        }
+      ]
+    },
+    "views": {
+      "wanwu": [
+        {
+          "type": "webview",
+          "id": "wanwu.chatView",
+          "name": "Agent"
+        }
+      ]
+    },
     "commands": [
       {
         "command": "wanwu.newChat",
         "title": "Wanwu: New Chat"
+      },
+      {
+        "command": "wanwu.cancel",
+        "title": "Wanwu: Stop Agent"
+      },
+      {
+        "command": "wanwu.resumeSession",
+        "title": "Wanwu: Resume Session"
       },
       {
         "command": "wanwu.newParallelSession",
