@@ -183,8 +183,8 @@ export function attachInlineEdit(editor: monaco.editor.IStandaloneCodeEditor): v
           window.dispatchEvent(
             new CustomEvent("wanwu-promote-agent", {
               detail: {
-                instruction,
-                selection: selectionText,
+                instruction: input.value.trim(),
+                selection: model.getValueInRange(range!),
                 path: model.uri.path,
                 language: model.getLanguageId(),
               },

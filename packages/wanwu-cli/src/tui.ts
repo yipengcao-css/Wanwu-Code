@@ -271,7 +271,9 @@ export async function runTui(): Promise<number> {
         const { servers, source } = loadMcpServers(cwd);
         print(`MCP source: ${source ?? "(none)"}`);
         for (const s of servers) {
-          print(`  ${s.name}: ${s.command} ${s.args.join(" ")}`);
+          print(
+            `  ${s.name}: ${s.url ?? s.command ?? "?"} ${s.url ? "" : (s.args ?? []).join(" ")}`.trim(),
+          );
         }
         rl.prompt();
         return;

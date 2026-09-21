@@ -114,7 +114,7 @@ function hasSessionAllow(sessionId: string | undefined, toolName: string, input:
  * - accept-edits / accept-all auto-allow per existing policy
  */
 export async function gateToolCall(
-  toolName: "Bash" | "Edit" | "Write" | "WebFetch" | "WebSearch",
+  toolName: "Bash" | "Edit" | "Write" | "WebFetch" | "WebSearch" | "Browser",
   input: string,
   permissionMode: PermissionMode,
   workspaceRoot?: string,
