@@ -1,6 +1,8 @@
 # 对标 Cursor 的缺口审计与实施方案（2026-09-15）
 
-> **2026-09-18 状态**：阶段 A–E（#39–#56）已合入 `main`。#65–#69（流式默认开 / Shell @ 菜单 / 扩展 bundled ACP / 文档对齐 / MCP resources·贴图·记忆·SCM）已在集成分支合并。下文 §1–§3 是审计当日快照，**不要按空缺表再施工**。仍缺项见文首「仍未做」。
+> **2026-09-21**：全量对照已改写为 [`CURSOR_COMPARE_2026-09-21.md`](./CURSOR_COMPARE_2026-09-21.md)。本文只保留 A–E 施工史；**不要按 §2–§3 空缺表再施工**。
+>
+> **2026-09-18 状态**：阶段 A–E（#39–#56）已合入 `main`。#65–#69（流式默认开 / Shell @ 菜单 / 扩展 bundled ACP / 文档对齐 / MCP resources·贴图·记忆·SCM）已在集成分支合并。下文 §1–§3 是审计当日快照。仍缺项以 2026-09-21 对照为准。
 
 ## 2026-09-18 已落地（相对审计稿）
 
@@ -29,13 +31,9 @@
 | 自动记忆 | 明确「记住」写入 WANWU.md | `autoMemory.ts` |
 | 轻量 SCM | FileTree porcelain 标记 | `git:status` / `shared/scm.ts` |
 
-## 仍未做（2026-09-20）
+## 仍未做（2026-09-20，已被 09-21 对照取代）
 
-1. MCP **prompts / OAuth / 远程**（stdio resources 已做）
-2. Shell 调试器（终端 Ctrl+K 已做）
-3. `WorkflowMachine` 未进 UI；`crates/` 仍空
-4. 插件注册表 `registry.wanwu.dev` 未证实上线
-5. 扩展无侧栏 View
+完整分级与「做 / 不做」见 [`CURSOR_COMPARE_2026-09-21.md`](./CURSOR_COMPARE_2026-09-21.md) §5。当时记下的残留：MCP prompts / OAuth / 远程；无 Debug Mode / 浏览器；`WorkflowMachine` 未进 UI；`registry.wanwu.dev` 未证实上线；扩展无侧栏 View。
 
 ## 2026-09-20 Cursor 模板优化（第二轮）
 

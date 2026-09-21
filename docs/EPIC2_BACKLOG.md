@@ -141,4 +141,4 @@
 
 ## 领取方式
 
-仍未做：MCP resources、聊天贴图、自动记忆、轻量 SCM。详见 `docs/CURSOR_PARITY_2026-09-15.md` 文首。不要按该文档旧空缺表施工。
+Cursor A–E 与 9 月中旬体感项已合入。下一轮以 `docs/CURSOR_COMPARE_2026-09-21.md` §5 为准（Debug / 浏览器 / Tab 第二跳 / MCP 远程 / 扩展侧栏）。不要按 `CURSOR_PARITY_2026-09-15` 旧空缺表施工。

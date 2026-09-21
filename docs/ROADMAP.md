@@ -90,4 +90,4 @@
 5. E2-F+ Shell polish
 6. 商业就绪：MCP / LSP / 签名 / P0 安全 / P1 Agent 质量 / P2 体验
 
-**下一步（2026-09-18）**：Cursor 对标 A–E 已合入。后续按体感：默认流式 + token 状态栏、Shell `@` 补全、扩展独立 ACP + 真 Diff、MCP resources、聊天贴图、自动记忆、轻量 SCM。不要再按 `CURSOR_PARITY` 旧空缺表施工。
+**下一步（2026-09-21）**：A–E 与 9 月中旬体感项已合入。全量对照见 [`CURSOR_COMPARE_2026-09-21.md`](./CURSOR_COMPARE_2026-09-21.md)。本地下一刀优先 Debug Mode / 浏览器工具 / Tab 第二跳 / MCP HTTP+OAuth / 扩展侧栏；不要再按 `CURSOR_PARITY_2026-09-15` 旧空缺表施工，也不要把 `wanwu cloud` 写成 Cloud Agents。
