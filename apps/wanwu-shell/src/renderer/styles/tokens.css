@@ -429,6 +429,16 @@ button {
   color: #ffb3c0;
 }
 
+.debug-banner {
+  border-radius: var(--ww-radius-lg);
+  border: 1px solid rgba(232, 176, 74, 0.45);
+  background: rgba(40, 30, 12, 0.9);
+  color: #f0d39a;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .todo-panel {
   border-radius: var(--ww-radius-lg);
   border: 1px solid rgba(42, 212, 160, 0.28);

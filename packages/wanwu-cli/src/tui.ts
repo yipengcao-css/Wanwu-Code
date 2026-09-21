@@ -37,8 +37,8 @@ const BANNER = `
 
 const HELP = `命令：
   /help          显示帮助
-  /mode <ask|plan|agent|verify>  切换模式
-  /ask /plan /agent /verify      快速切换模式
+  /mode <ask|plan|agent|verify|debug>  切换模式
+  /ask /plan /agent /verify /debug     快速切换模式
   /plan <task>   生成 Plan 工件
   /verify        运行 Verify 门禁 + 独立评审
   /doctor        运行 doctor
@@ -61,7 +61,7 @@ const HELP = `命令：
   @terminal / @diagnostics  终端输出 / 诊断（宿主支持时）
 
 快捷键：
-  Ctrl+T         循环切换模式（ask → plan → agent → verify）
+  Ctrl+T         循环切换模式（ask → plan → agent → verify → debug）
 
 直接输入自然语言即可与 Agent 对话。
 `;
@@ -203,7 +203,7 @@ export async function runTui(): Promise<number> {
         rl.prompt();
         return;
       }
-      if (["/ask", "/plan", "/agent", "/verify"].includes(input)) {
+      if (["/ask", "/plan", "/agent", "/verify", "/debug"].includes(input)) {
         mode = input.slice(1) as typeof mode;
         print(`mode → ${mode}`);
         rl.prompt();

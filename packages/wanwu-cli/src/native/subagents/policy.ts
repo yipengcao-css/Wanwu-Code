@@ -7,7 +7,7 @@ export function policyFor(kind: SubagentKind): SubagentToolPolicy {
   switch (kind) {
     case "explore":
       return {
-        allowedTools: new Set(["Read", "ListDir", "Glob", "Grep", "Bash", "SearchCodebase", "Diagnose"]),
+        allowedTools: new Set(["Read", "ListDir", "Glob", "Grep", "Bash", "SearchCodebase", "Diagnose", "Browser"]),
         mode: "ask",
         maxTurns: 4,
       };

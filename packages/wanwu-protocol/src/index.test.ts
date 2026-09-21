@@ -5,6 +5,7 @@ describe("wanwu-protocol", () => {
   it("accepts known modes", () => {
     expect(isWanwuMode("plan")).toBe(true);
     expect(isWanwuMode("verify")).toBe(true);
+    expect(isWanwuMode("debug")).toBe(true);
     expect(isWanwuMode("hack")).toBe(false);
   });
 

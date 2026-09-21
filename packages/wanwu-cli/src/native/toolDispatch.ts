@@ -280,6 +280,31 @@ export async function dispatchTool(
         const { toolWebSearch } = await import("./web.js");
         return toolWebSearch(query);
       }
+      case "Browser": {
+        const url = String(args.url ?? args.path ?? args.action ?? "");
+        const gate = await gateToolCall("Browser", url, ctx.permissionMode, ctx.workspaceRoot, ctx.sessionId);
+        if (!gate.allow) {
+          return { ok: false, title: "Browser", text: gate.text ?? "Browser denied" };
+        }
+        const { toolBrowser } = await import("./browser.js");
+        return toolBrowser(ctx.workspaceRoot, {
+          action: typeof args.action === "string" ? args.action : undefined,
+          url: typeof args.url === "string" ? args.url : undefined,
+          path: typeof args.path === "string" ? args.path : undefined,
+        });
+      }
+      case "Debug": {
+        if (mode !== "debug") {
+          return { ok: false, title: "Debug", text: `Debug tool is only available in debug mode (mode=${mode})` };
+        }
+        const { toolDebug } = await import("./debug.js");
+        return toolDebug(ctx.workspaceRoot, ctx.sessionId, {
+          phase: typeof args.phase === "string" ? args.phase : undefined,
+          hypotheses: args.hypotheses,
+          notes: typeof args.notes === "string" ? args.notes : undefined,
+          waiting: args.waiting === true,
+        });
+      }
       case "Task": {
         if (writeBlocked) {
           return {

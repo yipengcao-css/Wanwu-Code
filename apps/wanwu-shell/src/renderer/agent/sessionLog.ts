@@ -61,6 +61,13 @@ export function parseTodoToolText(detail?: string): TodoRow[] | null {
   return items.length ? items : null;
 }
 
+/** True when the Debug tool asked the user to reproduce. */
+export function parseDebugWaiting(title: string, detail?: string): boolean | null {
+  if (title !== "Debug") return null;
+  if (!detail) return false;
+  return /WAIT_FOR_REPRO/.test(detail);
+}
+
 /** Upsert a tool chip by id (Cursor-style in-place status). */
 export function upsertToolLog(
   prev: LogItem[],

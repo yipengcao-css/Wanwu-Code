@@ -1,6 +1,14 @@
-export type WanwuMode = "ask" | "plan" | "agent" | "verify";
+export type WanwuMode = "ask" | "plan" | "agent" | "verify" | "debug";
 
-const MODES: WanwuMode[] = ["ask", "plan", "agent", "verify"];
+const MODES: WanwuMode[] = ["ask", "plan", "agent", "verify", "debug"];
+
+const MODE_LABEL: Record<WanwuMode, string> = {
+  ask: "Ask",
+  plan: "Plan",
+  agent: "Agent",
+  verify: "Verify",
+  debug: "Debug",
+};
 
 export function OrbitBar(props: {
   mode: WanwuMode;
@@ -27,7 +35,7 @@ export function OrbitBar(props: {
             className={props.mode === m ? "active" : ""}
             onClick={() => props.onMode(m)}
           >
-            {m[0]!.toUpperCase() + m.slice(1)}
+            {MODE_LABEL[m]}
           </button>
         ))}
       </div>

@@ -1,6 +1,6 @@
 export type ProviderId = "xai" | "openai" | "anthropic" | "ollama" | "custom";
 export type AcpBackend = "grok" | "wanwu-native";
-export type WanwuMode = "ask" | "plan" | "agent" | "verify";
+export type WanwuMode = "ask" | "plan" | "agent" | "verify" | "debug";
 export type PermissionMode = "ask" | "accept-edits" | "accept-all";
 export type SandboxMode = "off" | "workspace" | "strict";
 

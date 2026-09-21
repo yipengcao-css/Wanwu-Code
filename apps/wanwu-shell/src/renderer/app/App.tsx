@@ -483,7 +483,7 @@ export function App() {
             title: "文件树",
             run: () => setSideTab("files"),
           },
-          ...(["ask", "plan", "agent", "verify"] as const).map((m) => ({
+          ...(["ask", "plan", "agent", "verify", "debug"] as const).map((m) => ({
             id: `mode-${m}`,
             title: `切换到 ${m} 模式`,
             run: () => setMode(m),

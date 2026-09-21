@@ -107,12 +107,21 @@ export function buildSystem(
 
   const modeGuide =
     mode === "ask"
-      ? "Ask mode: answer with read-only tools only (Read/ListDir/Glob/Grep/SearchCodebase/Diagnose/Web*). Never edit or run a shell."
+      ? "Ask mode: answer with read-only tools only (Read/ListDir/Glob/Grep/SearchCodebase/Diagnose/Web*/Browser). Never edit or run a shell."
       : mode === "plan"
         ? "Plan mode: explore with read-only tools, then output a markdown plan (任务理解 / 涉及文件 / 实施步骤 / 验证 / 风险). Do NOT implement. The user will approve and switch to Agent."
         : mode === "verify"
           ? "Verify mode: inspect recent changes with Diagnose/Read. Do not add features."
-          : "Agent mode: you may Edit/Write/Bash when needed (permissions still apply). User can undo this turn via checkpoint.";
+          : mode === "debug"
+            ? [
+                "Debug mode: do NOT jump to a product fix.",
+                "1) State 2-4 hypotheses with the Debug tool (phase=hypotheses).",
+                "2) Add temporary instrumentation via Edit; every added log/line must contain the token WANWU_DEBUG.",
+                "3) Call Debug phase=wait_for_repro and STOP. Ask the user to reproduce and paste logs.",
+                "4) After they reply: Debug phase=analyze, then a targeted fix, then Debug phase=cleanup and delete every WANWU_DEBUG line.",
+                "Never leave instrumentation in the final change. This is not a DAP debugger.",
+              ].join(" ")
+            : "Agent mode: you may Edit/Write/Bash when needed (permissions still apply). User can undo this turn via checkpoint.";
 
   return [
     "You are Wanwu, a local coding agent (Cursor-style). Use tools for workspace facts; do not guess file contents.",

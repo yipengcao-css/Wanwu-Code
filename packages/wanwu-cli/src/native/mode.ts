@@ -1,6 +1,6 @@
 import type { WanwuMode } from "@wanwu/config";
 
-export const MODE_CYCLE: WanwuMode[] = ["ask", "plan", "agent", "verify"];
+export const MODE_CYCLE: WanwuMode[] = ["ask", "plan", "agent", "verify", "debug"];
 
 export function nextMode(mode: WanwuMode): WanwuMode {
   const idx = MODE_CYCLE.indexOf(mode);
@@ -9,6 +9,7 @@ export function nextMode(mode: WanwuMode): WanwuMode {
 
 export function detectMode(prompt: string, fallback: WanwuMode): WanwuMode {
   if (/\[MODE=plan\]/i.test(prompt)) return "plan";
+  if (/\[MODE=debug\]/i.test(prompt)) return "debug";
   if (/\[MODE=agent\]/i.test(prompt)) return "agent";
   if (/\[MODE=ask\]/i.test(prompt)) return "ask";
   if (/\[MODE=verify\]/i.test(prompt)) return "verify";

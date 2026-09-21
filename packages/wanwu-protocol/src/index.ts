@@ -28,5 +28,11 @@ export type PermissionDecision = "allow-once" | "allow-session" | "deny";
 export const ACP_SCHEMA_VERSION = "0.1.0-wanwu-native";
 
 export function isWanwuMode(value: string): value is import("@wanwu/config").WanwuMode {
-  return value === "ask" || value === "plan" || value === "agent" || value === "verify";
+  return (
+    value === "ask" ||
+    value === "plan" ||
+    value === "agent" ||
+    value === "verify" ||
+    value === "debug"
+  );
 }
