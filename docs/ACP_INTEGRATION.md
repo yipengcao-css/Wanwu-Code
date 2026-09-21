@@ -35,7 +35,7 @@ VS Code Extension / Wanwu Shell (ACP Client)
 ### wanwu-native（E2-A）
 
 - 默认后端；**不依赖**系统 `grok` 二进制
-- 工具：Read / Edit / Bash / Glob / Grep
+- 工具：Read / ListDir / Edit / Write / Bash / Glob / Grep / Todo / Web / Browser / Debug / Diagnose / SearchCodebase / Task / MCP
 - 权限：复用 deny-first `assessBash` + workspace path sandbox
 - 无 API key 时使用确定性 tool loop（便于本地/CI）
 - 黄金路径：`pnpm exec tsx scripts/acp-handshake-native.mts`
@@ -57,7 +57,7 @@ VS Code Extension / Wanwu Shell (ACP Client)
 5. 权限请求 → Allow once / session / Deny
 6. 编辑 → Diff Review → apply / reject
 
-扩展默认仍可用 mock ACP（`wanwu.useMockAcp`）；关闭 mock 且 `acp_backend=wanwu-native` 时走真实 native。
+扩展默认接真实 native（`wanwu.useMockAcp=false`）。mock 仅供开发冒烟。
 
 ## 兼容性策略
 

@@ -1,6 +1,6 @@
 # 对标 Cursor 的缺口审计与实施方案（2026-09-15）
 
-> **2026-09-18 状态**：阶段 A–E（#39–#56）已合入 `main`。#65–#69（流式默认开 / Shell @ 菜单 / 扩展 bundled ACP / 文档对齐 / MCP resources·贴图·记忆·SCM）已在集成分支合并。下文 §1–§3 是审计当日快照，**不要按空缺表再施工**。仍缺项见文首「仍未做」。
+> **2026-09-21 状态**：阶段 A–E 与 09-18/09-21 体感项已落地。下文 §1–§3 是 **2026-09-15 审计快照**，不是当前能力表，**不要按空缺表再施工**。当前缺口只看文首「仍未做」。
 
 ## 2026-09-18 已落地（相对审计稿）
 
@@ -29,13 +29,24 @@
 | 自动记忆 | 明确「记住」写入 WANWU.md | `autoMemory.ts` |
 | 轻量 SCM | FileTree porcelain 标记 | `git:status` / `shared/scm.ts` |
 
-## 仍未做（2026-09-20）
+## 2026-09-21 已落地（相对 09-20「仍未做」）
 
-1. MCP **prompts / OAuth / 远程**（stdio resources 已做）
-2. Shell 调试器（终端 Ctrl+K 已做）
-3. `WorkflowMachine` 未进 UI；`crates/` 仍空
-4. 插件注册表 `registry.wanwu.dev` 未证实上线
-5. 扩展无侧栏 View
+| 项 | 落点 |
+|---|---|
+| Debug 模式（插桩，非 DAP） | `native/debug.ts` / Shell Debug pill |
+| Browser navigate / snapshot / screenshot | `native/browser.ts` |
+| Tab 读 lint + 下一处 | `inlineComplete.ts` / `attachTabNextJump` |
+| Ctrl+K 升格 Agent | `inlineEdit.ts` → `wanwu-promote-agent` |
+| MCP HTTP + 本机 OAuth | `mcp/httpClient.ts` / `mcp/oauth.ts` |
+| 扩展侧栏 + 停止/恢复 | `sidebarView.ts` / `wanwu.cancel` / `wanwu.resumeSession` |
+
+## 仍未做（2026-09-21）
+
+1. Cloud Agents / Bugbot / DAP（明确不做本批）
+2. Browser 点击与交互（现只读）
+3. MCP **prompts**（stdio resources + HTTP/OAuth 已做）
+4. `WorkflowMachine` 未进 UI；`crates/` 仍空
+5. 插件注册表 `registry.wanwu.dev` 未证实上线
 
 ## 2026-09-20 Cursor 模板优化（第二轮）
 

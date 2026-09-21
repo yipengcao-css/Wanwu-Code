@@ -5,7 +5,8 @@
 > 目标：融合开源 **Grok Build CLI**、**VS Code/Code-OSS**、**OpenAI Codex**、**Claude Code** 各自所长，打造 AI-native IDE 产品 **Wanwu-Code（万物 Code）**  
 > 本文件供后续 coding agent 直接按阶段执行。  
 > 用户已于 2026-08-10 批准计划并锁定 §11 决策；执行中。  
-> **2026-08-12 更新**：对齐 ADR 0005 与已交付能力；原始 Phase 描述保留作历史参考。
+> **2026-08-12 更新**：对齐 ADR 0005 与已交付能力；原始 Phase 描述保留作历史参考。  
+> **2026-09-21**：Agent 落点是 `packages/wanwu-cli`（没有 `packages/wanwu-agent`）。下文 Phase 清单是历史计划，不要当未完成工单。
 
 ---
 
@@ -46,7 +47,7 @@
 
 | 来源 | 必须吸收的所长 | Wanwu 落点 |
 |---|---|---|
-| **Grok Build** | 同一 runtime 多前端（TUI/headless/ACP）；OS sandbox；MCP/skills/plugins/hooks；workspace checkpoint；subagent + worktree | `packages/wanwu-agent` / `crates/*` |
+| **Grok Build** | 同一 runtime 多前端（TUI/headless/ACP）；OS sandbox；MCP/skills/plugins/hooks；workspace checkpoint；subagent + worktree | `packages/wanwu-cli` / `crates/*`（crates 仍为空占位） |
 | **VS Code** | 成熟编辑/调试/SCM/扩展生态；Problems/Terminal/Diff；开发者心智模型 | `apps/wanwu-ide`（后期）+ `extensions/wanwu-vscode`（MVP） |
 | **Codex** | CLI/IDE/Cloud 配置统一；异步云任务；并行 agent + worktree；Review-first | `packages/wanwu-cloud`（Phase 5）+ 统一 `~/.wanwu/config.toml` |
 | **Claude Code** | Plan Mode；纯文本项目记忆；gather-act-verify；hooks 权限纪律；subagent 上下文隔离；maker-checker | `packages/wanwu-workflow` + `WANWU.md` + Verify subagent |
@@ -464,7 +465,7 @@ AGENTS.md
 | # | 决策 | 结论 |
 |---|---|---|
 | 1 | CLI 名 | `wanwu` |
-| 2 | MVP 形态 | **扩展优先**（VS Code Extension → 再 Code-OSS 整机） |
+| 2 | MVP 形态 | **扩展优先**（可选宿主）；整机改为 `apps/wanwu-shell`（ADR 0005，已取代 Code-OSS） |
 | 3 | Agent 底座 | **允许桥接/复用**开源 Grok Build ACP |
 | 4 | 模型策略 | **多模型对等**（第一天起） |
 | 5 | 「编译器」语义 | AI-native IDE + Agent Runtime（意图→可验证改动） |
@@ -480,4 +481,4 @@ AGENTS.md
 - https://github.com/openai/codex
 - https://agentclientprotocol.com/get-started/introduction
 - https://code.claude.com/docs/en/how-claude-code-works
-- https://github.com/microsoft/vscode （Code-OSS 上游）
+- https://github.com/microsoft/vscode （扩展宿主上游；整机不 fork）

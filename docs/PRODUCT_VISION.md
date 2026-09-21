@@ -29,7 +29,7 @@
 
 1. **MVP**：`wanwu` CLI + VS Code Extension（ACP Client）
 2. **中期**：本地并行 Agent + 云端异步 runner
-3. **远期**：基于 Code-OSS 的 Wanwu IDE 整机发行版
+3. **远期**：深化 `apps/wanwu-shell`（自研 Electron），不是 Code-OSS 套壳整机
 
 ## 非目标（当前不做）
 

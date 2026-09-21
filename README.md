@@ -109,9 +109,10 @@ node dist-bin/wanwu.mjs doctor
 - [ADR 0003 多模型对等](docs/ADRs/0003-multi-model-provider.md)
 - [ADR 0005 自研 Electron 壳](docs/ADRs/0005-custom-electron-shell.md)
 - [推荐工作流](docs/WORKFLOW.md)
-- [完整实施计划](docs/PLAN.md)
-- [产品审核对照](docs/PRODUCT_AUDIT_2026-08-12.md)
+- [完整实施计划](docs/PLAN.md)（历史 Phase，勿当未完成工单）
 - [第三方声明](THIRD_PARTY_NOTICES)
+
+历史快照（不是当前能力表）：[2026-08-12 产品审核](docs/PRODUCT_AUDIT_2026-08-12.md) · [2026-08-12 竞品对照](docs/COMPARISON_2026-08-12.md) · [2026-09-15 Cursor 对标](docs/CURSOR_PARITY_2026-09-15.md)
 
 ## 设计原则（摘要）
 
