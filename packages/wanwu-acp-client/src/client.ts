@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import * as readline from "node:readline";
+import { extractText, extractThought, extractTool } from "./extract.js";
 
 interface Pending {
   resolve: (value: unknown) => void;
@@ -107,6 +108,10 @@ export class AcpClient extends EventEmitter {
       if (edit) {
         this.emit("edit", edit);
       }
+      const thought = extractThought(msg.params);
+      if (thought) {
+        this.emit("thought", thought);
+      }
       const text = extractText(msg.params);
       if (text) {
         this.emit("message", text);
@@ -206,35 +211,6 @@ export class AcpClient extends EventEmitter {
       this.child.kill();
     }
   }
-}
-
-function extractText(params: unknown): string | undefined {
-  if (!params || typeof params !== "object") return undefined;
-  const p = params as Record<string, unknown>;
-  const update = p.update as Record<string, unknown> | undefined;
-  const content = update?.content as Record<string, unknown> | undefined;
-  const text = content?.text;
-  return typeof text === "string" ? text : undefined;
-}
-
-function extractTool(
-  params: unknown,
-): { id?: string; title: string; status: string; detail?: string } | undefined {
-  if (!params || typeof params !== "object") return undefined;
-  const p = params as Record<string, unknown>;
-  const update = p.update as Record<string, unknown> | undefined;
-  if (update?.sessionUpdate !== "tool_call") return undefined;
-  const title = update.title;
-  const status = update.status;
-  const content = update.content as Record<string, unknown> | undefined;
-  const detail = content?.text;
-  if (typeof title !== "string" || typeof status !== "string") return undefined;
-  return {
-    id: typeof update.toolCallId === "string" ? update.toolCallId : undefined,
-    title,
-    status,
-    detail: typeof detail === "string" ? detail.slice(0, 200) : undefined,
-  };
 }
 
 function extractEdit(params: unknown): AcpEditProposal | undefined {

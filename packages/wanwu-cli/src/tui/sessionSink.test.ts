@@ -67,6 +67,22 @@ describe("parseSessionUpdate", () => {
     }
   });
 
+  it("parses agent_thought_chunk as prefixed text", () => {
+    const raw = JSON.stringify({
+      jsonrpc: "2.0",
+      method: "session/update",
+      params: {
+        sessionId: "s1",
+        update: {
+          sessionUpdate: "agent_thought_chunk",
+          content: { type: "text", text: "先读文件" },
+        },
+      },
+    });
+    const event = parseSessionUpdate(raw);
+    expect(event).toEqual({ type: "text", text: "思考：先读文件" });
+  });
+
   it("returns undefined for non-session JSON", () => {
     expect(parseSessionUpdate("{}")).toBeUndefined();
     expect(parseSessionUpdate("not json")).toBeUndefined();

@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
-import { historyToLog, parseDebugWaiting, parseTodoToolText, upsertToolLog } from "./sessionLog.ts";
+import {
+  appendThought,
+  historyToLog,
+  parseDebugWaiting,
+  parseTodoToolText,
+  splitMessageBlocks,
+  summarizeToolDetail,
+  upsertToolLog,
+} from "./sessionLog.ts";
 
 const log = historyToLog([
   { role: "user", content: "[MODE=agent]\n[EDITOR_CONTEXT]\nActive file: a.ts\n[/EDITOR_CONTEXT]\nfix login" },
@@ -31,5 +39,23 @@ const done = upsertToolLog(pending, { id: "t1", title: "Read", status: "complete
 assert.equal(done.length, 1);
 assert.equal(done[0]?.kind, "tool");
 if (done[0]?.kind === "tool") assert.equal(done[0].status, "completed");
+
+assert.equal(
+  summarizeToolDetail("Read", JSON.stringify({ path: "src/a.ts" })),
+  "src/a.ts",
+);
+assert.match(summarizeToolDetail("Read", "1|# title\n2|code\n3|more\n4|x\n5|y"), /行/);
+
+const blocks = splitMessageBlocks(
+  "<think>先读文件</think>\n修好了。\n```ts\nconst x = 1\nconst y = 2\n```",
+);
+assert.deepEqual(
+  blocks.map((b) => b.type),
+  ["think", "text", "code"],
+);
+assert.equal(blocks[0]?.type === "think" ? blocks[0].text : "", "先读文件");
+
+const thought = appendThought([], "a");
+assert.deepEqual(appendThought(thought, "b"), [{ kind: "thought", text: "ab" }]);
 
 console.log("sessionLog tests passed");

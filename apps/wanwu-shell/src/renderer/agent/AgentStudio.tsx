@@ -6,7 +6,9 @@ import {
   mentionTokenAt,
   type MentionSuggestion,
 } from "./mentionComplete";
+import { MessageBody, ToolChip } from "./MessageBody";
 import {
+  appendThought,
   historyToLog,
   parseDebugWaiting,
   parseTodoToolText,
@@ -14,6 +16,23 @@ import {
   type LogItem,
   type TodoRow,
 } from "./sessionLog";
+
+type StudioSkill = {
+  id: string;
+  name: string;
+  source: "workspace" | "agents" | "user";
+  summary: string;
+};
+
+function skillsStorageKey(root: string): string {
+  return `wanwu.attachedSkills:${root}`;
+}
+
+function sourceLabel(source: StudioSkill["source"]): string {
+  if (source === "agents") return "仓库";
+  if (source === "user") return "用户";
+  return "工作区";
+}
 
 type ChatSession = {
   localId: string;
@@ -113,6 +132,9 @@ export function AgentStudio(props: {
   const [planDraft, setPlanDraft] = useState<string | null>(null);
   const [debugWaiting, setDebugWaiting] = useState(false);
   const [lastPrompt, setLastPrompt] = useState<string | null>(null);
+  const [availableSkills, setAvailableSkills] = useState<StudioSkill[]>([]);
+  const [attachedSkillIds, setAttachedSkillIds] = useState<string[]>([]);
+  const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   const busyRef = useRef(false);
@@ -160,10 +182,38 @@ export function AgentStudio(props: {
   useEffect(() => {
     if (!props.workspaceRoot) {
       setFiles([]);
+      setAvailableSkills([]);
+      setAttachedSkillIds([]);
       return;
     }
     void window.wanwu.fs.listFiles().then(setFiles).catch(() => setFiles([]));
+    const root = props.workspaceRoot;
+    void window.wanwu.skills.list().then((list) => {
+      setAvailableSkills(list);
+      try {
+        const saved = sessionStorage.getItem(skillsStorageKey(root));
+        if (saved !== null) {
+          const ids = JSON.parse(saved) as unknown;
+          if (Array.isArray(ids)) {
+            setAttachedSkillIds(ids.filter((id): id is string => typeof id === "string"));
+            return;
+          }
+        }
+      } catch {
+        /* first load */
+      }
+      setAttachedSkillIds(list.filter((s) => s.source === "workspace").map((s) => s.id));
+    }).catch(() => setAvailableSkills([]));
   }, [props.workspaceRoot]);
+
+  useEffect(() => {
+    if (!props.workspaceRoot) return;
+    try {
+      sessionStorage.setItem(skillsStorageKey(props.workspaceRoot), JSON.stringify(attachedSkillIds));
+    } catch {
+      /* ignore quota */
+    }
+  }, [attachedSkillIds, props.workspaceRoot]);
 
   const token = useMemo(() => mentionTokenAt(text, cursor), [text, cursor]);
   const suggestions = useMemo(
@@ -266,6 +316,7 @@ export function AgentStudio(props: {
           return [...prev, { kind: "assistant", text: t }];
         }),
       ),
+      window.wanwu.acp.onThought((t) => patchActive((prev) => appendThought(prev, t))),
       window.wanwu.acp.onTool((tool) => {
         const parsed = tool.title === "Todo" ? parseTodoToolText(tool.detail) : null;
         if (parsed) setTodos(parsed);
@@ -475,7 +526,19 @@ export function AgentStudio(props: {
       );
       props.onStatus(`session=${sessionId ?? "?"} · ${cwd ?? props.workspaceRoot ?? "?"}`);
       if (!override) setLastPrompt(prompt);
-      const prefix = modePrefix(sendMode);
+      const attached = availableSkills.filter((s) => attachedSkillIds.includes(s.id));
+      if (attached.length) {
+        patchActive((prev) => [
+          ...prev,
+          {
+            kind: "status",
+            text: `本轮 Skill：${attached.map((s) => s.name).join("、")}`,
+          },
+        ]);
+      }
+      const skillsReady = availableSkills.length > 0 || attachedSkillIds.length > 0;
+      const skillTag = skillsReady ? `[SKILLS=${attachedSkillIds.join(",")}]\n` : "";
+      const prefix = `${modePrefix(sendMode)}${skillTag}`;
       const ctx = buildEditorContext({
         activePath: props.activePath,
         openTabs: props.openTabs,
@@ -632,19 +695,26 @@ export function AgentStudio(props: {
         ) : null}
         {active.log.map((item, i) => {
           if (item.kind === "tool") {
-            return (
-              <div key={item.id ?? i} className="chip-row">
-                <span className={`chip ${item.status}`}>
-                  {item.status} {item.title}
-                  {item.detail ? ` · ${item.detail}` : ""}
-                </span>
-              </div>
-            );
+            return <ToolChip key={item.id ?? i} item={item} />;
           }
           if (item.kind === "status") {
             return (
               <div key={i} className="card" style={{ opacity: 0.75, fontSize: 12 }}>
                 {item.text}
+              </div>
+            );
+          }
+          if (item.kind === "thought") {
+            return (
+              <div key={i} className="card thought">
+                <MessageBody text={item.text} thinking defaultThinkOpen={busy && i === active.log.length - 1} />
+              </div>
+            );
+          }
+          if (item.kind === "assistant") {
+            return (
+              <div key={i} className="card assistant">
+                <MessageBody text={item.text} defaultThinkOpen={busy && i === active.log.length - 1} />
               </div>
             );
           }
@@ -726,6 +796,87 @@ export function AgentStudio(props: {
             ))}
           </ul>
         ) : null}
+        {availableSkills.length || attachedSkillIds.length ? (
+          <div className="skill-row" aria-label="本任务附加的 Skill">
+            {availableSkills
+              .filter((s) => attachedSkillIds.includes(s.id))
+              .map((s) => (
+                <span key={s.id} className="skill-chip" title={s.summary}>
+                  <span className="skill-source">{sourceLabel(s.source)}</span>
+                  {s.name}
+                  <button
+                    type="button"
+                    className="attach-remove"
+                    aria-label={`移除 Skill ${s.name}`}
+                    onClick={() => setAttachedSkillIds((ids) => ids.filter((id) => id !== s.id))}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            <div className="skill-picker-wrap">
+              <button
+                type="button"
+                className="btn"
+                disabled={!props.enabled}
+                onClick={() => setSkillPickerOpen((v) => !v)}
+              >
+                附加 Skill
+              </button>
+              {skillPickerOpen ? (
+                <ul className="skill-menu" role="listbox" aria-label="可选 Skill">
+                  {availableSkills.length === 0 ? (
+                    <li className="skill-empty">工作区还没有 Skill（.wanwu/skills 或 .agents/skills）</li>
+                  ) : (
+                    availableSkills.map((s) => {
+                      const on = attachedSkillIds.includes(s.id);
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={on}
+                            className={`skill-item${on ? " active" : ""}`}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setAttachedSkillIds((ids) =>
+                                on ? ids.filter((id) => id !== s.id) : [...ids, s.id],
+                              );
+                            }}
+                          >
+                            <span>
+                              {s.name}
+                              <span className="mention-hint">{sourceLabel(s.source)}</span>
+                            </span>
+                            <span className="mention-hint">{on ? "已附加" : s.summary}</span>
+                          </button>
+                        </li>
+                      );
+                    })
+                  )}
+                </ul>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="skill-row">
+            <button
+              type="button"
+              className="btn"
+              disabled={!props.enabled}
+              onClick={() => setSkillPickerOpen((v) => !v)}
+            >
+              附加 Skill
+            </button>
+            {skillPickerOpen ? (
+              <div className="skill-picker-wrap">
+                <p className="skill-empty">
+                  把 markdown 放到 `.wanwu/skills/` 或 `.agents/skills/&lt;name&gt;/SKILL.md`，下一轮任务会按附加顺序走一遍。
+                </p>
+              </div>
+            ) : null}
+          </div>
+        )}
         {props.selection && includeSelection ? (
           <div className="context-chip-row" aria-label="将随消息发送的选区">
             <span className="context-chip">

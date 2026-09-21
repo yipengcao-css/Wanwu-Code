@@ -31,6 +31,11 @@ export type WanwuBridge = {
     saveImage: (payload: { name?: string; mime?: string; dataBase64: string }) => Promise<string>;
     pickImages: () => Promise<string[]>;
   };
+  skills: {
+    list: () => Promise<
+      Array<{ id: string; name: string; source: "workspace" | "agents" | "user"; summary: string }>
+    >;
+  };
   ai: {
     complete: (req: {
       prefix: string;
@@ -78,6 +83,7 @@ export type WanwuBridge = {
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
+    onThought: (cb: (text: string) => void) => () => void;
     onTool: (
       cb: (tool: { id?: string; title: string; status: string; detail?: string }) => void,
     ) => () => void;
@@ -192,6 +198,9 @@ const bridge: WanwuBridge = {
     saveImage: (payload) => ipcRenderer.invoke("media:saveImage", payload),
     pickImages: () => ipcRenderer.invoke("media:pickImages"),
   },
+  skills: {
+    list: () => ipcRenderer.invoke("skills:list"),
+  },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),
     inlineEdit: (req) => ipcRenderer.invoke("ai:inlineEdit", req),
@@ -211,6 +220,7 @@ const bridge: WanwuBridge = {
     },
     dispose: () => ipcRenderer.invoke("acp:dispose"),
     onMessage: (cb) => on("acp:message", (t) => cb(String(t))),
+    onThought: (cb) => on("acp:thought", (t) => cb(String(t))),
     onTool: (cb) => on("acp:tool", (t) => cb(t as never)),
     onError: (cb) => on("acp:error", (t) => cb(String(t))),
     onSession: (cb) => on("acp:session", (t) => cb(t as never)),

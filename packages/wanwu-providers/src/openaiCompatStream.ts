@@ -142,6 +142,8 @@ export async function completeOpenAiCompatStream(
           choices?: Array<{
             delta?: {
               content?: string;
+              reasoning_content?: string;
+              reasoning?: string;
               tool_calls?: Array<{
                 index?: number;
                 id?: string;
@@ -163,6 +165,10 @@ export async function completeOpenAiCompatStream(
           };
         }
         const delta = parsed.choices?.[0]?.delta;
+        const thought = delta?.reasoning_content || delta?.reasoning;
+        if (thought) {
+          onChunk?.({ thought, done: false });
+        }
         if (delta?.content) {
           text += delta.content;
           onChunk?.({ text: delta.content, done: false });

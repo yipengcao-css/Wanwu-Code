@@ -62,6 +62,10 @@ export function parseSessionUpdate(raw: string): SessionEvent | undefined {
     };
   }
 
+  if (u.sessionUpdate === "agent_thought_chunk" && u.content?.text) {
+    return { type: "text", text: `思考：${u.content.text}` };
+  }
+
   if (u.sessionUpdate === "agent_message_chunk" && u.content?.text) {
     return { type: "text", text: u.content.text };
   }
