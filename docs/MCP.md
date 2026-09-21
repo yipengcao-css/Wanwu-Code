@@ -33,6 +33,35 @@ args = ["-y", "@modelcontextprotocol/server-filesystem", "."]
 
 `env` 可选：在 server 子进程环境中注入额外变量（密钥仍应来自本机环境 / `credentials.env`，勿写入仓库）。
 
+### HTTP / SSE
+
+`url` 存在时走 Streamable HTTP（JSON-RPC POST；响应可以是 JSON 或 SSE `data:`）。不要同时依赖本机 `command`。
+
+```json
+{
+  "mcpServers": {
+    "remote": {
+      "url": "https://mcp.example.com/mcp",
+      "headers": { "X-Title": "wanwu" },
+      "oauth": {
+        "authorization_url": "https://example.com/oauth/authorize",
+        "token_url": "https://example.com/oauth/token",
+        "client_id": "wanwu",
+        "client_secret_env": "WANWU_MCP_REMOTE_SECRET"
+      }
+    }
+  }
+}
+```
+
+登录（本机 `127.0.0.1` 随机端口回调，token 写 `~/.wanwu/mcp-oauth/<name>.json`，权限 0600）：
+
+```bash
+wanwu mcp-config login remote
+```
+
+`client_secret` 只从环境变量读，禁止写入仓库。
+
 ## 工具命名
 
 暴露给 LLM 的工具名为：

@@ -46,6 +46,31 @@ describe("mcp loadConfig", () => {
     expect(servers.map((s) => s.name)).toEqual(["fs"]);
   });
 
+  it("loads HTTP MCP servers from url", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-mcp-http-cfg-"));
+    mkdirSync(join(root, ".wanwu"), { recursive: true });
+    writeFileSync(
+      join(root, ".wanwu", "mcp.json"),
+      JSON.stringify({
+        mcpServers: {
+          slack: {
+            url: "https://mcp.example.test/mcp",
+            oauth: {
+              authorization_url: "https://example.test/authorize",
+              token_url: "https://example.test/token",
+              client_id: "cid",
+            },
+          },
+        },
+      }),
+      "utf8",
+    );
+    const { servers } = loadMcpServers(root);
+    expect(servers[0]?.url).toBe("https://mcp.example.test/mcp");
+    expect(servers[0]?.transport).toBe("http");
+    expect(servers[0]?.oauth?.clientId).toBe("cid");
+  });
+
   it("qualifies tool names", () => {
     expect(qualifyMcpTool("my-server", "list_files")).toBe("mcp__my-server__list_files");
     expect(parseQualifiedMcpTool("mcp__my-server__list_files")).toEqual({

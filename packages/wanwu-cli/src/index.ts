@@ -22,7 +22,7 @@ Usage:
   wanwu cloud ...           Headless cloud runner (local/docker, review-first)
   wanwu parallel ...        Parallel worktree isolation demo
   wanwu plugin ...          Plugin marketplace (skills / MCP)
-  wanwu mcp-config ...      Interactive MCP server configuration
+  wanwu mcp-config ...      Interactive MCP (stdio/HTTP + oauth login)
   wanwu help                Show this help
 
 Env:
