@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { listWorkspaceSkills } from "./skills.ts";
+import { listWorkspaceSkills } from "./skillsList.ts";
 
 const root = mkdtempSync(join(tmpdir(), "wanwu-shell-skills-"));
 mkdirSync(join(root, ".wanwu", "skills"), { recursive: true });
