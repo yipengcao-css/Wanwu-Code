@@ -7,6 +7,7 @@ export interface InlineCompleteRequest {
   suffix: string;
   language?: string;
   path?: string;
+  diagnostics?: string;
 }
 
 /** Inline completion (Tab ghost text) via the active provider. */
@@ -23,6 +24,7 @@ export function registerAiIpc(getRoot: () => string | null): void {
         suffix: String(req?.suffix ?? "").slice(0, 800),
         language: req?.language,
         filePath: req?.path,
+        diagnostics: req?.diagnostics,
         env,
       });
       return { text: r.text, model: r.model };

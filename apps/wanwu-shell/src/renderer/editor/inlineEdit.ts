@@ -73,7 +73,14 @@ export function attachInlineEdit(editor: monaco.editor.IStandaloneCodeEditor): v
         { padding: "2px 10px", fontSize: "12px", cursor: "pointer" },
         "运行",
       );
+      const promoteBtn = el(
+        "button",
+        { padding: "2px 10px", fontSize: "12px", cursor: "pointer" },
+        "送到 Agent",
+      );
+      promoteBtn.title = "把选区与指令交给 Agent（多文件）";
       dom.appendChild(runBtn);
+      dom.appendChild(promoteBtn);
 
       const widget: monaco.editor.IContentWidget = {
         getId: () => "wanwu.inlineEdit.input",
@@ -144,8 +151,22 @@ export function attachInlineEdit(editor: monaco.editor.IStandaloneCodeEditor): v
           { padding: "2px 12px", fontSize: "12px", cursor: "pointer", background: "transparent", color: "#c9d1d9", border: "1px solid #3a3f4b", borderRadius: "4px" },
           "拒绝",
         );
+        const promote = el(
+          "button",
+          {
+            padding: "2px 12px",
+            fontSize: "12px",
+            cursor: "pointer",
+            background: "transparent",
+            color: "#9cdcfe",
+            border: "1px solid #3a3f4b",
+            borderRadius: "4px",
+          },
+          "送到 Agent",
+        );
         row.appendChild(accept);
         row.appendChild(reject);
+        row.appendChild(promote);
         zoneDom.appendChild(row);
 
         const lineCount = newText.split("\n").length + 2;
@@ -158,6 +179,19 @@ export function attachInlineEdit(editor: monaco.editor.IStandaloneCodeEditor): v
           if (session) session.zoneId = id;
         });
 
+        const promoteToAgent = (): void => {
+          window.dispatchEvent(
+            new CustomEvent("wanwu-promote-agent", {
+              detail: {
+                instruction,
+                selection: selectionText,
+                path: model.uri.path,
+                language: model.getLanguageId(),
+              },
+            }),
+          );
+          close();
+        };
         accept.onclick = () => {
           ed.pushUndoStop();
           ed.executeEdits("wanwu-inline-edit", [{ range: range!, text: newText }]);
@@ -165,9 +199,25 @@ export function attachInlineEdit(editor: monaco.editor.IStandaloneCodeEditor): v
           close();
         };
         reject.onclick = () => close();
+        promote.onclick = () => promoteToAgent();
       };
 
       input.onkeydown = (e) => {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && e.altKey) {
+          e.preventDefault();
+          window.dispatchEvent(
+            new CustomEvent("wanwu-promote-agent", {
+              detail: {
+                instruction: input.value.trim(),
+                selection: model.getValueInRange(range!),
+                path: model.uri.path,
+                language: model.getLanguageId(),
+              },
+            }),
+          );
+          close();
+          return;
+        }
         if (e.key === "Enter") {
           e.preventDefault();
           void submit();
@@ -175,6 +225,19 @@ export function attachInlineEdit(editor: monaco.editor.IStandaloneCodeEditor): v
         if (e.key === "Escape") close();
       };
       runBtn.onclick = () => void submit();
+      promoteBtn.onclick = () => {
+        window.dispatchEvent(
+          new CustomEvent("wanwu-promote-agent", {
+            detail: {
+              instruction: input.value.trim(),
+              selection: model.getValueInRange(range!),
+              path: model.uri.path,
+              language: model.getLanguageId(),
+            },
+          }),
+        );
+        close();
+      };
 
       session = {
         inputWidget: widget,
