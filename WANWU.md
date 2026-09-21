@@ -41,3 +41,4 @@
 - (2026-08-12) `ask` 模式 Edit/Write 先提案再 apply；`accept-edits`/`accept-all` 可直接落盘
 - (2026-08-12) Bash spawns with minimal env by default
 - (2026-09-15) Cursor 对标 A–E 已合入；流式/Shell @/扩展独立 ACP 为后续小 PR
+- (2026-09-21) 对 Cursor 3 全量对照见 `docs/CURSOR_COMPARE_2026-09-21.md`：本地骨架齐，缺 Debug/浏览器/Tab 第二层/MCP 远程；云与 Bugbot 不对标
