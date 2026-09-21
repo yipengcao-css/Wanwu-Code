@@ -76,7 +76,7 @@ export function assessToolCall(
       requiresPrompt: false,
     };
   }
-  if (name === "webfetch" || name === "websearch") {
+  if (name === "webfetch" || name === "websearch" || name === "browser") {
     if (mode === "accept-all" || mode === "accept-edits") {
       return { allow: true, risk: "medium", reason: "network egress accepted by mode", requiresPrompt: false };
     }

@@ -1,10 +1,16 @@
 import type { ToolSpec } from "@wanwu/providers";
 import { McpStdioClient } from "./client.js";
+import { McpHttpClient } from "./httpClient.js";
 import {
   loadMcpServers,
   qualifyMcpTool,
 } from "./loadConfig.js";
-import type { McpListedTool, McpResource, McpServerConfig } from "./types.js";
+import type { McpClient, McpListedTool, McpResource, McpServerConfig } from "./types.js";
+
+export function createMcpClient(cfg: McpServerConfig): McpClient {
+  if (cfg.url) return new McpHttpClient(cfg);
+  return new McpStdioClient(cfg);
+}
 
 export interface McpRegistryOptions {
   workspaceRoot: string;
@@ -17,7 +23,7 @@ export interface McpRegistryOptions {
  * Tool names are namespaced: mcp__&lt;server&gt;__&lt;tool&gt;
  */
 export class McpRegistry {
-  private readonly clients = new Map<string, McpStdioClient>();
+  private readonly clients = new Map<string, McpClient>();
   private readonly tools = new Map<string, McpListedTool>();
   private readonly resources = new Map<string, McpResource>();
   private started = false;
@@ -32,7 +38,7 @@ export class McpRegistry {
       this.opts.servers ?? loadMcpServers(this.opts.workspaceRoot).servers;
 
     for (const cfg of servers) {
-      const client = new McpStdioClient(cfg);
+      const client = createMcpClient(cfg);
       try {
         await client.start();
         const listed = await client.listTools();

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { historyToLog, parseTodoToolText, upsertToolLog } from "./sessionLog.ts";
+import { historyToLog, parseDebugWaiting, parseTodoToolText, upsertToolLog } from "./sessionLog.ts";
 
 const log = historyToLog([
   { role: "user", content: "[MODE=agent]\n[EDITOR_CONTEXT]\nActive file: a.ts\n[/EDITOR_CONTEXT]\nfix login" },
@@ -22,6 +22,9 @@ assert.deepEqual(todos, [
   { status: "in_progress", content: "write patch" },
 ]);
 assert.equal(parseTodoToolText("not a todo"), null);
+assert.equal(parseDebugWaiting("Debug", "phase=wait_for_repro\nWAIT_FOR_REPRO"), true);
+assert.equal(parseDebugWaiting("Debug", "phase=cleanup"), false);
+assert.equal(parseDebugWaiting("Todo", "WAIT_FOR_REPRO"), null);
 
 const pending = upsertToolLog([], { id: "t1", title: "Read", status: "pending" });
 const done = upsertToolLog(pending, { id: "t1", title: "Read", status: "completed", detail: "ok" });

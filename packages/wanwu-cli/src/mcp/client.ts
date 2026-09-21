@@ -1,6 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import * as readline from "node:readline";
-import type { McpServerConfig, McpTool } from "./types.js";
+import type { McpClient, McpServerConfig, McpTool } from "./types.js";
 
 type Pending = {
   resolve: (v: unknown) => void;
@@ -11,7 +11,7 @@ type Pending = {
  * Minimal MCP JSON-RPC client over stdio (initialize → tools/list → tools/call).
  * Does not pull @modelcontextprotocol/sdk — keeps the bridge thin.
  */
-export class McpStdioClient {
+export class McpStdioClient implements McpClient {
   private child: ChildProcessWithoutNullStreams | undefined;
   private rl: readline.Interface | undefined;
   private nextId = 1;
@@ -26,7 +26,10 @@ export class McpStdioClient {
 
   async start(): Promise<void> {
     if (this.child) return;
-    this.child = spawn(this.config.command, this.config.args, {
+    if (!this.config.command) {
+      throw new Error(`mcp server ${this.config.name} has no command (use url for HTTP)`);
+    }
+    this.child = spawn(this.config.command, this.config.args ?? [], {
       stdio: ["pipe", "pipe", "pipe"],
       env: { ...process.env, ...this.config.env },
       shell: process.platform === "win32",

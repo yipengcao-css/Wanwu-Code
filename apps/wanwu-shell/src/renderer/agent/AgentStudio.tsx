@@ -8,6 +8,7 @@ import {
 } from "./mentionComplete";
 import {
   historyToLog,
+  parseDebugWaiting,
   parseTodoToolText,
   upsertToolLog,
   type LogItem,
@@ -69,6 +70,9 @@ function modePrefix(mode: WanwuMode): string {
   if (mode === "plan") return "[MODE=plan] 只产出计划，不要修改文件。\n";
   if (mode === "ask") return "[MODE=ask] 只回答问题，不要修改文件。\n";
   if (mode === "verify") return "[MODE=verify] 验证最近变更（测试/lint），不要继续写功能。\n";
+  if (mode === "debug") {
+    return "[MODE=debug] 先假设再插桩（标记 WANWU_DEBUG），等用户复现，再定点修并清理插桩。不要一上来改业务。\n";
+  }
   return "[MODE=agent] 可以在权限允许下修改代码。\n";
 }
 
@@ -107,11 +111,20 @@ export function AgentStudio(props: {
   const [todos, setTodos] = useState<TodoRow[]>([]);
   const [includeSelection, setIncludeSelection] = useState(true);
   const [planDraft, setPlanDraft] = useState<string | null>(null);
+  const [debugWaiting, setDebugWaiting] = useState(false);
   const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   const busyRef = useRef(false);
   const queueRef = useRef<Array<{ prompt: string; images: PendingImage[] }>>([]);
+  const sendRef = useRef<
+    (override?: {
+      prompt: string;
+      images: PendingImage[];
+      mode?: WanwuMode;
+      userLabel?: string;
+    }) => Promise<void>
+  >(async () => undefined);
   activeLocalIdRef.current = activeLocalId;
 
   const active = chats.find((c) => c.localId === activeLocalId) ?? chats[0]!;
@@ -185,6 +198,7 @@ export function AgentStudio(props: {
       queueRef.current = [];
       setQueued(0);
       setTodos([]);
+      setDebugWaiting(false);
     }
     void (async () => {
       try {
@@ -255,6 +269,8 @@ export function AgentStudio(props: {
       window.wanwu.acp.onTool((tool) => {
         const parsed = tool.title === "Todo" ? parseTodoToolText(tool.detail) : null;
         if (parsed) setTodos(parsed);
+        const waiting = parseDebugWaiting(tool.title, tool.detail);
+        if (waiting !== null) setDebugWaiting(waiting);
         patchActive((prev) => upsertToolLog(prev, tool));
       }),
       window.wanwu.acp.onError((t) =>
@@ -301,6 +317,7 @@ export function AgentStudio(props: {
     if (!target) return;
     setActiveLocalId(localId);
     setTodos([]);
+    setDebugWaiting(false);
     try {
       if (target.acpSessionId && !target.hydrated) {
         const loaded = await window.wanwu.acp.loadSession(target.acpSessionId);
@@ -347,6 +364,7 @@ export function AgentStudio(props: {
         },
       ]);
       setActiveLocalId(localId);
+      setDebugWaiting(false);
       props.onStatus(`新会话 · ${title}`);
     } catch (err) {
       props.onStatus(err instanceof Error ? err.message : String(err));
@@ -508,6 +526,33 @@ export function AgentStudio(props: {
     }
   }
 
+  sendRef.current = send;
+
+  useEffect(() => {
+    const onPromote = (e: Event): void => {
+      const d =
+        (e as CustomEvent<{ instruction?: string; selection?: string; path?: string }>).detail ?? {};
+      props.onMode?.("agent");
+      const prompt = [
+        "内联编辑升格（Ctrl+K → Agent）：",
+        d.path ? `文件：${d.path}` : "",
+        d.instruction ? `指令：${d.instruction}` : "",
+        d.selection ? `选区：\n\`\`\`\n${String(d.selection).slice(0, 8000)}\n\`\`\`` : "",
+        "请按指令在仓库里完成修改；需要配套变更时一并处理。",
+      ]
+        .filter(Boolean)
+        .join("\n");
+      void sendRef.current({
+        prompt,
+        images: [],
+        mode: "agent",
+        userLabel: `升格：${d.instruction || "内联编辑"}`,
+      });
+    };
+    window.addEventListener("wanwu-promote-agent", onPromote);
+    return () => window.removeEventListener("wanwu-promote-agent", onPromote);
+  }, [props.onMode]);
+
   async function stop(): Promise<void> {
     queueRef.current = [];
     setQueued(0);
@@ -576,6 +621,13 @@ export function AgentStudio(props: {
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+        {debugWaiting || props.mode === "debug" ? (
+          <div className="debug-banner" role="status">
+            {debugWaiting
+              ? "Debug：请在本机复现，把日志或现象发回。Agent 会先分析再改，并在收工前去掉 WANWU_DEBUG 插桩。"
+              : "Debug 模式：先假设 → 插桩（WANWU_DEBUG）→ 等你复现 → 定点修 → 清理。不是 DAP 调试器。"}
           </div>
         ) : null}
         {active.log.map((item, i) => {
@@ -745,7 +797,9 @@ export function AgentStudio(props: {
                   ? "描述要规划的任务… Agent 会先探索再出计划，不会改文件"
                   : props.mode === "ask"
                     ? "提问… 只读代码库，不会改文件"
-                    : "描述你的意图… 输入 @ 引用文件 / 选区 / 代码库，可粘贴或拖入图片"
+                    : props.mode === "debug"
+                      ? "描述要复现的 bug… Agent 会先假设并插桩，等你复现后再改"
+                      : "描述你的意图… 输入 @ 引用文件 / 选区 / 代码库，可粘贴或拖入图片"
           }
           onChange={(e) => {
             setText(e.target.value);

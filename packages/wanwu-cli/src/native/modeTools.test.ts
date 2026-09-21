@@ -23,10 +23,21 @@ describe("modeTools", () => {
     expect(names).not.toContain("Task");
   });
 
-  it("keeps the full toolset in agent mode", () => {
-    expect(toolsForMode("agent", WANWU_TOOL_SPECS)).toHaveLength(WANWU_TOOL_SPECS.length);
-    expect(hiddenToolsForMode("agent").size).toBe(0);
+  it("keeps write tools in agent mode but hides Debug", () => {
+    const names = toolsForMode("agent", WANWU_TOOL_SPECS).map((t) => t.name);
+    expect(names).toContain("Edit");
+    expect(names).toContain("Browser");
+    expect(names).not.toContain("Debug");
+    expect(hiddenToolsForMode("agent")).toEqual(new Set(["Debug"]));
     expect(isToolAllowedInMode("agent", "Edit")).toBe(true);
     expect(isToolAllowedInMode("ask", "mcp__demo__search")).toBe(true);
+  });
+
+  it("exposes Debug and writes in debug mode, hides Task", () => {
+    const names = toolsForMode("debug", WANWU_TOOL_SPECS).map((t) => t.name);
+    expect(names).toContain("Debug");
+    expect(names).toContain("Edit");
+    expect(names).toContain("Bash");
+    expect(names).not.toContain("Task");
   });
 });

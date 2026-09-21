@@ -37,6 +37,7 @@ export type WanwuBridge = {
       suffix: string;
       language?: string;
       path?: string;
+      diagnostics?: string;
     }) => Promise<{ text: string; model?: string; error?: string }>;
     inlineEdit: (req: {
       instruction: string;

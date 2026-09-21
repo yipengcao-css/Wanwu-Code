@@ -7,16 +7,20 @@ export const WRITE_TOOLS = new Set(["Edit", "Write", "Task"]);
 /**
  * Tools the model must not see (and dispatch must reject) per mode.
  * Ask also hides Bash so Q&A cannot run a shell; Plan keeps read-only Bash.
+ * Debug keeps Edit/Write/Bash for instrumentation but hides Task (no nested agents).
+ * The Debug tool is only visible in debug mode.
  */
 export function hiddenToolsForMode(mode: WanwuMode): ReadonlySet<string> {
   switch (mode) {
     case "ask":
-      return new Set(["Edit", "Write", "Task", "Bash"]);
+      return new Set(["Edit", "Write", "Task", "Bash", "Debug"]);
     case "plan":
     case "verify":
-      return new Set(["Edit", "Write", "Task"]);
+      return new Set(["Edit", "Write", "Task", "Debug"]);
+    case "debug":
+      return new Set(["Task"]);
     default:
-      return new Set();
+      return new Set(["Debug"]);
   }
 }
 

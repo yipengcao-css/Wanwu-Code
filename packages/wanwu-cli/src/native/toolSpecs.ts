@@ -164,6 +164,38 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
     },
   },
   {
+    name: "Browser",
+    description:
+      "Read-only in-page browser: navigate an http(s) URL, snapshot headings/links/controls, or screenshot (Chrome if WANWU_BROWSER_BIN / system chrome exists; otherwise writes a text snapshot). No clicking. Call navigate before snapshot/screenshot.",
+    parameters: {
+      type: "object",
+      properties: {
+        action: { type: "string", enum: ["navigate", "snapshot", "screenshot"] },
+        url: { type: "string", description: "Required for navigate" },
+        path: { type: "string", description: "Workspace-relative PNG path for screenshot" },
+      },
+      required: ["action"],
+    },
+  },
+  {
+    name: "Debug",
+    description:
+      "Debug-mode only. Record hypotheses, mark wait_for_repro (stop and ask the user to reproduce), then analyze / fixed / cleanup. Instrumentation must be tagged WANWU_DEBUG and removed in cleanup.",
+    parameters: {
+      type: "object",
+      properties: {
+        phase: {
+          type: "string",
+          enum: ["hypotheses", "wait_for_repro", "analyze", "fixed", "cleanup"],
+        },
+        hypotheses: { type: "array", items: { type: "string" } },
+        notes: { type: "string" },
+        waiting: { type: "boolean" },
+      },
+      required: ["phase"],
+    },
+  },
+  {
     name: "Task",
     description:
       "Run isolated subagents in parallel. explore=read-only, plan=plan-only, coder=edit (propose-only).",

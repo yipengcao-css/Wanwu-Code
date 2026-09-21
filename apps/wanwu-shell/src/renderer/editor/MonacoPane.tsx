@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
-import { registerInlineCompletion } from "./inlineComplete";
+import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
 import { registerLspFeatures } from "./lspFeatures";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
@@ -113,6 +113,7 @@ export function MonacoPane(props: {
   const onMount: OnMount = (editor) => {
     editorRef.current = editor;
     registerInlineCompletion();
+    attachTabNextJump(editor);
     attachInlineEdit(editor);
     registerLspFeatures();
     const emitSelection = (): void => {

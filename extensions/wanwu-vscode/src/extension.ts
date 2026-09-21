@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { loadExtensionConfig } from "./config/loadConfig";
 import { WanwuChatPanel } from "./ui/chatPanel";
+import { WanwuSidebarProvider } from "./ui/sidebarView";
 import { SessionManager } from "./ui/sessionManager";
 import { askToolPermission } from "./ui/permissionModal";
 import { reviewSingleFileDiff } from "./ui/diffReview";
@@ -9,6 +10,10 @@ import { findExtensionWorkspaceRoot } from "./workspaceRoot";
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      WanwuSidebarProvider.viewId,
+      new WanwuSidebarProvider(context),
+    ),
     vscode.languages.registerCodeActionsProvider(
       { scheme: "file" },
       new WanwuFixActionProvider(),
@@ -18,6 +23,13 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.commands.registerCommand("wanwu.newChat", () => {
       WanwuChatPanel.show(context);
+    }),
+    vscode.commands.registerCommand("wanwu.cancel", async () => {
+      await WanwuChatPanel.current?.cancel();
+    }),
+    vscode.commands.registerCommand("wanwu.resumeSession", async () => {
+      const panel = WanwuChatPanel.current ?? WanwuChatPanel.show(context);
+      await panel.resumeFromDisk();
     }),
     vscode.commands.registerCommand("wanwu.newParallelSession", () => {
       WanwuChatPanel.show(context, { forceNew: true });

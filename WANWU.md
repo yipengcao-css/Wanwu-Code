@@ -14,10 +14,10 @@
 - **协议**：ACP（编辑器↔Agent）、MCP（外部工具，stdio tools，见 `docs/MCP.md`）、LSP（Shell 多语言，见 `docs/LSP.md`）
 - **工作流**：Explore → Plan → Act → Verify → Commit；Plan 可由 LLM 生成；Verify 含独立评审
 - **配置**：`~/.wanwu/config.toml` + 工作区 `.wanwu/`；密钥走 `credentials.env`
-- **工具**：Read（行号 + offset/limit）/ ListDir / Glob / Grep / Edit / Write / Bash / Todo / WebFetch / WebSearch / Diagnose / SearchCodebase / Task
+- **工具**：Read（行号 + offset/limit）/ ListDir / Glob / Grep / Edit / Write / Bash / Todo / WebFetch / WebSearch / Browser / Debug / Diagnose / SearchCodebase / Task
 - **编辑落盘**：`ask` 只提案（宿主 Diff 接受才写）；`accept-edits` / `accept-all` 在权限通过后直接写盘并打检查点
 - **上下文**：打开标签 + **真实选区** 进 system；`@codebase` / `@selection`；只读工具可并行
-- **模式工具面**：Ask/Plan/Verify 不向模型暴露写工具；Plan 可先探索再出计划，UI「按此计划执行」
+- **模式工具面**：Ask/Plan/Verify 不向模型暴露写工具；Debug 可插桩但须标 WANWU_DEBUG 并在 cleanup 删除；Plan 可先探索再出计划，UI「按此计划执行」
 - **会话**：ACP `session/list` + `session/load`；Shell 侧栏可恢复 `.wanwu/sessions/`
 
 ## 决策记忆（勿擅自推翻）
@@ -41,3 +41,4 @@
 - (2026-08-12) `ask` 模式 Edit/Write 先提案再 apply；`accept-edits`/`accept-all` 可直接落盘
 - (2026-08-12) Bash spawns with minimal env by default
 - (2026-09-15) Cursor 对标 A–E 已合入；流式/Shell @/扩展独立 ACP 为后续小 PR
+- (2026-09-21) Debug Mode / Browser / Tab 下一跳 / Ctrl+K 升格 Agent / MCP HTTP+OAuth / 扩展侧栏已落地

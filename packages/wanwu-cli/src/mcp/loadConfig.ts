@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse as parseToml } from "smol-toml";
-import type { McpServerConfig } from "./types.js";
+import type { McpOAuthConfig, McpServerConfig, McpTransport } from "./types.js";
 
 function asString(v: unknown): string | undefined {
   return typeof v === "string" ? v : undefined;
@@ -21,14 +21,39 @@ function asEnv(v: unknown): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+function asOauth(v: unknown): McpOAuthConfig | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  const authorizationUrl = asString(o.authorizationUrl) ?? asString(o.authorization_url);
+  const tokenUrl = asString(o.tokenUrl) ?? asString(o.token_url);
+  const clientId = asString(o.clientId) ?? asString(o.client_id);
+  if (!authorizationUrl || !tokenUrl || !clientId) return undefined;
+  return {
+    authorizationUrl,
+    tokenUrl,
+    clientId,
+    clientSecretEnv: asString(o.clientSecretEnv) ?? asString(o.client_secret_env),
+    scope: asString(o.scope),
+  };
+}
+
+function asTransport(v: unknown): McpTransport | undefined {
+  return v === "stdio" || v === "http" || v === "sse" ? v : undefined;
+}
+
 function normalizeServer(name: string, raw: Record<string, unknown>): McpServerConfig | undefined {
   const command = asString(raw.command);
-  if (!command) return undefined;
+  const url = asString(raw.url);
+  if (!command && !url) return undefined;
   return {
     name,
     command,
     args: asStringArray(raw.args),
     env: asEnv(raw.env),
+    url,
+    transport: asTransport(raw.transport) ?? (url ? "http" : "stdio"),
+    headers: asEnv(raw.headers),
+    oauth: asOauth(raw.oauth),
   };
 }
 

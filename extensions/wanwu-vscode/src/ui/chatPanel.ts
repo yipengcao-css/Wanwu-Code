@@ -6,10 +6,12 @@ import { askToolPermission } from "./permissionModal";
 import { reviewSingleFileDiff } from "./diffReview";
 import { findExtensionWorkspaceRoot } from "../workspaceRoot";
 import { SessionManager } from "./sessionManager";
+import { chatWebviewHtml } from "./chatHtml";
 
 export class WanwuChatPanel {
   public static current: WanwuChatPanel | undefined;
-  private readonly panel: vscode.WebviewPanel;
+  private readonly webview: vscode.Webview;
+  private readonly revealFn: () => void;
   private client: AcpClient | undefined;
   private sessionId: string | undefined;
   private mode: WanwuMode = "agent";
@@ -17,33 +19,30 @@ export class WanwuChatPanel {
   readonly localId: string;
 
   private constructor(
-    panel: vscode.WebviewPanel,
+    webview: vscode.Webview,
+    revealFn: () => void,
     private readonly context: vscode.ExtensionContext,
     localId: string,
+    title: string,
+    compact?: boolean,
   ) {
-    this.panel = panel;
+    this.webview = webview;
+    this.revealFn = revealFn;
     this.localId = localId;
-    void this.context;
-    this.panel.webview.html = this.html(localId);
-    this.panel.webview.onDidReceiveMessage(async (msg) => {
-      if (msg?.type === "send") {
-        await this.handleSend(String(msg.text ?? ""), String(msg.mode ?? this.mode) as WanwuMode);
-      }
-      if (msg?.type === "setMode") {
-        this.mode = String(msg.mode) as WanwuMode;
-      }
+    this.webview.html = chatWebviewHtml({ title, compact });
+    this.webview.onDidReceiveMessage(async (msg: { type?: string; text?: string; mode?: string }) => {
+      await this.onWebviewMessage(msg);
     });
-    this.panel.onDidDispose(() => this.dispose());
   }
 
   reveal(): void {
-    this.panel.reveal(vscode.ViewColumn.Beside);
+    this.revealFn();
   }
 
   /** Send a pre-filled prompt programmatically (e.g. Quick Fix with diagnostic). */
   async sendPrefilled(text: string, mode: WanwuMode = "agent"): Promise<void> {
     this.reveal();
-    await this.panel.webview.postMessage({ type: "user", text });
+    await this.webview.postMessage({ type: "user", text });
     await this.handleSend(text, mode);
   }
 
@@ -60,7 +59,31 @@ export class WanwuChatPanel {
       vscode.ViewColumn.Beside,
       { enableScripts: true, retainContextWhenHidden: true },
     );
-    const instance = new WanwuChatPanel(panel, context, localId);
+    const instance = new WanwuChatPanel(
+      panel.webview,
+      () => panel.reveal(vscode.ViewColumn.Beside),
+      context,
+      localId,
+      `Wanwu Chat ${localId}`,
+    );
+    panel.onDidDispose(() => instance.dispose());
+    WanwuChatPanel.current = instance;
+    SessionManager.register(localId, instance);
+    return instance;
+  }
+
+  static bindView(view: vscode.WebviewView, context: vscode.ExtensionContext): WanwuChatPanel {
+    const localId = `sidebar-${Date.now().toString(36)}`;
+    view.webview.options = { enableScripts: true };
+    const instance = new WanwuChatPanel(
+      view.webview,
+      () => view.show?.(true),
+      context,
+      localId,
+      "Wanwu Agent",
+      true,
+    );
+    view.onDidDispose(() => instance.dispose());
     WanwuChatPanel.current = instance;
     SessionManager.register(localId, instance);
     return instance;
@@ -83,10 +106,10 @@ export class WanwuChatPanel {
     });
     const client = new AcpClient(child);
     client.on("message", (text: string) => {
-      void this.panel.webview.postMessage({ type: "assistant", text });
+      void this.webview.postMessage({ type: "assistant", text });
     });
     client.on("tool", (tool: { title: string; status: string; detail?: string }) => {
-      void this.panel.webview.postMessage({
+      void this.webview.postMessage({
         type: "tool",
         text: `${tool.status} ${tool.title}${tool.detail ? `: ${tool.detail}` : ""}`,
       });
@@ -95,7 +118,7 @@ export class WanwuChatPanel {
       void (async () => {
         const decision = await askToolPermission(req.toolName, `${req.summary} (risk=${req.risk ?? "?"})`);
         client.respond(req.id, { optionId: decision });
-        void this.panel.webview.postMessage({
+        void this.webview.postMessage({
           type: "status",
           text: `permission ${decision} for ${req.toolName}`,
         });
@@ -103,18 +126,18 @@ export class WanwuChatPanel {
     });
     client.on("edit", (edit: AcpEditProposal) => {
       void (async () => {
-        void this.panel.webview.postMessage({
+        void this.webview.postMessage({
           type: "tool",
           text: `pending Edit: ${edit.path}`,
         });
         const decision = await reviewSingleFileDiff(edit, findExtensionWorkspaceRoot());
         if (decision === "accept") {
-          void this.panel.webview.postMessage({
+          void this.webview.postMessage({
             type: "status",
             text: `accepted edit → ${edit.path}`,
           });
         } else {
-          void this.panel.webview.postMessage({
+          void this.webview.postMessage({
             type: "status",
             text: `rejected edit → ${edit.path}`,
           });
@@ -122,7 +145,7 @@ export class WanwuChatPanel {
       })();
     });
     client.on("error", (err: Error) => {
-      void this.panel.webview.postMessage({ type: "error", text: err.message });
+      void this.webview.postMessage({ type: "error", text: err.message });
     });
     await client.initialize();
     this.sessionId = await client.newSession();
@@ -161,18 +184,78 @@ export class WanwuChatPanel {
           ? "[MODE=ask] 只回答问题，不要修改文件。\n"
           : mode === "verify"
             ? "[MODE=verify] 验证最近变更（测试/lint），不要继续写功能。\n"
-            : "[MODE=agent] 可以在权限允许下修改代码。\n";
+            : mode === "debug"
+              ? "[MODE=debug] 先假设再插桩（WANWU_DEBUG），等用户复现后再定点修并清理。\n"
+              : "[MODE=agent] 可以在权限允许下修改代码。\n";
     const context = this.collectEditorContext();
 
     try {
-      await this.panel.webview.postMessage({ type: "status", text: "connecting…" });
+      await this.webview.postMessage({ type: "status", text: "connecting…" });
       const client = await this.ensureClient();
-      await this.panel.webview.postMessage({ type: "status", text: `session=${this.sessionId}` });
+      await this.webview.postMessage({ type: "status", text: `session=${this.sessionId}` });
       await client.prompt(this.sessionId ?? "unknown", `${prefix}${context}${text}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.panel.webview.postMessage({ type: "error", text: message });
+      await this.webview.postMessage({ type: "error", text: message });
       await vscode.window.showErrorMessage(`Wanwu ACP error: ${message}`);
+    }
+  }
+
+  async cancel(): Promise<void> {
+    try {
+      if (this.client) {
+        await this.client.cancelSession(this.sessionId);
+        await this.webview.postMessage({ type: "status", text: "已停止" });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.webview.postMessage({ type: "error", text: message });
+    }
+  }
+
+  async resumeFromDisk(): Promise<void> {
+    try {
+      const client = await this.ensureClient();
+      const { sessions } = await client.listSessions();
+      if (!sessions.length) {
+        await this.webview.postMessage({ type: "status", text: "没有可恢复的会话" });
+        return;
+      }
+      const labels = sessions.map((s) => ({
+        label: s.preview?.slice(0, 60) || s.id,
+        description: s.id,
+        id: s.id,
+      }));
+      const pick =
+        labels.length === 1
+          ? labels[0]
+          : await vscode.window.showQuickPick(labels, { title: "恢复 Wanwu 会话" });
+      if (!pick) return;
+      const loaded = await client.loadSession(pick.id);
+      this.sessionId = loaded.sessionId;
+      await this.webview.postMessage({ type: "clear" });
+      await this.webview.postMessage({
+        type: "status",
+        text: `已恢复 ${loaded.sessionId} · ${loaded.history?.length ?? 0} 条`,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.webview.postMessage({ type: "error", text: message });
+    }
+  }
+
+  private async onWebviewMessage(msg: { type?: string; text?: string; mode?: string }): Promise<void> {
+    if (msg?.type === "send") {
+      await this.handleSend(String(msg.text ?? ""), String(msg.mode ?? this.mode) as WanwuMode);
+    }
+    if (msg?.type === "setMode") {
+      this.mode = String(msg.mode) as WanwuMode;
+    }
+    if (msg?.type === "cancel") {
+      await this.cancel();
+    }
+    if (msg?.type === "resume") {
+      await this.resumeFromDisk();
     }
   }
 
@@ -185,76 +268,5 @@ export class WanwuChatPanel {
     if (WanwuChatPanel.current === this) {
       WanwuChatPanel.current = undefined;
     }
-  }
-
-  private html(localId: string): string {
-    return `<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wanwu Chat ${localId}</title>
-  <style>
-    body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; padding: 12px; }
-    #log { height: calc(100vh - 140px); overflow: auto; white-space: pre-wrap; border: 1px solid var(--vscode-panel-border); padding: 8px; }
-    .row { display: flex; gap: 8px; margin-top: 8px; }
-    select, button, textarea { font: inherit; }
-    textarea { width: 100%; min-height: 64px; }
-    .user { color: var(--vscode-textLink-foreground); }
-    .assistant { color: var(--vscode-foreground); }
-    .error { color: var(--vscode-errorForeground); }
-    .tool { color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family); font-size: 12px; }
-    .status { opacity: 0.7; font-size: 12px; }
-  </style>
-</head>
-<body>
-  <h3>Wanwu Chat <small style="opacity:.7">${localId}</small></h3>
-  <div class="row">
-    <label>Mode
-      <select id="mode">
-        <option value="ask">Ask</option>
-        <option value="plan">Plan</option>
-        <option value="agent" selected>Agent</option>
-        <option value="verify">Verify</option>
-      </select>
-    </label>
-    <span id="status" class="status">idle</span>
-  </div>
-  <div id="log"></div>
-  <textarea id="input" placeholder="描述你的任务…"></textarea>
-  <div class="row">
-    <button id="send">发送</button>
-  </div>
-  <script>
-    const vscode = acquireVsCodeApi();
-    const log = document.getElementById('log');
-    const input = document.getElementById('input');
-    const mode = document.getElementById('mode');
-    const status = document.getElementById('status');
-    function append(cls, text) {
-      const div = document.createElement('div');
-      div.className = cls;
-      div.textContent = text;
-      log.appendChild(div);
-      log.scrollTop = log.scrollHeight;
-    }
-    document.getElementById('send').onclick = () => {
-      const text = input.value.trim();
-      if (!text) return;
-      append('user', 'You: ' + text);
-      vscode.postMessage({ type: 'send', text, mode: mode.value });
-      input.value = '';
-    };
-    mode.onchange = () => vscode.postMessage({ type: 'setMode', mode: mode.value });
-    window.addEventListener('message', (event) => {
-      const msg = event.data;
-      if (msg.type === 'assistant') append('assistant', 'Wanwu: ' + msg.text);
-      if (msg.type === 'tool') append('tool', '⚙ ' + msg.text);
-      if (msg.type === 'error') append('error', 'Error: ' + msg.text);
-      if (msg.type === 'status') status.textContent = msg.text;
-    });
-  </script>
-</body>
-</html>`;
   }
 }

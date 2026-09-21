@@ -5,6 +5,7 @@ describe("mode helpers", () => {
   it("detects mode tags", () => {
     expect(detectMode("[MODE=plan] do x", "agent")).toBe("plan");
     expect(detectMode("[MODE=verify] check", "agent")).toBe("verify");
+    expect(detectMode("[MODE=debug] repro", "agent")).toBe("debug");
     expect(detectMode("plain", "ask")).toBe("ask");
   });
 

@@ -21,6 +21,8 @@ export interface InlineCompleteOptions {
   suffix: string;
   language?: string;
   filePath?: string;
+  /** Nearby linter diagnostics (line:message). Makes chat fallback lint-aware. */
+  diagnostics?: string;
   model?: string;
   providerId?: ProviderId;
   fetchImpl?: FetchLike;
@@ -62,7 +64,8 @@ export async function completeInline(opts: InlineCompleteOptions): Promise<Inlin
   });
   const model = completionModel(opts.config, resolved.id, opts.model ?? resolved.model);
 
-  if (fimEnabled(opts.config, resolved.id) && resolved.kind === "openai-compat") {
+  const lint = opts.diagnostics?.trim();
+  if (fimEnabled(opts.config, resolved.id) && resolved.kind === "openai-compat" && !lint) {
     const url = `${resolved.baseUrl.replace(/\/$/, "")}/completions`;
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (resolved.apiKey) headers.authorization = `Bearer ${resolved.apiKey}`;
@@ -104,11 +107,11 @@ export async function completeInline(opts: InlineCompleteOptions): Promise<Inlin
         {
           role: "system",
           content:
-            "You are a code completion engine. Output ONLY the code that belongs at <cursor> — no explanation, no markdown fences. Repeat neither the prefix nor the suffix. Keep it short (one logical completion).",
+            "You are a code completion engine. Output ONLY the code that belongs at <cursor> — no explanation, no markdown fences. Repeat neither the prefix nor the suffix. Keep it short (one logical completion). If linter errors are provided, prefer a completion that fixes the nearest error.",
         },
         {
           role: "user",
-          content: `${file}Language: ${lang}\n\n<prefix>\n${opts.prefix}<cursor>\n</prefix>\n\n<suffix>\n${opts.suffix}\n</suffix>`,
+          content: `${file}Language: ${lang}\n${lint ? `Nearby diagnostics:\n${lint}\n\n` : ""}\n<prefix>\n${opts.prefix}<cursor>\n</prefix>\n\n<suffix>\n${opts.suffix}\n</suffix>`,
         },
       ],
     },
