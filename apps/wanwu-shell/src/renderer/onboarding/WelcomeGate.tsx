@@ -24,10 +24,10 @@ export function WelcomeGate(props: {
         <li>
           <span className="step-idx">2</span>
           <div>
-            <strong>打开工作区</strong>
-            <p>选择要改的项目文件夹</p>
+            <strong>打开工作区（可选）</strong>
+            <p>改已有项目就打开文件夹；不选的话，需要写文件时会在桌面自动建 `Wanwu-任务名`</p>
           </div>
-          <button type="button" className="btn primary" onClick={props.onOpenFolder}>
+          <button type="button" className="btn" onClick={props.onOpenFolder}>
             打开文件夹
           </button>
         </li>
@@ -35,7 +35,7 @@ export function WelcomeGate(props: {
           <span className="step-idx">3</span>
           <div>
             <strong>在 Agent Studio 描述任务</strong>
-            <p>Ask / Plan / Agent / Verify · Ctrl/Cmd+I 聚焦</p>
+            <p>Ask / Plan / Agent / Verify · Ctrl/Cmd+I 聚焦。无工作区也可直接发送。</p>
           </div>
         </li>
       </ol>

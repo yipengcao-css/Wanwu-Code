@@ -44,4 +44,5 @@
 - (2026-09-18) 流式默认开、Shell @、扩展独立 ACP、MCP resources、贴图、自动记忆、轻量 SCM 已落地
 - (2026-09-21) Debug Mode / Browser / Tab 下一跳 / Ctrl+K 升格 Agent / MCP HTTP+OAuth / 扩展侧栏已落地
 - (2026-09-21) 对话收起长代码与思考块；Agent Studio 可附加 Skill，每轮任务按顺序走一遍
+- (2026-09-22) 未打开工作区时，需要写文件会在桌面自动创建 `Wanwu-<任务名>` 文件夹
 - 明确不做：Cloud Agents / Bugbot / DAP（Debug 是插桩约定，不是调试器协议）

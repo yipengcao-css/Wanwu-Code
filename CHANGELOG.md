@@ -16,6 +16,7 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **无工作区写文件**：未打开文件夹时，第一次需要落盘会在桌面创建 `Wanwu-<任务名>`，后续文件写在里面
 - **思考过程 / 收起代码**：ACP 不再把工具结果当对话正文；思考走独立块；长代码默认折叠
 - **附加 Skill**：Agent Studio 可点选 `.wanwu/skills` / `.agents/skills` / `~/.wanwu/skills`；每轮任务按附加顺序注入
 - **Debug 模式**：假设 → WANWU_DEBUG 插桩 → 等用户复现 → 定点修 → 清理；`Debug` 工具；Shell 复现横幅。不是 DAP。

@@ -1,7 +1,8 @@
-import { BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain } from "electron";
 import fs from "node:fs/promises";
 import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
+import { createDesktopProject } from "../desktopWorkspace.js";
 import { resolveInsideRoot } from "../pathSandbox.js";
 
 export type DirEntry = {
@@ -154,6 +155,16 @@ export function registerFsIpc(
     const abs = path.resolve(dirPath);
     setRootAndWatch(abs);
     return abs;
+  });
+
+  ipcMain.handle("workspace:ensureDesktop", (_e, prompt?: string) => {
+    const current = getRoot();
+    if (current) return { root: current, created: false };
+    const desktop = app.getPath("desktop");
+    const dir = createDesktopProject(desktop, typeof prompt === "string" ? prompt : "task");
+    setRootAndWatch(dir);
+    getWin?.()?.webContents.send("workspace:changed", dir);
+    return { root: dir, created: true };
   });
 
   ipcMain.handle("fs:list", async (_e, rel?: string) => {

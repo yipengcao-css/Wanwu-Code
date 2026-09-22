@@ -395,6 +395,10 @@ export function AgentStudio(props: {
     if (!props.enabled || busy) return;
     setBusy(true);
     try {
+      if (!props.workspaceRoot) {
+        const root = await ensureDesktopWorkspace("会话");
+        if (!root) return;
+      }
       await window.wanwu.acp.ensure();
       const { sessionId } = await window.wanwu.acp.newChat();
       const localId = newLocalId();
@@ -424,7 +428,32 @@ export function AgentStudio(props: {
     }
   }
 
+  async function ensureDesktopWorkspace(prompt: string): Promise<string | null> {
+    if (props.workspaceRoot) return props.workspaceRoot;
+    try {
+      const ensured = await window.wanwu.workspace.ensureDesktop(prompt);
+      if (ensured.created) {
+        const name = ensured.root.split(/[\\/]/).filter(Boolean).pop() ?? ensured.root;
+        patchActive((prev) => [
+          ...prev,
+          { kind: "status", text: `未选工作区 · 已在桌面创建 ${name}，后续文件写在这里` },
+        ]);
+        props.onStatus(`桌面工作区 · ${ensured.root}`);
+      }
+      return ensured.root;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      patchActive((prev) => [...prev, { kind: "error", text: `无法在桌面创建工作区：${message}` }]);
+      props.onStatus(`错误 · ${message}`);
+      return null;
+    }
+  }
+
   async function attachFiles(incoming: File[]): Promise<void> {
+    if (!props.workspaceRoot) {
+      const root = await ensureDesktopWorkspace("附图");
+      if (!root) return;
+    }
     for (const file of incoming) {
       if (!file.type.startsWith("image/")) continue;
       const dataBase64 = await fileToBase64(file);
@@ -471,6 +500,10 @@ export function AgentStudio(props: {
     const pending = override?.images ?? images;
     const sendMode = override?.mode ?? props.mode;
     if ((!prompt && pending.length === 0) || !props.enabled) return;
+    if (!props.workspaceRoot) {
+      const root = await ensureDesktopWorkspace(prompt || "task");
+      if (!root) return;
+    }
     if (busyRef.current && !override) {
       queueRef.current.push({ prompt, images: pending });
       setQueued(queueRef.current.length);
@@ -941,7 +974,9 @@ export function AgentStudio(props: {
           disabled={!props.enabled}
           placeholder={
             !props.enabled
-              ? "请先打开工作区"
+              ? "Agent 未就绪"
+              : !props.workspaceRoot
+                ? "描述任务… 未打开文件夹时，需要写文件会在桌面自动建项目"
               : busy
                 ? "输入后续消息，当前回合结束后发送…"
                 : props.mode === "plan"
