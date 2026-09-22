@@ -271,7 +271,7 @@ export function App() {
             )
           ) : (
             <div className="empty">
-              <p>尚未打开工作区。</p>
+              <p>尚未打开工作区。也可以直接在右侧描述任务；需要写文件时会在桌面自动创建项目文件夹。</p>
               <button className="btn primary" style={{ marginTop: 12 }} onClick={() => void openFolder()}>
                 打开文件夹
               </button>
@@ -324,7 +324,7 @@ export function App() {
           <div className="panel-title">Agent Studio</div>
           <AgentStudio
             mode={mode}
-            enabled={Boolean(root)}
+            enabled
             workspaceRoot={root}
             activePath={activePath}
             openTabs={tabs.map((t) => t.path)}

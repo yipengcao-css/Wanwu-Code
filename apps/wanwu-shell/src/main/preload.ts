@@ -5,6 +5,8 @@ export type WanwuBridge = {
     getRoot: () => Promise<string | null>;
     openDialog: () => Promise<string | null>;
     openPath: (dir: string) => Promise<string>;
+    /** No folder open: create `Desktop/Wanwu-<task>` and use it as the workspace. */
+    ensureDesktop: (prompt?: string) => Promise<{ root: string; created: boolean }>;
     onChanged: (cb: (root: string) => void) => () => void;
   };
   fs: {
@@ -177,6 +179,7 @@ const bridge: WanwuBridge = {
     getRoot: () => ipcRenderer.invoke("workspace:getRoot"),
     openDialog: () => ipcRenderer.invoke("workspace:openDialog"),
     openPath: (dir) => ipcRenderer.invoke("workspace:openPath", dir),
+    ensureDesktop: (prompt) => ipcRenderer.invoke("workspace:ensureDesktop", prompt),
     onChanged: (cb) => on("workspace:changed", (r) => cb(String(r))),
   },
   fs: {
