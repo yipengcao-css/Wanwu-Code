@@ -91,6 +91,58 @@ describe("@wanwu/providers", () => {
     expect(ollama.text).toBe("pong-ollama");
   });
 
+  it("echoes reasoning_content only off the official OpenAI host", async () => {
+    const messages = [
+      { role: "user" as const, content: "查一下" },
+      {
+        role: "assistant" as const,
+        content: "",
+        reasoning: "先搜再答",
+        toolCalls: [{ id: "call_1", name: "WebSearch", arguments: '{"query":"lua"}' }],
+      },
+      { role: "tool" as const, toolCallId: "call_1", name: "WebSearch", content: "hit" },
+    ];
+    const capture = async (baseUrl: string) => {
+      let body: Record<string, unknown> | undefined;
+      const config = mergeConfig(DEFAULT_CONFIG, {
+        activeProvider: "openai",
+        model: "deepseek-chat",
+        providers: {
+          ...DEFAULT_CONFIG.providers,
+          openai: {
+            apiKeyEnv: "OPENAI_API_KEY",
+            baseUrl,
+            defaultModel: "deepseek-chat",
+          },
+        },
+      });
+      await completeChat({
+        config,
+        env: { OPENAI_API_KEY: "sk-test" },
+        fetchImpl: async (_url, init) => {
+          body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+          return new Response(readFileSync(path.join(fixtures, "openai-chat.json"), "utf8"), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        },
+        request: { messages },
+      });
+      const sent = body?.messages as Array<Record<string, unknown>>;
+      return sent.find((m) => m.role === "assistant");
+    };
+
+    const deepseek = await capture("https://api.deepseek.com");
+    expect(deepseek?.reasoning_content).toBe("先搜再答");
+    expect(deepseek?.content).toBeNull();
+    const calls = deepseek?.tool_calls as Array<{ id: string }>;
+    expect(calls?.[0]?.id).toBe("call_1");
+
+    const official = await capture("https://api.openai.com");
+    expect(official?.reasoning_content).toBeUndefined();
+    expect(official?.tool_calls).toBeDefined();
+  });
+
   it("maps 401 to auth ProviderError with hint", async () => {
     const config = mergeConfig(DEFAULT_CONFIG, { activeProvider: "openai" });
     await expect(

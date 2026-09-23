@@ -29,6 +29,7 @@ export {
 } from "./capabilities.js";
 export { resolveProvider, hasProviderCredentials } from "./resolve.js";
 export { completeChat, streamChat } from "./complete.js";
+export { uniquifyToolCalls } from "./toolCalls.js";
 export {
   embedTexts,
   resolveEmbeddingModel,

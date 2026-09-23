@@ -14,6 +14,8 @@ export interface ChatMessage {
   toolCallId?: string;
   name?: string;
   toolCalls?: ToolCall[];
+  /** Provider reasoning that must be echoed on the next tool-call turn (DeepSeek thinking). */
+  reasoning?: string;
 }
 
 export interface ToolSpec {
@@ -52,6 +54,8 @@ export interface ChatResponse {
   provider: ProviderId;
   model: string;
   toolCalls?: ToolCall[];
+  /** Thinking-mode text that must be sent back with tool_calls. */
+  reasoning?: string;
   usage?: Usage;
   raw?: unknown;
 }
