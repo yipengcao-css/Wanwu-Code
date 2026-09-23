@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractText, extractThought, extractTool } from "./extract.js";
+import { extractText, extractThought, extractTool, formatPermissionSummary } from "./extract.js";
 
 describe("acp extract", () => {
   it("does not treat tool dumps as chat text", () => {
@@ -54,5 +54,13 @@ describe("acp extract", () => {
     });
     expect(chip?.title).toBe("Read");
     expect(chip?.detail).toBe("ok");
+  });
+
+  it("formats bash JSON into a readable command", () => {
+    expect(formatPermissionSummary("Bash", JSON.stringify({ command: "pnpm test" }), "shell")).toBe(
+      "将运行命令\npnpm test\n原因：shell",
+    );
+    expect(formatPermissionSummary("Edit", "src/a.ts")).toContain("src/a.ts");
+    expect(formatPermissionSummary("WebFetch", "https://example.com")).toContain("将访问网络");
   });
 });

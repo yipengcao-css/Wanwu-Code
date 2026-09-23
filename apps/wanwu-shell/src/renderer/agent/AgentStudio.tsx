@@ -7,6 +7,7 @@ import {
   type MentionSuggestion,
 } from "./mentionComplete";
 import { MessageBody, ToolChip } from "./MessageBody";
+import { modelsForProvider } from "./modelPresets";
 import {
   appendThought,
   historyToLog,
@@ -43,8 +44,6 @@ type ChatSession = {
 };
 
 type PendingImage = { id: string; name: string; path: string; preview?: string };
-
-type PendingPermission = { id: number; toolName: string; summary: string; risk?: string };
 
 function newLocalId(): string {
   return `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -111,6 +110,7 @@ export function AgentStudio(props: {
   onStatus: (s: string) => void;
   onMode?: (m: WanwuMode) => void;
   onOpenSettings?: () => void;
+  onModelChange?: (label: string) => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
     { localId: newLocalId(), title: "会话 1", log: emptyWelcome() },
@@ -123,7 +123,6 @@ export function AgentStudio(props: {
   const [activeSug, setActiveSug] = useState(0);
   const [mentionOpen, setMentionOpen] = useState(true);
   const [images, setImages] = useState<PendingImage[]>([]);
-  const [perm, setPerm] = useState<PendingPermission | null>(null);
   const [queued, setQueued] = useState(0);
   const [lastCkpt, setLastCkpt] = useState<string | null>(null);
   const [lastUsage, setLastUsage] = useState<{ in?: number; out?: number } | null>(null);
@@ -135,6 +134,10 @@ export function AgentStudio(props: {
   const [availableSkills, setAvailableSkills] = useState<StudioSkill[]>([]);
   const [attachedSkillIds, setAttachedSkillIds] = useState<string[]>([]);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [modelChoices, setModelChoices] = useState<string[]>([]);
+  const [currentModel, setCurrentModel] = useState("");
+  const [modelBusy, setModelBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   const busyRef = useRef(false);
@@ -328,12 +331,12 @@ export function AgentStudio(props: {
         patchActive((prev) => [...prev, { kind: "error", text: t }]),
       ),
       window.wanwu.acp.onPermission((req) => {
-        setPerm(req);
+        const line = req.summary.split("\n").slice(0, 2).join(" · ");
         patchActive((prev) => [
           ...prev,
           {
             kind: "status",
-            text: `等待权限确认 · ${req.toolName} · ${req.summary.slice(0, 80)}`,
+            text: `等待权限确认 · ${req.toolName} · ${line.slice(0, 120)}`,
           },
         ]);
       }),
@@ -659,6 +662,28 @@ export function AgentStudio(props: {
     }
   }
 
+  async function pickModel(model: string): Promise<void> {
+    if (busy || modelBusy) return;
+    if (model === currentModel) {
+      setModelMenuOpen(false);
+      return;
+    }
+    setModelBusy(true);
+    try {
+      const saved = await window.wanwu.settings.save({ model });
+      await window.wanwu.acp.dispose();
+      const label = `${saved.activeProvider}/${saved.model}`;
+      setCurrentModel(saved.model);
+      props.onModelChange?.(label);
+      props.onStatus(`已切换模型 · ${label}`);
+      setModelMenuOpen(false);
+    } catch (err) {
+      props.onStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setModelBusy(false);
+    }
+  }
+
   async function undoLast(): Promise<void> {
     try {
       const r = await window.wanwu.ckpt.restore(lastCkpt ?? undefined);
@@ -758,44 +783,6 @@ export function AgentStudio(props: {
           );
         })}
       </div>
-      {perm ? (
-        <div className="card" role="alertdialog" aria-label="权限确认">
-          <div style={{ fontWeight: 600, marginBottom: 6 }}>权限 · {perm.toolName}</div>
-          <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 10 }}>{perm.summary}</div>
-          <div className="chip-row">
-            <button
-              type="button"
-              className="btn danger"
-              onClick={() => {
-                void window.wanwu.acp.respondPermission(perm.id, "deny");
-                setPerm(null);
-              }}
-            >
-              拒绝
-            </button>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                void window.wanwu.acp.respondPermission(perm.id, "allow-session");
-                setPerm(null);
-              }}
-            >
-              本会话允许
-            </button>
-            <button
-              type="button"
-              className="btn primary"
-              onClick={() => {
-                void window.wanwu.acp.respondPermission(perm.id, "allow-once");
-                setPerm(null);
-              }}
-            >
-              允许一次
-            </button>
-          </div>
-        </div>
-      ) : null}
       <div
         className="composer"
         onDragOver={(e) => {
@@ -1035,14 +1022,58 @@ export function AgentStudio(props: {
         />
         <div className="composer-row">
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
-            <button
-              type="button"
-              className="model-link"
-              onClick={() => props.onOpenSettings?.()}
-              title="打开模型设置"
-            >
-              {props.modelLabel || props.mode}
-            </button>
+            <span className="model-menu-wrap">
+              <button
+                type="button"
+                className="model-link"
+                disabled={busy || modelBusy}
+                aria-expanded={modelMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => {
+                  if (busy || modelBusy) return;
+                  setModelMenuOpen((open) => {
+                    const next = !open;
+                    if (next) {
+                      void window.wanwu.settings.get().then((s) => {
+                        setCurrentModel(s.model);
+                        setModelChoices(modelsForProvider(s.activeProvider, s.model));
+                      });
+                    }
+                    return next;
+                  });
+                }}
+                title="切换当前模型"
+              >
+                {modelBusy ? "切换中…" : props.modelLabel || props.mode}
+              </button>
+              {modelMenuOpen ? (
+                <div className="model-menu" role="menu" aria-label="选择模型">
+                  {modelChoices.map((model) => (
+                    <button
+                      key={model}
+                      type="button"
+                      role="menuitem"
+                      className={`model-menu-item${model === currentModel ? " current" : ""}`}
+                      disabled={modelBusy}
+                      onClick={() => void pickModel(model)}
+                    >
+                      {model === currentModel ? `${model} · 当前` : model}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="model-menu-item"
+                    onClick={() => {
+                      setModelMenuOpen(false);
+                      props.onOpenSettings?.();
+                    }}
+                  >
+                    打开完整设置
+                  </button>
+                </div>
+              ) : null}
+            </span>
             {` · ${props.mode}`}
             {lastUsage ? ` · in ${lastUsage.in ?? 0}/out ${lastUsage.out ?? 0}` : ""}
             {queued ? ` · 队列 ${queued}` : ""}

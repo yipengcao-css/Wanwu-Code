@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import * as readline from "node:readline";
-import { extractText, extractThought, extractTool } from "./extract.js";
+import { extractText, extractThought, extractTool, formatPermissionSummary } from "./extract.js";
 
 interface Pending {
   resolve: (value: unknown) => void;
@@ -85,10 +85,12 @@ export class AcpClient extends EventEmitter {
           toolCall?: { title?: string; rawInput?: string };
           verdict?: { risk?: string; reason?: string };
         };
+        const toolName = params.toolCall?.title ?? "Tool";
+        const raw = params.toolCall?.rawInput ?? "";
         const req: AcpPermissionRequest = {
           id: Number(msg.id),
-          toolName: params.toolCall?.title ?? "Tool",
-          summary: params.toolCall?.rawInput ?? params.verdict?.reason ?? "permission required",
+          toolName,
+          summary: formatPermissionSummary(toolName, raw, params.verdict?.reason),
           risk: params.verdict?.risk,
         };
         this.emit("permission", req);

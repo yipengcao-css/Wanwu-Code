@@ -1,7 +1,77 @@
 import { useState, type ReactElement } from "react";
+import { parseInlines, parseProse, type Inline } from "./markdownLite";
 import { splitMessageBlocks, summarizeToolDetail, type LogItem } from "./sessionLog";
 
 const FOLD_CODE_AFTER = 8;
+
+function InlineRuns(props: { parts: Inline[] }): ReactElement {
+  return (
+    <>
+      {props.parts.map((part, i) => {
+        if (part.type === "code") {
+          return (
+            <code key={i} className="md-code">
+              {part.text}
+            </code>
+          );
+        }
+        if (part.type === "strong") return <strong key={i}>{part.text}</strong>;
+        if (part.type === "em") return <em key={i}>{part.text}</em>;
+        if (part.type === "link") {
+          return (
+            <a key={i} className="md-link" href={part.href} target="_blank" rel="noreferrer noopener">
+              {part.text}
+            </a>
+          );
+        }
+        return <span key={i}>{part.text}</span>;
+      })}
+    </>
+  );
+}
+
+function MarkdownProse(props: { text: string }): ReactElement {
+  const blocks = parseProse(props.text);
+  if (!blocks.length) return <div className="prose-block">{props.text}</div>;
+  return (
+    <div className="prose-block">
+      {blocks.map((block, i) => {
+        if (block.type === "h") {
+          const Tag = block.level === 1 ? "h3" : block.level === 2 ? "h4" : "h5";
+          return (
+            <Tag key={i} className={`md-h md-h${block.level}`}>
+              <InlineRuns parts={block.inlines} />
+            </Tag>
+          );
+        }
+        if (block.type === "ul" || block.type === "ol") {
+          const Tag = block.type === "ul" ? "ul" : "ol";
+          return (
+            <Tag key={i} className="md-list">
+              {block.items.map((item, j) => (
+                <li key={j}>
+                  <InlineRuns parts={item.length ? item : parseInlines("")} />
+                </li>
+              ))}
+            </Tag>
+          );
+        }
+        if (block.type === "quote") {
+          return (
+            <blockquote key={i} className="md-quote">
+              <InlineRuns parts={block.inlines} />
+            </blockquote>
+          );
+        }
+        return (
+          <p key={i} className="md-p">
+            <InlineRuns parts={block.inlines} />
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 export function ToolChip(props: { item: Extract<LogItem, { kind: "tool" }> }): ReactElement {
   const [open, setOpen] = useState(false);
@@ -65,11 +135,7 @@ export function MessageBody(props: {
             </details>
           );
         }
-        return (
-          <div key={i} className="prose-block">
-            {block.text}
-          </div>
-        );
+        return <MarkdownProse key={i} text={block.text} />;
       })}
     </div>
   );

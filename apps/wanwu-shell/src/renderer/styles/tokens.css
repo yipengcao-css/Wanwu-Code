@@ -466,7 +466,61 @@ button {
 }
 
 .prose-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.md-h {
+  margin: 0;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.md-h1 {
+  font-size: 16px;
+}
+
+.md-h2 {
+  font-size: 14px;
+}
+
+.md-h3 {
+  font-size: 13px;
+  color: var(--ww-muted);
+}
+
+.md-p {
+  margin: 0;
   white-space: pre-wrap;
+}
+
+.md-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.md-quote {
+  margin: 0;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid rgba(42, 212, 160, 0.55);
+  color: var(--ww-muted);
+}
+
+.md-code {
+  font-family: var(--ww-font-mono);
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(7, 11, 20, 0.7);
+}
+
+.md-link {
+  color: var(--ww-accent-2);
+  text-underline-offset: 2px;
 }
 
 .think-block,
@@ -649,6 +703,26 @@ button {
   color: #ffb3c0;
 }
 
+.term-ask-preview {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--ww-border);
+  background: rgba(10, 16, 28, 0.95);
+}
+
+.term-ask-preview pre {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  max-height: 96px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--ww-font-mono);
+  font-size: 12px;
+}
+
 .composer {
   position: relative;
   border-top: 1px solid var(--ww-border);
@@ -743,6 +817,11 @@ button {
   color: var(--ww-muted);
 }
 
+.model-menu-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
 .model-link {
   border: 0;
   background: transparent;
@@ -752,6 +831,48 @@ button {
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
+}
+
+.model-link:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.model-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  min-width: 180px;
+  max-width: 280px;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--ww-border);
+  background: var(--ww-surface-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.model-menu-item {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.model-menu-item:hover,
+.model-menu-item:focus-visible {
+  background: rgba(42, 212, 160, 0.12);
+}
+
+.model-menu-item.current {
+  color: var(--ww-accent);
 }
 
 .composer-row {

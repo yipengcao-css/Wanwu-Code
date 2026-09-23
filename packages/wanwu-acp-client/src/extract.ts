@@ -22,6 +22,31 @@ export function extractThought(params: unknown): string | undefined {
   return contentText(update);
 }
 
+/** Turn tool args into a short line a person can approve. */
+export function formatPermissionSummary(toolName: string, raw: string, reason?: string): string {
+  let body = raw.trim();
+  if (body.startsWith("{") || body.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(body) as Record<string, unknown>;
+      const picked = parsed.command ?? parsed.url ?? parsed.path ?? parsed.query ?? parsed.action;
+      if (typeof picked === "string" && picked.trim()) body = picked.trim();
+    } catch {
+      /* keep raw */
+    }
+  }
+  const head =
+    toolName === "Bash"
+      ? "将运行命令"
+      : toolName === "Edit" || toolName === "Write"
+        ? "将改文件"
+        : toolName === "WebFetch" || toolName === "WebSearch" || toolName === "Browser"
+          ? "将访问网络"
+          : `将调用 ${toolName}`;
+  const lines = [head, body || "(空)"];
+  if (reason?.trim()) lines.push(`原因：${reason.trim()}`);
+  return lines.join("\n");
+}
+
 export function extractTool(
   params: unknown,
 ): { id?: string; title: string; status: string; detail?: string } | undefined {
