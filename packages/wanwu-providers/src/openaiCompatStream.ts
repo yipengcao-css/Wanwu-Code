@@ -1,4 +1,5 @@
 import { mapHttpError, mapNetworkError } from "./errors.js";
+import { uniquifyToolCalls } from "./toolCalls.js";
 import { fetchWithRetry } from "./http.js";
 import type {
   ChatRequest,
@@ -10,7 +11,12 @@ import type {
   Usage,
 } from "./types.js";
 
-function toApiMessages(messages: ChatRequest["messages"]): unknown[] {
+function emitReasoning(baseUrl: string): boolean {
+  return !/api\.openai\.com/i.test(baseUrl);
+}
+
+function toApiMessages(messages: ChatRequest["messages"], baseUrl: string): unknown[] {
+  const passReasoning = emitReasoning(baseUrl);
   return messages.map((m) => {
     if (m.role === "tool") {
       return {
@@ -19,16 +25,20 @@ function toApiMessages(messages: ChatRequest["messages"]): unknown[] {
         content: typeof m.content === "string" ? m.content : m.content,
       };
     }
-    if (m.role === "assistant" && m.toolCalls?.length) {
-      return {
+    if (m.role === "assistant" && (m.toolCalls?.length || m.reasoning)) {
+      const payload: Record<string, unknown> = {
         role: "assistant",
         content: typeof m.content === "string" ? m.content || null : m.content,
-        tool_calls: m.toolCalls.map((t) => ({
+      };
+      if (m.toolCalls?.length) {
+        payload.tool_calls = m.toolCalls.map((t) => ({
           id: t.id,
           type: "function",
           function: { name: t.name, arguments: t.arguments },
-        })),
-      };
+        }));
+      }
+      if (passReasoning && m.reasoning) payload.reasoning_content = m.reasoning;
+      return payload;
     }
     if (Array.isArray(m.content)) {
       return {
@@ -75,7 +85,7 @@ export async function completeOpenAiCompatStream(
 
   const body: Record<string, unknown> = {
     model,
-    messages: toApiMessages(request.messages),
+    messages: toApiMessages(request.messages, resolved.baseUrl),
     temperature: request.temperature ?? 0.2,
     max_tokens: request.maxTokens ?? 2048,
     stream: true,
@@ -118,6 +128,7 @@ export async function completeOpenAiCompatStream(
   const decoder = new TextDecoder();
   let buffer = "";
   let text = "";
+  let reasoning = "";
   let usage: Usage | undefined;
   const toolCalls = new Map<number, { id: string; name: string; arguments: string }>();
 
@@ -167,6 +178,7 @@ export async function completeOpenAiCompatStream(
         const delta = parsed.choices?.[0]?.delta;
         const thought = delta?.reasoning_content || delta?.reasoning;
         if (thought) {
+          reasoning += thought;
           onChunk?.({ thought, done: false });
         }
         if (delta?.content) {
@@ -187,15 +199,18 @@ export async function completeOpenAiCompatStream(
     }
   }
 
-  const finalToolCalls: ToolCall[] = [...toolCalls.values()]
-    .filter((t) => t.name)
-    .map((t) => ({ id: t.id || `call_${t.name}`, name: t.name, arguments: t.arguments }));
+  const finalToolCalls: ToolCall[] = uniquifyToolCalls(
+    [...toolCalls.values()]
+      .filter((t) => t.name)
+      .map((t) => ({ id: t.id || `call_${t.name}`, name: t.name, arguments: t.arguments })),
+  );
 
   return {
     text: text.trim(),
     provider: resolved.id,
     model,
     toolCalls: finalToolCalls.length ? finalToolCalls : undefined,
+    reasoning: reasoning || undefined,
     usage,
   };
 }

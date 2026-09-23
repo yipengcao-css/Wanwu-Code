@@ -3,6 +3,7 @@ import {
   hasProviderCredentials,
   ProviderError,
   streamChat,
+  uniquifyToolCalls,
   type ChatMessage,
   type ChatResponse,
   type FetchLike,
@@ -12,6 +13,7 @@ import type { ProviderId, WanwuConfig } from "@wanwu/config";
 import { runHooks } from "../hooks.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
 import { compactMessages } from "./context/compact.js";
+import { repairToolTranscript, tailHistory } from "./context/toolTranscript.js";
 import { newTurnId, pruneCheckpoints } from "./checkpoints.js";
 import { runDiagnose } from "./diagnose.js";
 import { expandMentions, type MentionHostProviders } from "./mentions.js";
@@ -132,9 +134,7 @@ export async function runLlmAgentLoop(
     ...(peekMcpRegistry(ctx.workspaceRoot)?.listToolSpecs() ?? []),
   ]);
 
-  const prior = (opts?.history ?? [])
-    .filter((m) => m.role !== "system")
-    .slice(-MAX_HISTORY_MESSAGES);
+  const prior = tailHistory(opts?.history ?? [], MAX_HISTORY_MESSAGES);
 
   const expanded = await expandMentions(ctx.workspaceRoot, prompt, {
     webSearch: async (q) => (await toolWebSearch(q)).text,
@@ -183,8 +183,8 @@ export async function runLlmAgentLoop(
       budgetTokens: contextBudget(),
       summarize,
     });
+    messages = repairToolTranscript(compacted.messages);
     if (compacted.compacted) {
-      messages = compacted.messages;
       sessionUpdate(ctx.sessionId, {
         sessionUpdate: "agent_message_chunk",
         content: {
@@ -264,13 +264,16 @@ export async function runLlmAgentLoop(
       };
     }
 
-    if (last.toolCalls?.length) {
+    const rawCalls = last?.toolCalls;
+    if (rawCalls?.length) {
+      const calls = uniquifyToolCalls(rawCalls);
       messages.push({
         role: "assistant",
         content: last.text || "",
-        toolCalls: last.toolCalls,
+        toolCalls: calls,
+        reasoning: last.reasoning,
       });
-      const planned = last.toolCalls.map((call) => {
+      const planned = calls.map((call) => {
         toolsUsed.push(call.name);
         const toolCallId = `native-tool-${toolsUsed.length}`;
         sessionUpdate(ctx.sessionId, {
