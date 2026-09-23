@@ -37,6 +37,14 @@ export type WanwuBridge = {
     list: () => Promise<
       Array<{ id: string; name: string; source: "workspace" | "agents" | "user"; summary: string }>
     >;
+    pickMarkdown: () => Promise<{ id: string; name: string; path: string; summary: string } | null>;
+    readMarkdown: (absPath: string) => Promise<{ id: string; name: string; path: string; summary: string }>;
+    save: (req: {
+      dest: "workspace" | "user";
+      name?: string;
+      body: string;
+    }) => Promise<{ id: string; name: string; path: string }>;
+    draft: (req: { brief: string; name?: string }) => Promise<{ markdown: string; model?: string; error?: string }>;
   };
   ai: {
     complete: (req: {
@@ -203,6 +211,10 @@ const bridge: WanwuBridge = {
   },
   skills: {
     list: () => ipcRenderer.invoke("skills:list"),
+    pickMarkdown: () => ipcRenderer.invoke("skills:pickMarkdown"),
+    readMarkdown: (absPath) => ipcRenderer.invoke("skills:readMarkdown", absPath),
+    save: (req) => ipcRenderer.invoke("skills:save", req),
+    draft: (req) => ipcRenderer.invoke("skills:draft", req),
   },
   ai: {
     complete: (req) => ipcRenderer.invoke("ai:complete", req),

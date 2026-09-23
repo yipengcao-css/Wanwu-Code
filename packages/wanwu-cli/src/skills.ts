@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 
-export type SkillSource = "workspace" | "agents" | "user";
+export type SkillSource = "workspace" | "agents" | "user" | "file";
 
 export interface SkillFile {
   /** Stable id: `workspace/review`, `agents/frontend-design`, `user/foo`. */
@@ -138,8 +138,67 @@ export function parseAttachedSkillIds(prompt: string): string[] | undefined {
     .filter(Boolean);
 }
 
+const SKILL_IMPORT =
+  /\[SKILL_IMPORT\s+name="([A-Za-z0-9._\-\u4e00-\u9fff]{1,48})"\]\n([\s\S]*?)\n\[\/SKILL_IMPORT\]/g;
+
+/** Absolute markdown paths the shell attached via the file picker. */
+export function parseSkillFilePaths(prompt: string): string[] {
+  const out: string[] = [];
+  for (const m of prompt.matchAll(/\[SKILLFILE=([^\]]+)\]/g)) {
+    const abs = m[1]?.trim() ?? "";
+    if (!abs || abs.includes("\n") || !isAbsolute(abs)) continue;
+    if (!/\.(md|markdown)$/i.test(abs)) continue;
+    if (!out.includes(abs)) out.push(abs);
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
+/** Unsaved drafts embedded by the shell. */
+export function parseSkillImports(prompt: string): SkillFile[] {
+  const out: SkillFile[] = [];
+  for (const m of prompt.matchAll(new RegExp(SKILL_IMPORT.source, "g"))) {
+    const name = m[1] ?? "";
+    const preview = (m[2] ?? "").slice(0, MAX_PREVIEW);
+    if (!name || !preview.trim()) continue;
+    pushSkill(out, {
+      id: `file/${name}`,
+      name,
+      path: "",
+      source: "file",
+      preview,
+      summary: firstSummary(preview) || name,
+    });
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
+function readExternalSkill(absPath: string): SkillFile | undefined {
+  try {
+    const st = statSync(absPath);
+    if (!st.isFile() || st.size > 64 * 1024) return undefined;
+  } catch {
+    return undefined;
+  }
+  const body = readPreview(absPath);
+  if (!body) return undefined;
+  const stem = basename(absPath).replace(/\.(md|markdown)$/i, "") || "skill";
+  return {
+    id: `file/${stem}`,
+    name: stem,
+    path: absPath,
+    source: "file",
+    preview: body.preview,
+    summary: body.summary || stem,
+  };
+}
+
 export function stripSkillTags(text: string): string {
-  return text.replace(/\[SKILLS=[^\]]*\]\n?/g, "");
+  return text
+    .replace(/\[SKILL_IMPORT\s+name="[^"]*"\]\n[\s\S]*?\n\[\/SKILL_IMPORT\]\n?/g, "")
+    .replace(/\[SKILLFILE=[^\]]*\]\n?/g, "")
+    .replace(/\[SKILLS=[^\]]*\]\n?/g, "");
 }
 
 export function renderSkillsForPrompt(skills: SkillFile[]): string {
@@ -152,8 +211,17 @@ export function renderSkillsForPrompt(skills: SkillFile[]): string {
 export function resolvePromptSkills(cwd: string, prompt: string): SkillFile[] {
   const all = discoverSkills(cwd);
   const attached = parseAttachedSkillIds(prompt);
-  if (attached === undefined) {
-    return all.filter((s) => s.source === "workspace").slice(0, MAX_PROMPT_SKILLS);
-  }
-  return selectSkills(all, attached);
+  const base =
+    attached === undefined
+      ? all.filter((s) => s.source === "workspace").slice(0, MAX_PROMPT_SKILLS)
+      : selectSkills(all, attached);
+  const extra = [
+    ...parseSkillFilePaths(prompt).flatMap((p) => {
+      const skill = readExternalSkill(p);
+      return skill ? [skill] : [];
+    }),
+    ...parseSkillImports(prompt),
+  ];
+  for (const skill of extra) pushSkill(base, skill);
+  return base.slice(0, MAX_PROMPT_SKILLS);
 }

@@ -58,10 +58,10 @@ function listAgents(dir: string): ShellSkill[] {
   return out;
 }
 
-export function listWorkspaceSkills(root: string, userHome = homedir()): ShellSkill[] {
+export function listWorkspaceSkills(root: string | null, userHome = homedir()): ShellSkill[] {
   return [
-    ...listFlat(join(root, ".wanwu", "skills"), "workspace"),
-    ...listAgents(join(root, ".agents", "skills")),
+    ...(root ? listFlat(join(root, ".wanwu", "skills"), "workspace") : []),
+    ...(root ? listAgents(join(root, ".agents", "skills")) : []),
     ...listFlat(join(userHome, ".wanwu", "skills"), "user"),
   ].slice(0, 48);
 }

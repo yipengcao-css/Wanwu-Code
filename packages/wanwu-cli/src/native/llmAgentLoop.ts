@@ -23,6 +23,7 @@ import { dispatchTool } from "./toolDispatch.js";
 import { shouldStream } from "./stream.js";
 import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 import { maybeAutoRemember } from "./autoMemory.js";
+import { stripSkillTags } from "../skills.js";
 import { buildSystem, parseEditorContext } from "./agentPrompt.js";
 import { toolsForMode } from "./modeTools.js";
 import { canRunToolsInParallel } from "./parallelTools.js";
@@ -151,10 +152,11 @@ export async function runLlmAgentLoop(
     ...editor.openTabs,
   ];
 
+  const visiblePrompt = stripSkillTags(finalPrompt);
   const userContent =
     opts?.attachments?.length
-      ? [{ type: "text" as const, text: finalPrompt }, ...opts.attachments]
-      : finalPrompt;
+      ? [{ type: "text" as const, text: visiblePrompt }, ...opts.attachments]
+      : visiblePrompt;
 
   let messages: ChatMessage[] = [
     { role: "system", content: buildSystem(ctx, mode, activeFiles, editor, finalPrompt) },
