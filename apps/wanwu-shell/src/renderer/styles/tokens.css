@@ -623,6 +623,61 @@ button {
   padding: 8px;
   color: var(--ww-muted);
   font-size: 12px;
+  line-height: 1.5;
+}
+
+.skill-maker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--ww-border);
+  border-radius: 12px;
+  background: rgba(10, 16, 28, 0.72);
+}
+
+.skill-maker .field textarea,
+.skill-maker .field input {
+  width: 100%;
+  border: 1px solid var(--ww-border);
+  border-radius: 8px;
+  background: rgba(7, 11, 20, 0.8);
+  color: inherit;
+  padding: 8px;
+  font: inherit;
+  line-height: 1.5;
+}
+
+.skill-maker .field textarea:focus,
+.skill-maker .field input:focus {
+  border-color: rgba(42, 212, 160, 0.55);
+  box-shadow: 0 0 0 2px var(--ww-focus);
+  outline: none;
+}
+
+.skill-maker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-maker-ask {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.skill-maker-error {
+  margin: 0;
+  color: #ffb3c0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.skill-maker-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .debug-banner {

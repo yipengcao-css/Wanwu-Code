@@ -8,6 +8,7 @@ import {
   renderSkillsForPrompt,
   resolvePromptSkills,
   selectSkills,
+  stripSkillTags,
 } from "./skills.js";
 
 function seedWorkspace(root: string): void {
@@ -66,6 +67,28 @@ describe("skills", () => {
     ]);
     expect(text).toContain("# Skill: a (workspace/a)");
     expect(text).toContain("do a");
+  });
+
+  it("loads a picked markdown file and an unsaved draft", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-skills-file-"));
+    const file = join(root, "notes.md");
+    writeFileSync(file, "# Notes\nKeep functions small.\n", "utf8");
+    const prompt = [
+      "[SKILLS=]",
+      `[SKILLFILE=${file}]`,
+      `[SKILL_IMPORT name="draft-skill"]`,
+      "Check names.",
+      "[/SKILL_IMPORT]",
+      "hello",
+    ].join("\n");
+    const skills = resolvePromptSkills(root, prompt);
+    expect(skills.map((s) => s.name)).toEqual(["notes", "draft-skill"]);
+    expect(renderSkillsForPrompt(skills)).toContain("Keep functions small.");
+    expect(stripSkillTags(prompt)).toBe("hello");
+    mkdirSync(join(root, ".wanwu", "skills"), { recursive: true });
+    writeFileSync(join(root, ".wanwu", "skills", "review.md"), "# Review\nCheck edge cases.", "utf8");
+    const ignored = resolvePromptSkills(root, "[SKILLFILE=notes.md]\nhello");
+    expect(ignored.map((s) => s.id)).toEqual(["workspace/review"]);
   });
 
   it("returns empty when no skills dir", () => {

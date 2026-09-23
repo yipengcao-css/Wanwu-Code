@@ -22,7 +22,7 @@
 - **作曲栏换模型**：点模型名切换当前 provider 的预设，密钥和地址仍走完整设置
 - **无工作区写文件**：未打开文件夹时，第一次需要落盘会在桌面创建 `Wanwu-<任务名>`，后续文件写在里面
 - **思考过程 / 收起代码**：ACP 不再把工具结果当对话正文；思考走独立块；长代码默认折叠
-- **附加 Skill**：Agent Studio 可点选 `.wanwu/skills` / `.agents/skills` / `~/.wanwu/skills`；每轮任务按附加顺序注入
+- **附加 Skill**：Agent Studio 可点选 `.wanwu/skills` / `.agents/skills` / `~/.wanwu/skills`；也可选择本机 Markdown。制作 Skill 后询问是否写入这些目录；每轮任务按附加顺序注入
 - **Debug 模式**：假设 → WANWU_DEBUG 插桩 → 等用户复现 → 定点修 → 清理；`Debug` 工具；Shell 复现横幅。不是 DAP。
 - **Browser 工具**：navigate / snapshot / screenshot（有 Chrome 则 PNG，否则文本快照）。无点击。
 - **Tab 吃 lint + 下一处**：补全带上附近诊断；接受后跳到下一处 Error/Warning 再触发幽灵文本。
