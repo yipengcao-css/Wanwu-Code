@@ -19,6 +19,13 @@ const DiffReview = lazy(() =>
   import("../agent/DiffReview").then((m) => ({ default: m.DiffReview })),
 );
 
+function riskLabel(risk?: string): string {
+  if (risk === "high") return "高";
+  if (risk === "medium") return "中";
+  if (risk === "low") return "低";
+  return "未知";
+}
+
 /** Flatten LSP markers into a compact summary for the agent (@diagnostics). */
 function formatDiagnosticsSummary(diagnostics: Record<string, MarkerDiag[]>): string {
   const lines: string[] = [];
@@ -336,6 +343,10 @@ export function App() {
             onStatus={setStatus}
             onMode={setMode}
             onOpenSettings={() => setSettingsOpen(true)}
+            onModelChange={(label) => {
+              setModelLabel(label);
+              setStatus(`已切换模型 · ${label}`);
+            }}
           />
         </aside>
       </div>
@@ -379,7 +390,7 @@ export function App() {
       {perm ? (
         <ConfirmModal
           title={`权限 · ${perm.toolName}`}
-          body={`${perm.summary}\nrisk=${perm.risk ?? "?"}`}
+          body={`${perm.summary}\n风险：${riskLabel(perm.risk)}`}
           acceptLabel="允许一次"
           sessionLabel="本会话允许"
           rejectLabel="拒绝"

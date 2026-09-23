@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import { extractShellCommand } from "../agent/markdownLite";
 
 type TermSession = { id: string; title: string };
 
@@ -104,6 +105,7 @@ export function TerminalPane(props: { active: boolean; onOutput?: (data: string)
   const [ask, setAsk] = useState("");
   const [askBusy, setAskBusy] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const tailRef = useRef("");
   const askRef = useRef<HTMLInputElement>(null);
 
@@ -129,16 +131,32 @@ export function TerminalPane(props: { active: boolean; onOutput?: (data: string)
         setAskError(r.error);
         return;
       }
-      if (r.text) {
-        await window.wanwu.term.write(activeId, r.text);
+      const command = extractShellCommand(r.text ?? "");
+      if (!command) {
+        setAskError("没有生成可运行的命令");
+        return;
       }
-      setAsk("");
-      setAskOpen(false);
+      setPreview(command);
     } catch (err) {
       setAskError(err instanceof Error ? err.message : String(err));
     } finally {
       setAskBusy(false);
     }
+  }
+
+  async function commitPreview(): Promise<void> {
+    if (!preview) return;
+    const command = preview.endsWith("\n") ? preview : `${preview}\n`;
+    await window.wanwu.term.write(activeId, command);
+    setPreview(null);
+    setAsk("");
+    setAskOpen(false);
+  }
+
+  function dismissAsk(): void {
+    setAskOpen(false);
+    setPreview(null);
+    setAskError(null);
   }
 
   const addTerminal = (): void => {
@@ -214,6 +232,7 @@ export function TerminalPane(props: { active: boolean; onOutput?: (data: string)
           onClick={() => {
             setAskOpen(true);
             setAskError(null);
+            setPreview(null);
             requestAnimationFrame(() => askRef.current?.focus());
           }}
           title="Ctrl/Cmd+K 根据终端输出生成命令"
@@ -227,13 +246,21 @@ export function TerminalPane(props: { active: boolean; onOutput?: (data: string)
             ref={askRef}
             value={ask}
             disabled={askBusy}
-            placeholder="描述要生成的命令（Enter 插入到终端 · Esc 取消）"
+            placeholder="描述要生成的命令（Enter 预览 · Esc 取消）"
             autoFocus
-            onChange={(e) => setAsk(e.target.value)}
+            onChange={(e) => {
+              setAsk(e.target.value);
+              setPreview(null);
+            }}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.preventDefault();
-                setAskOpen(false);
+                dismissAsk();
+              }
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && preview) {
+                e.preventDefault();
+                void commitPreview();
+                return;
               }
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -242,9 +269,20 @@ export function TerminalPane(props: { active: boolean; onOutput?: (data: string)
             }}
           />
           <button type="button" className="btn primary" disabled={askBusy || !ask.trim()} onClick={() => void runAsk()}>
-            {askBusy ? "生成中…" : "插入"}
+            {askBusy ? "生成中…" : "预览"}
           </button>
           {askError ? <span className="term-ask-error">{askError}</span> : null}
+        </div>
+      ) : null}
+      {askOpen && preview ? (
+        <div className="term-ask-preview" role="region" aria-label="命令预览">
+          <pre>{preview}</pre>
+          <button type="button" className="btn primary" onClick={() => void commitPreview()}>
+            运行
+          </button>
+          <button type="button" className="btn" onClick={() => setPreview(null)}>
+            取消
+          </button>
         </div>
       ) : null}
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -257,6 +295,7 @@ export function TerminalPane(props: { active: boolean; onOutput?: (data: string)
             onCtrlK={() => {
               setAskOpen(true);
               setAskError(null);
+              setPreview(null);
               requestAnimationFrame(() => askRef.current?.focus());
             }}
           />

@@ -12,7 +12,7 @@
     "start": "node scripts/start.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/main/pathSandbox.test.ts && tsx src/main/desktopWorkspace.test.ts && tsx src/main/gitStatus.test.ts && tsx src/main/acpLaunch.test.ts && tsx src/main/acpSession.test.ts && tsx src/main/shellResolve.test.ts && tsx src/main/lsp/uri.test.ts && tsx src/main/lsp/registry.test.ts && tsx src/main/lsp/loadLspConfig.test.ts && tsx src/main/lsp/resolveServer.test.ts && tsx src/main/lsp/sessionManager.test.ts && tsx src/renderer/agent/mentionComplete.test.ts && tsx src/renderer/agent/sessionLog.test.ts && tsx src/main/ipc/skills.test.ts && tsx src/main/checkpoints.test.ts && node scripts/afterSign-notarize.test.cjs && node scripts/waitForHttp.test.mjs",
+    "test": "tsx src/main/pathSandbox.test.ts && tsx src/main/desktopWorkspace.test.ts && tsx src/main/gitStatus.test.ts && tsx src/main/acpLaunch.test.ts && tsx src/main/acpSession.test.ts && tsx src/main/shellResolve.test.ts && tsx src/main/lsp/uri.test.ts && tsx src/main/lsp/registry.test.ts && tsx src/main/lsp/loadLspConfig.test.ts && tsx src/main/lsp/resolveServer.test.ts && tsx src/main/lsp/sessionManager.test.ts && tsx src/renderer/agent/mentionComplete.test.ts && tsx src/renderer/agent/sessionLog.test.ts && tsx src/renderer/agent/markdownLite.test.ts && tsx src/renderer/agent/modelPresets.test.ts && tsx src/main/ipc/skills.test.ts && tsx src/main/checkpoints.test.ts && node scripts/afterSign-notarize.test.cjs && node scripts/waitForHttp.test.mjs",
     "dist": "bash ../../scripts/build-shell-dist.sh",
     "dist:builder": "electron-builder --config electron-builder.yml"
   },

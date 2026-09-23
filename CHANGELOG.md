@@ -12,10 +12,14 @@
 - **Ask/Plan/Verify 工具面**：模型请求里不再带 Edit/Write/Task（Ask 也不带 Bash）；Task 在只读模式被 dispatch 拒绝
 - **Plan 先探索**：有密钥时 Plan 走只读 tool loop，再写入 `.wanwu/plans/`；Shell 提供「按此计划执行」
 - **真实选区**：Agent 只带 Monaco 当前选区，不再误发文件头 500 字；`@selection`；命令面板「将选区加入 Agent」
-- **作曲栏**：重试上一条；点击 provider/model 打开设置
+- **作曲栏**：重试上一条
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **聊天 Markdown**：回复里的标题、列表、引用、行内代码和 http(s) 链接按版式显示；不执行 HTML
+- **权限只留一层**：命令/路径/网址用中文摘要；风险显示为高/中/低
+- **终端命令先预览**：Ctrl+K 生成后确认「运行」才写入终端
+- **作曲栏换模型**：点模型名切换当前 provider 的预设，密钥和地址仍走完整设置
 - **无工作区写文件**：未打开文件夹时，第一次需要落盘会在桌面创建 `Wanwu-<任务名>`，后续文件写在里面
 - **思考过程 / 收起代码**：ACP 不再把工具结果当对话正文；思考走独立块；长代码默认折叠
 - **附加 Skill**：Agent Studio 可点选 `.wanwu/skills` / `.agents/skills` / `~/.wanwu/skills`；每轮任务按附加顺序注入
