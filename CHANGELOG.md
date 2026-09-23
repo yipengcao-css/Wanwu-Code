@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Fixed
+- **思考与中间输出**：同一步里交错的思考/正文合成一块，折叠条显示摘要；工具参数不再截成半截 JSON
+
 - **过期文档**：冻结 2026-08/09 对照稿；去掉已落地项的「仍未做」；MCP/Code-OSS 第三方声明与手工测试清单对齐现状
 - **Windows `pnpm build:cli` / `shell:dev`**：生成 `dist-bin/wanwu.mjs` 改为 Node 脚本，不再依赖 `bash`（未装 Git Bash 时也能拉起 ACP）
 - **Windows `shell:dev` ERR_CONNECTION_REFUSED**：等 Vite 在 `127.0.0.1:5173` 真正就绪再启动 Electron（不再固定睡 1.2s；避免 `localhost` IPv6 与 `127.0.0.1` 不一致）

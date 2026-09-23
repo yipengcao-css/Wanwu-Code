@@ -60,6 +60,6 @@ export function extractTool(
     id: typeof update.toolCallId === "string" ? update.toolCallId : undefined,
     title,
     status,
-    detail: typeof detail === "string" ? detail.slice(0, 200) : undefined,
+    detail: typeof detail === "string" ? detail.slice(0, 4000) : undefined,
   };
 }

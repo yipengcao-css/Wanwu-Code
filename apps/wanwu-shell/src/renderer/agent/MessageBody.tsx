@@ -1,6 +1,6 @@
 import { useState, type ReactElement } from "react";
 import { parseInlines, parseProse, type Inline } from "./markdownLite";
-import { splitMessageBlocks, summarizeToolDetail, type LogItem } from "./sessionLog";
+import { splitMessageBlocks, summarizeToolDetail, thoughtPreview, type LogItem } from "./sessionLog";
 
 const FOLD_CODE_AFTER = 8;
 
@@ -98,9 +98,10 @@ export function MessageBody(props: {
   defaultThinkOpen?: boolean;
 }): ReactElement {
   if (props.thinking) {
+    const preview = thoughtPreview(props.text);
     return (
       <details className="think-block" open={props.defaultThinkOpen}>
-        <summary>思考过程</summary>
+        <summary>{preview ? `思考过程 · ${preview}` : "思考过程"}</summary>
         <div className="think-body">{props.text}</div>
       </details>
     );
@@ -112,7 +113,9 @@ export function MessageBody(props: {
         if (block.type === "think") {
           return (
             <details key={i} className="think-block" open={props.defaultThinkOpen}>
-              <summary>思考过程</summary>
+              <summary>
+                {thoughtPreview(block.text) ? `思考过程 · ${thoughtPreview(block.text)}` : "思考过程"}
+              </summary>
               <div className="think-body">{block.text}</div>
             </details>
           );

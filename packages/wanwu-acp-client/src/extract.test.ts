@@ -54,6 +54,16 @@ describe("acp extract", () => {
     });
     expect(chip?.title).toBe("Read");
     expect(chip?.detail).toBe("ok");
+    const long = "q".repeat(500);
+    const kept = extractTool({
+      update: {
+        sessionUpdate: "tool_call",
+        title: "WebSearch",
+        status: "pending",
+        content: { type: "text", text: long },
+      },
+    });
+    expect(kept?.detail?.length).toBe(500);
   });
 
   it("formats bash JSON into a readable command", () => {

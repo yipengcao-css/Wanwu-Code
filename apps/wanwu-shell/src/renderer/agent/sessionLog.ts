@@ -10,36 +10,53 @@ export type MessageBlock =
 const CODE_FENCE = /```([^\n`]*)\n([\s\S]*?)```/g;
 const THINK_TAG = /<think(?:ing)?>\s*([\s\S]*?)<\/think(?:ing)?>/gi;
 
+function clip(text: string, max = 160): string {
+  const line = text.replace(/\s+/g, " ").trim();
+  if (line.length <= max) return line;
+  return `${line.slice(0, max)}…`;
+}
+
 /** Collapse tool dumps to a one-line process hint. */
 export function summarizeToolDetail(_title: string, detail?: string): string {
   if (!detail?.trim()) return "";
   const trimmed = detail.trim();
   try {
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-    const path = typeof parsed.path === "string" ? parsed.path : undefined;
-    const url = typeof parsed.url === "string" ? parsed.url : undefined;
-    const action = typeof parsed.action === "string" ? parsed.action : undefined;
-    const bits = [action, path, url].filter(Boolean);
-    if (bits.length) return bits.join(" · ");
+    const pick = (key: string): string | undefined =>
+      typeof parsed[key] === "string" && parsed[key].trim() ? parsed[key].trim() : undefined;
+    const bits = ["action", "command", "query", "pattern", "path", "url"]
+      .map(pick)
+      .filter((v): v is string => Boolean(v));
+    if (bits.length) return clip(bits.join(" · "));
   } catch {
-    /* not json */
+    const loose = trimmed.match(/"(?:query|command|path|url|pattern)"\s*:\s*"([^"]*)/);
+    if (loose?.[1]) return clip(loose[1]);
   }
   const pathHit = trimmed.match(/(?:^|\s)((?:[\w.-]+\/)+[\w.-]+\.\w+)/);
   const lines = trimmed.split("\n").length;
   if (pathHit && lines > 3) return `${pathHit[1]} · ${lines} 行`;
   if (lines > 4) return `${lines} 行`;
-  const first = trimmed.split("\n")[0] ?? trimmed;
-  return first.replace(/\s+/g, " ").slice(0, 64);
+  return clip(trimmed.split("\n")[0] ?? trimmed, 96);
+}
+
+/** One-line preview so a collapsed thought still shows what it contains. */
+export function thoughtPreview(text: string): string {
+  return clip(text.replace(/<\/?think(?:ing)?>/gi, ""), 72);
 }
 
 /** Split assistant text so thinking and long fences can be folded. */
 export function splitMessageBlocks(text: string): MessageBlock[] {
   const blocks: MessageBlock[] = [];
   const thinkPieces: string[] = [];
-  const withoutThink = text.replace(THINK_TAG, (_m, inner: string) => {
+  let withoutThink = text.replace(THINK_TAG, (_m, inner: string) => {
     if (inner.trim()) thinkPieces.push(inner.trim());
     return "";
   });
+  const open = withoutThink.match(/<think(?:ing)?>\s*([\s\S]*)$/i);
+  if (open && open.index !== undefined) {
+    if (open[1]?.trim()) thinkPieces.push(open[1].trim());
+    withoutThink = withoutThink.slice(0, open.index);
+  }
   for (const t of thinkPieces) blocks.push({ type: "think", text: t });
 
   let last = 0;
@@ -96,7 +113,7 @@ export function historyToLog(history: unknown[]): LogItem[] {
         kind: "tool",
         title: String(m.name ?? "tool"),
         status: "completed",
-        detail: detail ? detail.slice(0, 200) : undefined,
+        detail: detail ? detail.slice(0, 4000) : undefined,
       });
     }
   }
@@ -150,10 +167,29 @@ export function upsertToolLog(
   return [...prev, next];
 }
 
-export function appendThought(prev: LogItem[], text: string): LogItem[] {
-  const last = prev[prev.length - 1];
-  if (last?.kind === "thought") {
-    return [...prev.slice(0, -1), { kind: "thought", text: last.text + text }];
+/**
+ * Append a streaming thought or answer.
+ * Chunks of the same kind stay one block until a user message or tool call,
+ * even when thought and answer tokens alternate.
+ */
+export function appendStreamText(
+  prev: LogItem[],
+  kind: "thought" | "assistant",
+  text: string,
+): LogItem[] {
+  if (!text) return prev;
+  for (let i = prev.length - 1; i >= 0; i--) {
+    const item = prev[i];
+    if (!item || item.kind === "user" || item.kind === "tool") break;
+    if (item.kind === kind) {
+      const copy = prev.slice();
+      copy[i] = { kind, text: item.text + text };
+      return copy;
+    }
   }
-  return [...prev, { kind: "thought", text }];
+  return [...prev, { kind, text }];
+}
+
+export function appendThought(prev: LogItem[], text: string): LogItem[] {
+  return appendStreamText(prev, "thought", text);
 }
