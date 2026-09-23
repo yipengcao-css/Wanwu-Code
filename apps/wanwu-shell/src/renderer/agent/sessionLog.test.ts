@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import {
+  appendStreamText,
   appendThought,
   historyToLog,
   parseDebugWaiting,
   parseTodoToolText,
   splitMessageBlocks,
   summarizeToolDetail,
+  thoughtPreview,
   upsertToolLog,
 } from "./sessionLog.ts";
 
@@ -44,6 +46,10 @@ assert.equal(
   summarizeToolDetail("Read", JSON.stringify({ path: "src/a.ts" })),
   "src/a.ts",
 );
+assert.equal(
+  summarizeToolDetail("WebSearch", JSON.stringify({ query: "Lua 5.1 for loop closure" })),
+  "Lua 5.1 for loop closure",
+);
 assert.match(summarizeToolDetail("Read", "1|# title\n2|code\n3|more\n4|x\n5|y"), /行/);
 
 const blocks = splitMessageBlocks(
@@ -57,5 +63,23 @@ assert.equal(blocks[0]?.type === "think" ? blocks[0].text : "", "先读文件");
 
 const thought = appendThought([], "a");
 assert.deepEqual(appendThought(thought, "b"), [{ kind: "thought", text: "ab" }]);
+
+let streamed = appendStreamText([], "thought", "先看");
+streamed = appendStreamText(streamed, "assistant", "哪个，");
+streamed = appendStreamText(streamed, "thought", "文件");
+streamed = appendStreamText(streamed, "assistant", "我就开始");
+assert.deepEqual(
+  streamed.map((item) => (item.kind === "thought" || item.kind === "assistant" ? item.text : "")),
+  ["先看文件", "哪个，我就开始"],
+);
+streamed = upsertToolLog(streamed, { id: "w1", title: "WebSearch", status: "pending", detail: "{}" });
+streamed = appendStreamText(streamed, "thought", "再查");
+assert.equal(streamed.filter((item) => item.kind === "thought").length, 2);
+assert.equal(streamed.at(-1)?.kind === "thought" ? streamed.at(-1)?.text : "", "再查");
+
+const openThink = splitMessageBlocks("<think>还在想");
+assert.equal(openThink[0]?.type, "think");
+assert.equal(openThink[0]?.type === "think" ? openThink[0].text : "", "还在想");
+assert.equal(thoughtPreview("先定位文件，再改循环变量"), "先定位文件，再改循环变量");
 
 console.log("sessionLog tests passed");

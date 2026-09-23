@@ -278,7 +278,7 @@ export async function runLlmAgentLoop(
           toolCallId,
           title: call.name,
           status: "pending",
-          content: { type: "text", text: call.arguments.slice(0, 500) },
+          content: { type: "text", text: call.arguments.slice(0, 4000) },
         });
         return { call, toolCallId };
       });

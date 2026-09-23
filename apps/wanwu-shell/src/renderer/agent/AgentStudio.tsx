@@ -9,7 +9,7 @@ import {
 import { MessageBody, ToolChip } from "./MessageBody";
 import { modelsForProvider } from "./modelPresets";
 import {
-  appendThought,
+  appendStreamText,
   historyToLog,
   parseDebugWaiting,
   parseTodoToolText,
@@ -381,16 +381,8 @@ export function AgentStudio(props: {
 
   useEffect(() => {
     const offs = [
-      window.wanwu.acp.onMessage((t) =>
-        patchActive((prev) => {
-          const last = prev[prev.length - 1];
-          if (last?.kind === "assistant") {
-            return [...prev.slice(0, -1), { kind: "assistant", text: last.text + t }];
-          }
-          return [...prev, { kind: "assistant", text: t }];
-        }),
-      ),
-      window.wanwu.acp.onThought((t) => patchActive((prev) => appendThought(prev, t))),
+      window.wanwu.acp.onMessage((t) => patchActive((prev) => appendStreamText(prev, "assistant", t))),
+      window.wanwu.acp.onThought((t) => patchActive((prev) => appendStreamText(prev, "thought", t))),
       window.wanwu.acp.onTool((tool) => {
         const parsed = tool.title === "Todo" ? parseTodoToolText(tool.detail) : null;
         if (parsed) setTodos(parsed);
@@ -914,7 +906,12 @@ export function AgentStudio(props: {
               : "Debug 模式：先假设 → 插桩（WANWU_DEBUG）→ 等你复现 → 定点修 → 清理。不是 DAP 调试器。"}
           </div>
         ) : null}
-        {active.log.map((item, i) => {
+        {(() => {
+          let latestThought = -1;
+          for (let n = 0; n < active.log.length; n += 1) {
+            if (active.log[n]?.kind === "thought") latestThought = n;
+          }
+          return active.log.map((item, i) => {
           if (item.kind === "tool") {
             return <ToolChip key={item.id ?? i} item={item} />;
           }
@@ -928,7 +925,7 @@ export function AgentStudio(props: {
           if (item.kind === "thought") {
             return (
               <div key={i} className="card thought">
-                <MessageBody text={item.text} thinking defaultThinkOpen={busy && i === active.log.length - 1} />
+                <MessageBody text={item.text} thinking defaultThinkOpen={busy && i === latestThought} />
               </div>
             );
           }
@@ -944,7 +941,8 @@ export function AgentStudio(props: {
               {item.text}
             </div>
           );
-        })}
+          });
+        })()}
       </div>
       <div
         className="composer"
