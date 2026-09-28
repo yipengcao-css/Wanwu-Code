@@ -102,6 +102,20 @@ export async function searchCodebase(
   };
 }
 
+/** Keyword search over an already loaded index. Does not embed or rebuild. */
+export function searchStore(store: IndexStore, query: string, limit = 4): SearchHit[] {
+  const queryTokens = tokenize(query);
+  const hits: SearchHit[] = [];
+  for (const [path, file] of Object.entries(store.files)) {
+    for (const chunk of file.chunks) {
+      const score = keywordScore(queryTokens, chunk);
+      if (score > 0) hits.push({ path, startLine: chunk.startLine, endLine: chunk.endLine, score, text: chunk.text });
+    }
+  }
+  hits.sort((a, b) => b.score - a.score);
+  return hits.slice(0, limit);
+}
+
 export function formatSearchHits(hits: SearchHit[], clip = 600): string {
   if (!hits.length) return "(no relevant code found)";
   return hits
