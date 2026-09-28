@@ -12,7 +12,9 @@ export interface SubagentSpec {
 export interface SubagentToolPolicy {
   allowedTools: ReadonlySet<string>;
   mode: WanwuMode;
+  /** First stop. The runner may grow this up to `turnCeiling`. */
   maxTurns: number;
+  turnCeiling: number;
 }
 
 export interface SubagentRunOptions {

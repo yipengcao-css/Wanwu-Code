@@ -102,8 +102,13 @@ export async function runSubagent(
       };
     }
 
+    const room = Math.max(policy.turnCeiling - policy.maxTurns, 0);
     const out = await runLlmAgentLoop(ctx, opts.config, spec.prompt, {
-      maxTurns: policy.maxTurns,
+      turnBudget: {
+        start: policy.maxTurns,
+        ceiling: Math.max(policy.turnCeiling, policy.maxTurns),
+        step: room === 0 ? 0 : Math.min(8, room),
+      },
       fetchImpl: opts.fetchImpl,
       history: [],
       // Fixture fetchImpls return JSON, not SSE — keep them on the complete path.

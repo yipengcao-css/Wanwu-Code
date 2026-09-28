@@ -28,6 +28,7 @@ import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 import { maybeAutoRemember } from "./autoMemory.js";
 import { stripSkillTags } from "../skills.js";
 import { buildSystem, parseEditorContext } from "./agentPrompt.js";
+import { nextTurnLimit, resolveTurnBudget, toolRoundSignature, type TurnBudget } from "./turnBudget.js";
 import { toolsForMode } from "./modeTools.js";
 import { canRunToolsInParallel } from "./parallelTools.js";
 
@@ -79,7 +80,10 @@ export async function runLlmAgentLoop(
   prompt: string,
   opts?: {
     fetchImpl?: FetchLike;
+    /** Hard cap. When set, the loop does not grow past this many model rounds. */
     maxTurns?: number;
+    /** Adaptive range. Used when `maxTurns` is omitted. */
+    turnBudget?: TurnBudget;
     history?: ChatMessage[];
     signal?: AbortSignal;
     /** Stream assistant text deltas to ACP session updates. */
@@ -93,7 +97,8 @@ export async function runLlmAgentLoop(
   },
 ): Promise<LlmLoopResult> {
   const mode = detectMode(prompt, ctx.mode);
-  const maxTurns = opts?.maxTurns ?? (Number(process.env.WANWU_AGENT_MAX_TURNS ?? "25") || 25);
+  const budget = opts?.maxTurns ? resolveTurnBudget(opts.maxTurns) : (opts?.turnBudget ?? resolveTurnBudget());
+  let limit = budget.start;
   const providerId = providerOverride();
   const toolsUsed: string[] = [];
   // One checkpoint per prompt turn; Edit/Write back up before-state into it.
@@ -186,6 +191,9 @@ export async function runLlmAgentLoop(
 
   let last: ChatResponse | undefined;
   let turns = 0;
+  let previousSignature = "";
+  let repeatCount = 0;
+  let stopNotice: string | null = null;
   let usage: Usage | undefined;
   let appliedEdits: string[] = [];
   let lintLoopRemaining =
@@ -193,7 +201,7 @@ export async function runLlmAgentLoop(
       ? 0
       : Number(process.env.WANWU_LINT_LOOP_MAX ?? "2") || 2;
 
-  for (let i = 0; i < maxTurns; i += 1) {
+  for (let i = 0; i < limit; i += 1) {
     if (opts?.signal?.aborted) {
       throw new Error("aborted");
     }
@@ -356,6 +364,31 @@ export async function runLlmAgentLoop(
           content: result.text.slice(0, 12000),
         });
       }
+      const signature = toolRoundSignature(calls);
+      const decision = nextTurnLimit({
+        turn: turns,
+        limit,
+        budget,
+        signature,
+        previousSignature,
+        repeatCount,
+      });
+      previousSignature = signature;
+      repeatCount = decision.repeatCount;
+      if (decision.stalled) {
+        stopNotice = `\n\n[同一组工具调用已重复，停在第 ${turns} 回合。再说一次即可继续。可用检查点 ${turnId} 撤销本轮文件改动。]`;
+        break;
+      }
+      if (decision.extended) {
+        limit = decision.limit;
+        sessionUpdate(ctx.sessionId, {
+          sessionUpdate: "agent_message_chunk",
+          content: {
+            type: "text",
+            text: `\n继续执行，回合上限调到 ${limit}（当前第 ${turns} 回合）\n`,
+          },
+        });
+      }
       continue;
     }
 
@@ -394,8 +427,12 @@ export async function runLlmAgentLoop(
     break;
   }
 
-  if (turns >= maxTurns && last?.toolCalls?.length) {
-    const notice = `\n\n[回合上限 ${maxTurns} 已到。已完成的步骤见上方；再说一次即可继续。可用检查点 ${turnId} 撤销本轮文件改动。]`;
+  if (!stopNotice && turns >= limit && last?.toolCalls?.length) {
+    const notice = `\n\n[回合上限 ${limit} 已到。已完成的步骤见上方；再说一次即可继续。可用 WANWU_AGENT_TURN_CEILING 放宽自适应上限，或用检查点 ${turnId} 撤销本轮文件改动。]`;
+    stopNotice = notice;
+  }
+  if (stopNotice) {
+    const notice = stopNotice;
     last = { ...last, text: `${last.text ?? ""}${notice}` };
     sessionUpdate(ctx.sessionId, {
       sessionUpdate: "agent_message_chunk",
