@@ -54,11 +54,15 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
   {
     name: "Edit",
     description:
-      "Make targeted edits to an existing file via exact search/replace blocks. old_string must match the file content exactly and be unique (add surrounding context). Use replace_all for renames. For new files or full rewrites, use Write.",
+      "Change an existing file. Prefer exact edits (old_string copied from the file). If you only know the intent, pass intent and a best-effort sketch — a fast apply model rewrites it into exact hunks. For new files, use Write.",
     parameters: {
       type: "object",
       properties: {
         path: { type: "string", description: "Relative path from workspace root" },
+        intent: {
+          type: "string",
+          description: "What to change, in one or two sentences. Used by the apply model when old_string may not match.",
+        },
         edits: {
           type: "array",
           items: {
@@ -72,7 +76,7 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
           },
         },
       },
-      required: ["path", "edits"],
+      required: ["path"],
     },
   },
   {
@@ -84,6 +88,10 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
       properties: {
         path: { type: "string", description: "Relative path from workspace root" },
         content: { type: "string", description: "Full new file contents" },
+        intent: {
+          type: "string",
+          description: "When the file already exists, describe the change. A fast apply model turns this into exact hunks instead of overwriting the file.",
+        },
       },
       required: ["path", "content"],
     },

@@ -1063,39 +1063,101 @@ button {
   margin-top: 14px;
 }
 
-.modal-diff {
-  width: min(1100px, 96vw);
-  height: min(720px, 90vh);
-  display: flex;
-  flex-direction: column;
-  padding: 16px;
-}
-
-.diff-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.diff-head h3 {
-  margin: 0;
-}
-
 .diff-path {
-  margin: 6px 0 0;
+  margin: 0 8px;
   font-family: var(--ww-font-mono);
   font-size: 12px;
   color: var(--ww-muted);
 }
 
-.diff-host {
-  flex: 1;
-  min-height: 0;
+.review-dock {
+  border-bottom: 1px solid var(--ww-border);
+  background: var(--ww-surface-1);
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+}
+
+.review-dock-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.review-dock-head strong {
+  margin-right: 8px;
+}
+
+.review-count {
+  margin-left: 8px;
+  color: var(--ww-muted);
+  font-size: 12px;
+}
+
+.review-hunks {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.review-hunk {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   border: 1px solid var(--ww-border);
   border-radius: var(--ww-radius-md);
-  overflow: hidden;
+  padding: 4px 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.review-hunk.is-off {
+  opacity: 0.55;
+}
+
+.hunk-zone {
+  background: var(--ww-surface-2);
+  border: 1px solid var(--ww-border);
+  border-left: 3px solid var(--ww-accent);
+  border-radius: 6px;
+  margin: 4px 0 8px;
+  padding: 6px 8px;
+  max-width: 720px;
+}
+
+.hunk-zone.is-off {
+  opacity: 0.45;
+  border-left-color: var(--ww-danger);
+}
+
+.hunk-zone pre {
+  margin: 0 0 6px;
+  font-family: var(--ww-font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.hunk-zone-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hunk-old-line {
+  background: rgba(242, 95, 124, 0.16);
+}
+
+.next-edit-jump {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ww-text);
+  background: var(--ww-surface-2);
+  border: 1px solid var(--ww-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  pointer-events: none;
 }
 
 .session-rail {

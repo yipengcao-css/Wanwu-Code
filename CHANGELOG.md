@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- **Tab / 审阅 / 索引**：过期的预测不再清掉下一次跳转，也不会套到刚切换的文件上；编辑器或弹窗里按 Esc 不会跳过当前文件。LF 草图能对上 CRLF 文件，`replace_all` 也一样。索引块没有 tokens 时 Tab 和 Agent 都能关键词命中。索引写入不再留下 `codebase.json.tmp`。没有实际差异的审阅不会占住队列。旧的整文件 diff 弹窗样式已去掉
 - **工具消息 400**：同一轮多个工具调用不再共用一个 id；历史里孤立的 `tool` 消息会先修好再发给模型。思考模式会把 `reasoning_content` 带回下一轮
 - **思考与中间输出**：同一步里交错的思考/正文合成一块，折叠条显示摘要；工具参数不再截成半截 JSON
 
@@ -19,6 +20,10 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **索引自动参与**：每一轮 Agent 会带上本地代码索引里的相关片段；Tab 预测也会读同一份索引。`WANWU_AUTO_INDEX=0` 关闭自动注入
+- **按代码块审阅**：编辑器里对每一块改动单独接受或拒绝，只写入接受的块
+- **Apply 模型**：大模型给出修改意图或草图，快模型写成能对上文件的精确替换块。精确匹配的 Edit 不会多打一次模型。`apply_model` / `WANWU_APPLY_MODEL` 指定小模型，`WANWU_APPLY=0` 关闭
+- **Tab 预测下一处编辑**：补全模型根据刚才的改动预测下一次修改；不在光标处时 Tab 先跳过去。Alt+→ 只接受一个词，Alt+↓ 只接受一行。可用 `completion_model` / `WANWU_COMPLETION_MODEL` 指定小模型
 - **聊天 Markdown**：回复里的标题、列表、引用、行内代码和 http(s) 链接按版式显示；不执行 HTML
 - **权限只留一层**：命令/路径/网址用中文摘要；风险显示为高/中/低
 - **终端命令先预览**：Ctrl+K 生成后确认「运行」才写入终端

@@ -93,6 +93,23 @@ describe("applyEditBlocks", () => {
     expect(r.replacements).toBe(2);
   });
 
+  it("matches a CRLF file when the sketch uses LF", () => {
+    const r = applyEditBlocks("alpha\r\nbeta\r\n", [
+      { old_string: "alpha\nbeta", new_string: "alpha\ngamma" },
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.after).toBe("alpha\ngamma\n");
+  });
+
+  it("replace_all matches every CRLF pair from an LF needle", () => {
+    const r = applyEditBlocks("a\r\nb\r\na\r\nb\r\n", [
+      { old_string: "a\nb", new_string: "a\nB", replace_all: true },
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.replacements).toBe(2);
+    expect(r.after).toBe("a\nB\na\nB\n");
+  });
+
   it("fails when old_string is not unique", () => {
     const r = applyEditBlocks("foo bar foo", [{ old_string: "foo", new_string: "baz" }]);
     expect(r.ok).toBe(false);

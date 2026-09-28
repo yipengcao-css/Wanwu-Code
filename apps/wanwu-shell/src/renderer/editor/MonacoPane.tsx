@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
+import type { DiffHunk } from "../agent/diffHunks";
+import { mountHunkReview } from "./hunkReview";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
 import { registerLspFeatures } from "./lspFeatures";
@@ -84,6 +86,11 @@ export function MonacoPane(props: {
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
   onSelectionChange?: (sel: EditorSelection | null) => void;
+  review?: {
+    hunks: DiffHunk[];
+    accepted: Record<string, boolean>;
+    onToggle: (id: string, accept: boolean) => void;
+  } | null;
 }) {
   const active = props.tabs.find((t) => t.path === props.activePath);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
@@ -109,6 +116,12 @@ export function MonacoPane(props: {
       })),
     );
   }, [active?.path, props.diagnostics, active?.content]);
+
+  useEffect(() => {
+    const ed = editorRef.current;
+    if (!ed || !props.review || props.review.hunks.length === 0) return;
+    return mountHunkReview(ed, props.review.hunks, props.review.accepted, props.review.onToggle);
+  }, [props.review, active?.path, active?.content]);
 
   const onMount: OnMount = (editor) => {
     editorRef.current = editor;

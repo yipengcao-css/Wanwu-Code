@@ -14,6 +14,8 @@ export interface ProviderConfig {
   fim?: boolean;
   /** Dedicated model for inline completion (defaults to chat model). */
   completionModel?: string;
+  /** Fast model that turns an edit intent into exact search/replace hunks. */
+  applyModel?: string;
 }
 
 export interface WanwuConfig {

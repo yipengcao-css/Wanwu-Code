@@ -51,7 +51,12 @@ function fimEnabled(config: WanwuConfig, providerId: keyof WanwuConfig["provider
   return p?.fim === true;
 }
 
-function completionModel(config: WanwuConfig, providerId: keyof WanwuConfig["providers"], fallback: string): string {
+/** Small/fast model for Tab. `WANWU_COMPLETION_MODEL` or providers.*.completionModel, else the chat model. */
+export function resolveCompletionModel(
+  config: WanwuConfig,
+  providerId: keyof WanwuConfig["providers"],
+  fallback: string,
+): string {
   if (process.env.WANWU_COMPLETION_MODEL) return process.env.WANWU_COMPLETION_MODEL;
   const p = config.providers[providerId] as { completionModel?: string } | undefined;
   return p?.completionModel ?? fallback;
@@ -62,7 +67,7 @@ export async function completeInline(opts: InlineCompleteOptions): Promise<Inlin
     providerId: opts.providerId,
     env: opts.env,
   });
-  const model = completionModel(opts.config, resolved.id, opts.model ?? resolved.model);
+  const model = resolveCompletionModel(opts.config, resolved.id, opts.model ?? resolved.model);
 
   const lint = opts.diagnostics?.trim();
   if (fimEnabled(opts.config, resolved.id) && resolved.kind === "openai-compat" && !lint) {

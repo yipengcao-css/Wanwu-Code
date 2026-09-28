@@ -260,6 +260,34 @@ export function toolGrep(workspaceRoot: string, pattern: string, globPat = "**/*
   };
 }
 
+/**
+ * Replace every match. Exact text uses one split so the replacement is not
+ * searched again. If the file uses different newlines, walk tolerant matches
+ * and only advance through the original text.
+ */
+function replaceAllOccurrences(
+  content: string,
+  oldString: string,
+  newString: string,
+): { after: string; count: number } {
+  const exact = countOccurrences(content, oldString);
+  if (exact > 0) return { after: content.split(oldString).join(newString), count: exact };
+  const parts: string[] = [];
+  let cursor = 0;
+  let count = 0;
+  while (cursor < content.length && count < 1000) {
+    const match = findEditMatch(content.slice(cursor), oldString);
+    if (!match || match.end <= match.start) break;
+    parts.push(content.slice(cursor, cursor + match.start));
+    parts.push(newString);
+    cursor += match.end;
+    count += 1;
+  }
+  if (!count) return { after: content, count: 0 };
+  parts.push(content.slice(cursor));
+  return { after: parts.join(""), count };
+}
+
 /** Count non-overlapping occurrences of `needle` in `haystack`. */
 function countOccurrences(haystack: string, needle: string): number {
   if (!needle) return 0;
@@ -276,6 +304,8 @@ function countOccurrences(haystack: string, needle: string): number {
 /** Normalize line trailing whitespace — tolerant fallback for exact match. */
 function normalizeLineEndings(text: string): string {
   return text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
     .split("\n")
     .map((l) => l.replace(/[ \t]+$/g, ""))
     .join("\n");
@@ -298,7 +328,7 @@ export function findEditMatch(
   const contentLines = content.split("\n");
   const oldLines = normalizeLineEndings(oldString).split("\n");
   if (!oldLines.length || oldLines.length > contentLines.length) return undefined;
-  const normContent = contentLines.map((l) => l.replace(/[ \t]+$/g, ""));
+  const normContent = contentLines.map((l) => l.replace(/\r$/, "").replace(/[ \t]+$/g, ""));
   outer: for (let i = 0; i + oldLines.length <= contentLines.length; i += 1) {
     for (let j = 0; j < oldLines.length; j += 1) {
       if (normContent[i + j] !== oldLines[j]) continue outer;
@@ -363,8 +393,8 @@ export function applyEditBlocks(content: string, blocks: EditBlock[]): EditApply
       return { ok: false, after: content, replacements, error: `block ${i + 1}: old_string and new_string are identical` };
     }
     if (block.replace_all) {
-      const n = countOccurrences(current, block.old_string);
-      if (n === 0) {
+      const replaced = replaceAllOccurrences(current, block.old_string, block.new_string);
+      if (replaced.count === 0) {
         return {
           ok: false,
           after: content,
@@ -372,8 +402,8 @@ export function applyEditBlocks(content: string, blocks: EditBlock[]): EditApply
           error: `block ${i + 1}: old_string not found${nearMissHint(current, block.old_string)}`,
         };
       }
-      current = current.split(block.old_string).join(block.new_string);
-      replacements += n;
+      current = replaced.after;
+      replacements += replaced.count;
       continue;
     }
     const exactCount = countOccurrences(current, block.old_string);

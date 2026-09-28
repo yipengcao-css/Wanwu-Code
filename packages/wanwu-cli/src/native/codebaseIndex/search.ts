@@ -26,15 +26,16 @@ function cosine(a: number[], b: number[]): number {
 }
 
 function keywordScore(queryTokens: string[], chunk: StoredChunk): number {
-  if (!chunk.tokens?.length || !queryTokens.length) return 0;
+  const tokens = chunk.tokens?.length ? chunk.tokens : tokenize(chunk.text);
+  if (!tokens.length || !queryTokens.length) return 0;
   const counts = new Map<string, number>();
-  for (const t of chunk.tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
+  for (const t of tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
   let score = 0;
   for (const q of new Set(queryTokens)) {
     score += counts.get(q) ?? 0;
   }
-  // normalize by chunk length to avoid long-chunk bias
-  return score / Math.sqrt(chunk.tokens.length);
+  // normalize by token count so a long chunk does not always win
+  return score / Math.sqrt(tokens.length);
 }
 
 export interface SearchOptions {
@@ -100,6 +101,20 @@ export async function searchCodebase(
     mode: index.mode,
     stats: `${index.files} files / ${index.chunks} chunks (${index.mode})`,
   };
+}
+
+/** Keyword search over an already loaded index. Does not embed or rebuild. */
+export function searchStore(store: IndexStore, query: string, limit = 4): SearchHit[] {
+  const queryTokens = tokenize(query);
+  const hits: SearchHit[] = [];
+  for (const [path, file] of Object.entries(store.files)) {
+    for (const chunk of file.chunks) {
+      const score = keywordScore(queryTokens, chunk);
+      if (score > 0) hits.push({ path, startLine: chunk.startLine, endLine: chunk.endLine, score, text: chunk.text });
+    }
+  }
+  hits.sort((a, b) => b.score - a.score);
+  return hits.slice(0, limit);
 }
 
 export function formatSearchHits(hits: SearchHit[], clip = 600): string {

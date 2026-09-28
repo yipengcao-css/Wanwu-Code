@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chunkFile, looksBinary } from "./chunker.js";
 import { ensureCodebaseIndex, tokenize } from "./indexer.js";
 import { formatSearchHits, searchCodebase } from "./search.js";
+import { saveIndex } from "./store.js";
 import type { WanwuConfig } from "@wanwu/config";
 
 function seedWorkspace(): string {
@@ -65,6 +66,19 @@ describe("keyword index", () => {
     writeFileSync(join(root, "src", "new.ts"), "export const fresh = true;\n", "utf8");
     const third = await ensureCodebaseIndex(root, { forceKeyword: true });
     expect(third.updatedFiles).toBe(1);
+    expect(existsSync(join(root, ".wanwu", "index", "codebase.json.tmp"))).toBe(false);
+  });
+
+  it("saveIndex does not leave a tmp file", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-idx-save-"));
+    saveIndex(root, {
+      version: 1,
+      mode: "keyword",
+      updatedAt: "t",
+      files: {},
+    });
+    expect(existsSync(join(root, ".wanwu", "index", "codebase.json"))).toBe(true);
+    expect(existsSync(join(root, ".wanwu", "index", "codebase.json.tmp"))).toBe(false);
   });
 });
 

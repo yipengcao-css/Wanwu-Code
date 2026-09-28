@@ -47,6 +47,26 @@ export type WanwuBridge = {
     draft: (req: { brief: string; name?: string }) => Promise<{ markdown: string; model?: string; error?: string }>;
   };
   ai: {
+    predict: (req: {
+      prefix: string;
+      suffix: string;
+      cursorLine: number;
+      cursorColumn: number;
+      language?: string;
+      path?: string;
+      diagnostics?: string;
+      recentEdits?: string;
+    }) => Promise<{
+      mode: "inline" | "jump" | "none";
+      text: string;
+      line?: number;
+      column?: number;
+      endLine?: number;
+      endColumn?: number;
+      action?: "insert" | "replace" | "none";
+      model?: string;
+      error?: string;
+    }>;
     complete: (req: {
       prefix: string;
       suffix: string;
@@ -217,6 +237,7 @@ const bridge: WanwuBridge = {
     draft: (req) => ipcRenderer.invoke("skills:draft", req),
   },
   ai: {
+    predict: (req) => ipcRenderer.invoke("ai:predict", req),
     complete: (req) => ipcRenderer.invoke("ai:complete", req),
     inlineEdit: (req) => ipcRenderer.invoke("ai:inlineEdit", req),
     terminalAsk: (req) => ipcRenderer.invoke("ai:terminalAsk", req),

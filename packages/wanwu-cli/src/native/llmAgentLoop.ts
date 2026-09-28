@@ -12,6 +12,7 @@ import {
 import type { ProviderId, WanwuConfig } from "@wanwu/config";
 import { runHooks } from "../hooks.js";
 import { ensureMcpRegistry, peekMcpRegistry } from "../mcp/registry.js";
+import { autoIndexContext } from "./context/autoIndex.js";
 import { compactMessages } from "./context/compact.js";
 import { repairToolTranscript, tailHistory } from "./context/toolTranscript.js";
 import { newTurnId, pruneCheckpoints } from "./checkpoints.js";
@@ -98,6 +99,8 @@ export async function runLlmAgentLoop(
   // One checkpoint per prompt turn; Edit/Write back up before-state into it.
   const turnId = newTurnId(ctx.sessionId);
   ctx.turnId = turnId;
+  ctx.config = ctx.config ?? config;
+  ctx.fetchImpl = opts?.fetchImpl;
   pruneCheckpoints(ctx.workspaceRoot);
   const callEnv = {
     ...process.env,
@@ -158,8 +161,25 @@ export async function runLlmAgentLoop(
       ? [{ type: "text" as const, text: visiblePrompt }, ...opts.attachments]
       : visiblePrompt;
 
+  let system = buildSystem(ctx, mode, activeFiles, editor, finalPrompt);
+  if (process.env.WANWU_AUTO_INDEX !== "0" && !finalPrompt.includes("@codebase")) {
+    try {
+      const indexed = await autoIndexContext(ctx.workspaceRoot, finalPrompt, {
+        activePath: editor.activePath,
+        config,
+        fetchImpl: opts?.fetchImpl,
+        env: callEnv,
+      });
+      if (indexed) {
+        system = `${system}\n\nRelevant codebase index (automatic, from the local index):\n${indexed}`;
+      }
+    } catch {
+      /* a missing index must not block the turn */
+    }
+  }
+
   let messages: ChatMessage[] = [
-    { role: "system", content: buildSystem(ctx, mode, activeFiles, editor, finalPrompt) },
+    { role: "system", content: system },
     ...prior,
     { role: "user", content: userContent },
   ];

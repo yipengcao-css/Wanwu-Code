@@ -1,25 +1,13 @@
-import { DiffEditor } from "@monaco-editor/react";
 import { useEffect } from "react";
+import type { DiffHunk } from "./diffHunks";
 
-function languageFor(path: string): string {
-  if (path.endsWith(".ts") || path.endsWith(".tsx")) return "typescript";
-  if (path.endsWith(".js") || path.endsWith(".jsx") || path.endsWith(".mjs")) return "javascript";
-  if (path.endsWith(".json")) return "json";
-  if (path.endsWith(".md")) return "markdown";
-  if (path.endsWith(".css")) return "css";
-  if (path.endsWith(".html")) return "html";
-  if (path.endsWith(".py")) return "python";
-  if (path.endsWith(".rs")) return "rust";
-  if (path.endsWith(".toml")) return "ini";
-  if (path.endsWith(".yml") || path.endsWith(".yaml")) return "yaml";
-  return "plaintext";
-}
-
+/** Per-hunk review dock. The editor shows each block inline. */
 export function DiffReview(props: {
   path: string;
-  before: string;
-  after: string;
+  hunks: DiffHunk[];
+  accepted: Record<string, boolean>;
   queueLabel?: string;
+  onToggle: (id: string, accept: boolean) => void;
   onAccept: () => void;
   onReject: () => void;
   onAcceptAll?: () => void;
@@ -27,57 +15,64 @@ export function DiffReview(props: {
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") props.onReject();
+      if (e.key !== "Escape") return;
+      const target = e.target;
+      if (target instanceof HTMLElement && target.closest("textarea, input, select, .monaco-editor")) return;
+      if (document.querySelector("[role='dialog'], .modal-backdrop")) return;
+      props.onReject();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [props]);
 
+  const acceptedCount = props.hunks.filter((h) => props.accepted[h.id] !== false).length;
+
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="diff-title">
-      <div className="modal modal-diff">
-        <header className="diff-head">
-          <div>
-            <h3 id="diff-title">审阅编辑{props.queueLabel ? ` · ${props.queueLabel}` : ""}</h3>
-            <p className="diff-path">{props.path}</p>
-          </div>
-          <div className="modal-actions" style={{ marginTop: 0 }}>
-            {props.onRejectAll ? (
-              <button type="button" className="btn" onClick={props.onRejectAll}>
-                全部拒绝
-              </button>
-            ) : null}
-            <button type="button" className="btn danger" onClick={props.onReject}>
-              拒绝
-            </button>
-            <button type="button" className="btn primary" onClick={props.onAccept}>
-              写入文件
-            </button>
-            {props.onAcceptAll ? (
-              <button type="button" className="btn primary" onClick={props.onAcceptAll}>
-                全部接受
-              </button>
-            ) : null}
-          </div>
-        </header>
-        <div className="diff-host">
-          <DiffEditor
-            height="100%"
-            language={languageFor(props.path)}
-            original={props.before}
-            modified={props.after}
-            theme="vs-dark"
-            options={{
-              readOnly: true,
-              renderSideBySide: true,
-              minimap: { enabled: false },
-              fontSize: 12,
-              fontFamily: "JetBrains Mono, ui-monospace, monospace",
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-            }}
-          />
+    <div className="review-dock" role="region" aria-label="审阅编辑">
+      <div className="review-dock-head">
+        <div>
+          <strong>审阅编辑{props.queueLabel ? ` · ${props.queueLabel}` : ""}</strong>
+          <span className="diff-path">{props.path}</span>
+          <span className="review-count">
+            已接受 {acceptedCount}/{props.hunks.length} 块
+          </span>
         </div>
+        <div className="modal-actions" style={{ marginTop: 0 }}>
+          {props.onRejectAll ? (
+            <button type="button" className="btn" onClick={props.onRejectAll}>
+              全部跳过
+            </button>
+          ) : null}
+          <button type="button" className="btn" onClick={props.onReject}>
+            跳过此文件
+          </button>
+          <button type="button" className="btn primary" onClick={props.onAccept} disabled={acceptedCount === 0}>
+            写入已接受
+          </button>
+          {props.onAcceptAll ? (
+            <button type="button" className="btn primary" onClick={props.onAcceptAll}>
+              全部接受
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <div className="review-hunks">
+        {props.hunks.map((hunk, index) => {
+          const on = props.accepted[hunk.id] !== false;
+          return (
+            <div key={hunk.id} className={`review-hunk${on ? "" : " is-off"}`}>
+              <span>
+                第 {index + 1} 块 · 第 {hunk.startLine} 行
+              </span>
+              <button type="button" className="btn" onClick={() => props.onToggle(hunk.id, true)}>
+                {on ? "已接受" : "接受"}
+              </button>
+              <button type="button" className="btn" onClick={() => props.onToggle(hunk.id, false)}>
+                {on ? "拒绝" : "已拒绝"}
+              </button>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
