@@ -9,13 +9,15 @@ export function policyFor(kind: SubagentKind): SubagentToolPolicy {
       return {
         allowedTools: new Set(["Read", "ListDir", "Glob", "Grep", "Bash", "SearchCodebase", "Diagnose", "Browser"]),
         mode: "ask",
-        maxTurns: 4,
+        maxTurns: 8,
+        turnCeiling: 20,
       };
     case "plan":
       return {
         allowedTools: new Set(["Read", "ListDir", "Glob", "Grep", "SearchCodebase"]),
         mode: "plan",
-        maxTurns: 4,
+        maxTurns: 8,
+        turnCeiling: 20,
       };
     case "coder":
       return {
@@ -32,7 +34,8 @@ export function policyFor(kind: SubagentKind): SubagentToolPolicy {
           "Diagnose",
         ]),
         mode: "agent",
-        maxTurns: 6,
+        maxTurns: 16,
+        turnCeiling: 48,
       };
   }
 }

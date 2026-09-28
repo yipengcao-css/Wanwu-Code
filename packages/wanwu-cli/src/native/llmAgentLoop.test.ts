@@ -155,4 +155,100 @@ describe("runLlmAgentLoop", () => {
     expect(names).not.toContain("Task");
     expect(names).not.toContain("Bash");
   });
+
+  it("grows the budget while each tool round is different", async () => {
+    const paths = ["README.md", "package.json"];
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      const body =
+        calls <= paths.length
+          ? toolRound(paths[calls - 1]!)
+          : textRound("done");
+      return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+    };
+    const result = await runLlmAgentLoop(loopCtx("test-grow"), loopConfig(), "keep going", {
+      fetchImpl,
+      stream: false,
+      turnBudget: { start: 1, ceiling: 4, step: 1 },
+    });
+    expect(calls).toBe(3);
+    expect(result.turns).toBe(3);
+    expect(result.text).toMatch(/done/);
+    expect(result.text).not.toMatch(/回合上限/);
+  });
+
+  it("stops when the same tool round repeats", async () => {
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      return new Response(toolRound("README.md"), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+    const result = await runLlmAgentLoop(loopCtx("test-stall"), loopConfig(), "loop", {
+      fetchImpl,
+      stream: false,
+      turnBudget: { start: 1, ceiling: 8, step: 2 },
+    });
+    expect(calls).toBe(3);
+    expect(result.turns).toBe(3);
+    expect(result.text).toMatch(/重复/);
+  });
 });
+
+function loopConfig() {
+  return mergeConfig(DEFAULT_CONFIG, {
+    activeProvider: "openai" as const,
+    model: "deepseek-chat",
+  });
+}
+
+function loopCtx(sessionId: string) {
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+  return {
+    workspaceRoot: root,
+    sessionId,
+    permissionMode: "ask" as const,
+    mode: "ask" as const,
+  };
+}
+
+function toolRound(filePath: string): string {
+  return JSON.stringify({
+    id: "chatcmpl-tools",
+    object: "chat.completion",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: null,
+          tool_calls: [
+            {
+              id: "call_read",
+              type: "function",
+              function: { name: "Read", arguments: JSON.stringify({ path: filePath }) },
+            },
+          ],
+        },
+        finish_reason: "tool_calls",
+      },
+    ],
+  });
+}
+
+function textRound(text: string): string {
+  return JSON.stringify({
+    id: "chatcmpl-text",
+    object: "chat.completion",
+    choices: [
+      {
+        index: 0,
+        message: { role: "assistant", content: text },
+        finish_reason: "stop",
+      },
+    ],
+  });
+}

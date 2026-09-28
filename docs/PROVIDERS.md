@@ -65,7 +65,7 @@ default_model = "deepseek-chat"
 有密钥时 `wanwu exec` / ACP 走 `runLlmAgentLoop`：
 
 - 工具：`Read` / `Glob` / `Grep` / `Edit` / `Bash`
-- 上限：`WANWU_AGENT_MAX_TURNS`（默认 6）
+- 回合：默认从 40 起，工具调用还在推进时每次加 20，最高 120。同一组工具调用连续重复三次会提前停下。`WANWU_AGENT_MAX_TURNS` 设成固定上限；`WANWU_AGENT_TURN_CEILING` 只改自适应的最高值
 - Plan/Ask 模式阻止 Edit
 
 Fixture：`packages/wanwu-providers/fixtures/openai-tool-round*.json`

@@ -10,6 +10,7 @@ describe("subagent policy", () => {
     expect(isToolAllowed("explore", "Edit")).toBe(false);
     expect(isBashAllowedForKind("explore", "ls -la")).toBe(true);
     expect(isBashAllowedForKind("explore", "rm -rf x")).toBe(false);
+    expect(p.turnCeiling).toBeGreaterThan(p.maxTurns);
   });
 
   it("plan cannot edit", () => {
@@ -22,5 +23,6 @@ describe("subagent policy", () => {
     const p = policyFor("coder");
     expect(p.mode).toBe("agent");
     expect(isToolAllowed("coder", "Edit")).toBe(true);
+    expect(p.turnCeiling).toBeGreaterThan(p.maxTurns);
   });
 });

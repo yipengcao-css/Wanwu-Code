@@ -54,4 +54,5 @@
 - (2026-09-28) 代码索引会自动进入每一轮 Agent 和 Tab 预测，不必先写 @codebase
 - (2026-09-28) Tab 跳转提示不会被过期请求清掉；CRLF 文件能对上 LF 替换（含 replace_all）；缺 tokens 的索引块仍可关键词命中
 - (2026-09-28) 索引保存不留 codebase.json.tmp；没有差异的审阅不进队列
+- (2026-09-28) Agent 回合默认 40，仍在推进时自适应加到 120；重复同一组工具调用会停（键顺序不同也算同一组）。`WANWU_AGENT_MAX_TURNS` 同样限制子代理
 - 明确不做：Cloud Agents / Bugbot / DAP（Debug 是插桩约定，不是调试器协议）
