@@ -431,9 +431,9 @@ export async function runLlmAgentLoop(
     const notice = `\n\n[回合上限 ${limit} 已到。已完成的步骤见上方；再说一次即可继续。可用 WANWU_AGENT_TURN_CEILING 放宽自适应上限，或用检查点 ${turnId} 撤销本轮文件改动。]`;
     stopNotice = notice;
   }
-  if (stopNotice) {
+  if (stopNotice && last) {
     const notice = stopNotice;
-    last = { ...last, text: `${last.text ?? ""}${notice}` };
+    last = { ...last, text: `${last.text}${notice}` };
     sessionUpdate(ctx.sessionId, {
       sessionUpdate: "agent_message_chunk",
       content: { type: "text", text: notice },
