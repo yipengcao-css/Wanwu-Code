@@ -256,7 +256,8 @@ export function attachTabNextJump(editor: monaco.editor.IStandaloneCodeEditor): 
     for (const change of e.changes) {
       const inserted = change.text ?? "";
       const removed = change.rangeLength ?? 0;
-      if (inserted.length <= 1 && removed <= 1) continue;
+      const singleKey = inserted.length <= 1 && removed <= 1 && inserted !== "\n";
+      if (singleKey) continue;
       noteRecentEdit(path, `L${change.range.startLineNumber} ${inserted || "⌫"}`);
     }
   });

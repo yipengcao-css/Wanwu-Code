@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export interface StoredChunk {
@@ -45,10 +45,15 @@ export function saveIndex(root: string, store: IndexStore): void {
   mkdirSync(join(path, ".."), { recursive: true });
   const tmp = `${path}.tmp`;
   writeFileSync(tmp, JSON.stringify(store), "utf8");
-  // atomic-ish rename
   try {
     renameSync(tmp, path);
   } catch {
     writeFileSync(path, readFileSync(tmp, "utf8"), "utf8");
+  } finally {
+    try {
+      unlinkSync(tmp);
+    } catch {
+      /* rename already removed it */
+    }
   }
 }

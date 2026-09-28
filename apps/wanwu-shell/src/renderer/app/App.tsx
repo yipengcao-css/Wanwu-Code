@@ -127,7 +127,11 @@ export function App() {
   useEffect(() => {
     const offP = window.wanwu.acp.onPermission((req) => setPerm(req));
     const offE = window.wanwu.acp.onEdit((e) =>
-      setEdits((prev) => [...prev.filter((x) => x.path !== e.path), e]),
+      setEdits((prev) => {
+        const rest = prev.filter((x) => x.path !== e.path);
+        if (e.before === e.after) return rest;
+        return [...rest, e];
+      }),
     );
     return () => {
       offP();

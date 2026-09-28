@@ -67,13 +67,6 @@ export function classifyNextEdit(
 ): NextEditMode {
   if (edit.action === "none" || !edit.text.trim()) return "none";
   if (edit.line === cursorLine && edit.column === cursorColumn) return "inline";
-  if (
-    edit.action === "replace" &&
-    edit.line === cursorLine &&
-    edit.column === cursorColumn
-  ) {
-    return "inline";
-  }
   return "jump";
 }
 

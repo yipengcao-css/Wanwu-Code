@@ -46,7 +46,7 @@ export function peekIndex(root: string, query: string, limit = 3): string {
   const hits: Array<{ score: number; line: string }> = [];
   for (const [file, body] of Object.entries(store.files)) {
     for (const chunk of body.chunks ?? []) {
-      const tokens = chunk.tokens ?? tokenize(chunk.text ?? "");
+      const tokens = chunk.tokens?.length ? chunk.tokens : tokenize(chunk.text ?? "");
       if (!tokens.length) continue;
       const counts = new Map<string, number>();
       for (const t of tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
