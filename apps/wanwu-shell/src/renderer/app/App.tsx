@@ -7,6 +7,8 @@ import { SearchPanel } from "../files/SearchPanel";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
+import { applyHunkChoices, diffHunks } from "../agent/diffHunks";
+import { DiffReview } from "../agent/DiffReview";
 import { ConfirmModal } from "../agent/ConfirmModal";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
 import { CommandPalette } from "../palette/CommandPalette";
@@ -14,9 +16,6 @@ import { WelcomeGate } from "../onboarding/WelcomeGate";
 
 const MonacoPane = lazy(() =>
   import("../editor/MonacoPane").then((m) => ({ default: m.MonacoPane })),
-);
-const DiffReview = lazy(() =>
-  import("../agent/DiffReview").then((m) => ({ default: m.DiffReview })),
 );
 
 function riskLabel(risk?: string): string {
@@ -66,6 +65,7 @@ export function App() {
     risk?: string;
   } | null>(null);
   const [edits, setEdits] = useState<Array<{ path: string; before: string; after: string }>>([]);
+  const [acceptedHunks, setAcceptedHunks] = useState<Record<string, boolean>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [selection, setSelection] = useState<EditorSelection | null>(null);
   const [addSelectionTick, setAddSelectionTick] = useState(0);
@@ -75,6 +75,36 @@ export function App() {
     () => tabs.find((t) => t.path === activePath) ?? null,
     [tabs, activePath],
   );
+  const review = edits[0];
+  const reviewHunks = useMemo(
+    () => (review ? diffHunks(review.before, review.after) : []),
+    [review],
+  );
+  const onToggleHunk = useCallback((id: string, accept: boolean) => {
+    setAcceptedHunks((prev) => ({ ...prev, [id]: accept }));
+  }, []);
+  const inlineReview = useMemo(() => {
+    if (!review || activeTab?.path !== review.path || activeTab.content !== review.before) return null;
+    return { hunks: reviewHunks, accepted: acceptedHunks, onToggle: onToggleHunk };
+  }, [review, activeTab, reviewHunks, acceptedHunks, onToggleHunk]);
+
+  useEffect(() => {
+    if (!review) return;
+    const next: Record<string, boolean> = {};
+    for (const hunk of diffHunks(review.before, review.after)) next[hunk.id] = true;
+    setAcceptedHunks(next);
+    setTabs((prev) => {
+      const existing = prev.find((t) => t.path === review.path);
+      if (!existing) return [...prev, { path: review.path, content: review.before, dirty: false }];
+      if (!existing.dirty && existing.content !== review.before) {
+        return prev.map((t) =>
+          t.path === review.path ? { ...t, content: review.before, dirty: false } : t,
+        );
+      }
+      return prev;
+    });
+    setActivePath(review.path);
+  }, [review]);
 
   useEffect(() => {
     saveLayout({ filesW, agentW, termH, termOpen });
@@ -290,6 +320,48 @@ export function App() {
           onDrag={(d) => setFilesW((w) => Math.min(420, Math.max(160, w + d)))}
         />
         <section className="editor-pane">
+          {review ? (
+            <DiffReview
+              path={review.path}
+              hunks={reviewHunks}
+              accepted={acceptedHunks}
+              queueLabel={edits.length > 1 ? `1/${edits.length}` : undefined}
+              onToggle={onToggleHunk}
+              onAccept={() => {
+                const merged = applyHunkChoices(review.before, reviewHunks, acceptedHunks);
+                void (async () => {
+                  await window.wanwu.fs.write(review.path, merged);
+                  setTabs((prev) => {
+                    const others = prev.filter((t) => t.path !== review.path);
+                    return [...others, { path: review.path, content: merged, dirty: false }];
+                  });
+                  setActivePath(review.path);
+                  setEdits((prev) => prev.slice(1));
+                  setStatus(`已写入接受的代码块 · ${review.path}`);
+                })();
+              }}
+              onReject={() => setEdits((prev) => prev.slice(1))}
+              onAcceptAll={
+                edits.length > 1
+                  ? () => {
+                      void (async () => {
+                        for (const edit of edits) {
+                          await window.wanwu.fs.write(edit.path, edit.after);
+                          setTabs((prev) => {
+                            const others = prev.filter((t) => t.path !== edit.path);
+                            return [...others, { path: edit.path, content: edit.after, dirty: false }];
+                          });
+                        }
+                        setActivePath(edits[edits.length - 1]?.path ?? null);
+                        setEdits([]);
+                        setStatus(`已接受 ${edits.length} 个文件`);
+                      })();
+                    }
+                  : undefined
+              }
+              onRejectAll={edits.length > 1 ? () => setEdits([]) : undefined}
+            />
+          ) : null}
           {root ? (
             <Suspense fallback={<div className="empty">加载编辑器…</div>}>
               <MonacoPane
@@ -300,6 +372,7 @@ export function App() {
                 onSelect={setActivePath}
                 onChange={onChange}
                 onSelectionChange={setSelection}
+                review={inlineReview}
                 onClose={(p) => {
                   setTabs((prev) => prev.filter((t) => t.path !== p));
                   if (activePath === p) {
@@ -407,50 +480,6 @@ export function App() {
             setPerm(null);
           }}
         />
-      ) : null}
-
-      {edits[0] ? (
-        <Suspense fallback={null}>
-          <DiffReview
-            path={edits[0].path}
-            before={edits[0].before}
-            after={edits[0].after}
-            queueLabel={edits.length > 1 ? `1/${edits.length}` : undefined}
-            onAccept={() => {
-              const current = edits[0];
-              void (async () => {
-                await window.wanwu.fs.write(current.path, current.after);
-                setTabs((prev) => {
-                  const others = prev.filter((t) => t.path !== current.path);
-                  return [...others, { path: current.path, content: current.after, dirty: false }];
-                });
-                setActivePath(current.path);
-                setEdits((prev) => prev.slice(1));
-                setStatus(`已接受编辑 · ${current.path}`);
-              })();
-            }}
-            onReject={() => setEdits((prev) => prev.slice(1))}
-            onAcceptAll={
-              edits.length > 1
-                ? () => {
-                    void (async () => {
-                      for (const e of edits) {
-                        await window.wanwu.fs.write(e.path, e.after);
-                        setTabs((prev) => {
-                          const others = prev.filter((t) => t.path !== e.path);
-                          return [...others, { path: e.path, content: e.after, dirty: false }];
-                        });
-                      }
-                      setActivePath(edits[edits.length - 1]?.path ?? null);
-                      setEdits([]);
-                      setStatus(`已接受 ${edits.length} 个文件`);
-                    })();
-                  }
-                : undefined
-            }
-            onRejectAll={edits.length > 1 ? () => setEdits([]) : undefined}
-          />
-        </Suspense>
       ) : null}
 
       <CommandPalette
