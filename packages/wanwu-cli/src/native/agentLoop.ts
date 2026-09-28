@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { PermissionMode, WanwuConfig, WanwuMode } from "@wanwu/config";
+import type { FetchLike } from "@wanwu/providers";
 import { discoverMemory } from "../memory.js";
 import { renderSkillsForPrompt, resolvePromptSkills } from "../skills.js";
 import { runPlan } from "../plan.js";
@@ -20,6 +21,8 @@ export interface AgentContext {
   turnId?: string;
   /** Hard tool policy (subagents): return a block reason or undefined. */
   toolGuard?: (toolName: string, argsJson: string) => string | undefined;
+  /** Passed through so the apply model uses the same fetch as the agent loop. */
+  fetchImpl?: FetchLike;
 }
 
 function memoryPreamble(workspaceRoot: string): string {

@@ -98,6 +98,8 @@ export async function runLlmAgentLoop(
   // One checkpoint per prompt turn; Edit/Write back up before-state into it.
   const turnId = newTurnId(ctx.sessionId);
   ctx.turnId = turnId;
+  ctx.config = ctx.config ?? config;
+  ctx.fetchImpl = opts?.fetchImpl;
   pruneCheckpoints(ctx.workspaceRoot);
   const callEnv = {
     ...process.env,

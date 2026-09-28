@@ -78,6 +78,50 @@ describe("dispatchTool P0/P1 safety", () => {
     expect(readFileSync(join(root, "a.txt"), "utf8")).toBe("after");
   });
 
+  it("rewrites a missed sketch through the apply model", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-apply-"));
+    writeFileSync(join(root, "a.ts"), "export const n = 1\n", "utf8");
+    const prev = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "sk-test";
+    const fetchImpl: typeof fetch = async () =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: "@@OLD\nexport const n = 1\n@@NEW\nexport const n = 2\n@@END",
+              },
+            },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    try {
+      const result = await dispatchTool(
+        {
+          workspaceRoot: root,
+          sessionId: "s1",
+          permissionMode: "accept-edits",
+          mode: "agent",
+          config: DEFAULT_CONFIG,
+          fetchImpl,
+        },
+        "agent",
+        "Edit",
+        JSON.stringify({
+          path: "a.ts",
+          intent: "set n to 2",
+          edits: [{ old_string: "const value = 1", new_string: "const value = 2" }],
+        }),
+      );
+      expect(result.ok).toBe(true);
+      expect(readFileSync(join(root, "a.ts"), "utf8")).toBe("export const n = 2\n");
+    } finally {
+      if (prev === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prev;
+    }
+  });
+
   it("Edit proposes without writing in ask mode (allow rule bypasses prompt)", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-edit-propose-"));
     mkdirSync(join(root, ".wanwu"), { recursive: true });

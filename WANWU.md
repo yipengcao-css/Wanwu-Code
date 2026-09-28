@@ -49,4 +49,5 @@
 - (2026-09-23) 附加 Skill 可选本机 Markdown；制作 Skill 后询问是否写入 `.wanwu/skills` 或 `~/.wanwu/skills`
 - (2026-09-23) 同一轮多个工具调用使用不同 id；孤立 tool 消息会先修好再发给模型
 - (2026-09-28) Tab 用补全模型预测下一处编辑，可跳转；Alt+→ 接受一词
+- (2026-09-28) Edit 对不上原文时，由 apply 模型改写成精确替换块
 - 明确不做：Cloud Agents / Bugbot / DAP（Debug 是插桩约定，不是调试器协议）

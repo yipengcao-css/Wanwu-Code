@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { completeChat } from "@wanwu/providers";
 import type { WanwuMode } from "@wanwu/config";
 import { runHooks } from "../hooks.js";
 import { parseQualifiedMcpTool } from "../mcp/loadConfig.js";
@@ -7,7 +9,10 @@ import type { AgentContext } from "./agentLoop.js";
 import { gateToolCall } from "./permissions.js";
 import { runSubagents } from "./subagents/pool.js";
 import type { SubagentSpec } from "./subagents/types.js";
+import { materializeEdit, resolveApplyModel } from "./applyModel.js";
+import { assertInsideWorkspace, isDirectory } from "./workspacePaths.js";
 import {
+  applyEditBlocks,
   toolBash,
   toolEdit,
   toolGlob,
@@ -24,6 +29,54 @@ import { recordFileBackup } from "./checkpoints.js";
 /** accept-edits / accept-all persist immediately; ask mode proposes for client review. */
 function shouldApplyEdits(ctx: AgentContext): boolean {
   return ctx.permissionMode === "accept-edits" || ctx.permissionMode === "accept-all";
+}
+
+function readOriginal(root: string, pathArg: string): string | undefined {
+  try {
+    const abs = assertInsideWorkspace(root, pathArg);
+    if (!existsSync(abs) || isDirectory(abs)) return undefined;
+    return readFileSync(abs, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
+async function completeApply(ctx: AgentContext, system: string, user: string): Promise<string> {
+  if (!ctx.config) throw new Error("apply model needs provider config");
+  const r = await completeChat({
+    config: ctx.config,
+    fetchImpl: ctx.fetchImpl,
+    request: {
+      model: resolveApplyModel(ctx.config),
+      temperature: 0,
+      maxTokens: 1400,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    },
+  });
+  return r.text;
+}
+
+async function blocksViaApply(
+  ctx: AgentContext,
+  pathArg: string,
+  original: string,
+  blocks: EditBlock[],
+  intent: string,
+): Promise<{ ok: true; blocks: EditBlock[] } | { ok: false; error: string }> {
+  const exact = blocks.length > 0 && applyEditBlocks(original, blocks).ok;
+  if (exact || process.env.WANWU_APPLY === "0") {
+    return blocks.length ? { ok: true, blocks } : { ok: false, error: "Edit requires edits or intent" };
+  }
+  return materializeEdit({
+    original,
+    path: pathArg,
+    intent: intent || "Apply the sketched edit to the file.",
+    sketch: blocks,
+    complete: (system, user) => completeApply(ctx, system, user),
+  });
 }
 
 function parseEditBlocks(args: Record<string, unknown>): EditBlock[] | undefined {
@@ -166,18 +219,20 @@ export async function dispatchTool(
             applied: false,
           };
         }
-        const blocks = parseEditBlocks(args);
-        if (!blocks) {
+        const pathArg = String(args.path ?? "");
+        const blocks = parseEditBlocks(args) ?? [];
+        const intent = typeof args.intent === "string" ? args.intent.trim() : "";
+        if (!blocks.length && !intent) {
           return {
             ok: false,
             title: "Edit",
-            text: "Edit requires edits: [{old_string, new_string, replace_all?}]",
+            text: "Edit requires edits or intent",
             applied: false,
           };
         }
         const gate = await gateToolCall(
           "Edit",
-          String(args.path ?? ""),
+          pathArg,
           ctx.permissionMode,
           ctx.workspaceRoot,
           ctx.sessionId,
@@ -185,11 +240,24 @@ export async function dispatchTool(
         if (!gate.allow) {
           return { ok: false, title: "Edit", text: gate.text ?? "Edit denied", applied: false };
         }
+        const original = readOriginal(ctx.workspaceRoot, pathArg);
+        if (original === undefined) {
+          return {
+            ok: false,
+            title: "Edit",
+            text: `file does not exist: ${pathArg} (use Write to create it)`,
+            applied: false,
+          };
+        }
+        const resolved = await blocksViaApply(ctx, pathArg, original, blocks, intent);
+        if (!resolved.ok) {
+          return { ok: false, title: "Edit", text: resolved.error, applied: false };
+        }
         const apply = shouldApplyEdits(ctx);
         if (apply && ctx.turnId) {
-          recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, String(args.path ?? ""));
+          recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, pathArg);
         }
-        return toolEdit(ctx.workspaceRoot, String(args.path ?? ""), blocks, { apply });
+        return toolEdit(ctx.workspaceRoot, pathArg, resolved.blocks, { apply });
       }
       case "Write": {
         if (writeBlocked) {
@@ -211,10 +279,22 @@ export async function dispatchTool(
           return { ok: false, title: "Write", text: gate.text ?? "Write denied", applied: false };
         }
         const apply = shouldApplyEdits(ctx);
-        if (apply && ctx.turnId) {
-          recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, String(args.path ?? ""));
+        const pathArg = String(args.path ?? "");
+        const intent = typeof args.intent === "string" ? args.intent.trim() : "";
+        const original = readOriginal(ctx.workspaceRoot, pathArg);
+        if (intent && original !== undefined && process.env.WANWU_APPLY !== "0") {
+          const resolved = await blocksViaApply(ctx, pathArg, original, [], intent);
+          if (resolved.ok) {
+            if (apply && ctx.turnId) {
+              recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, pathArg);
+            }
+            return toolEdit(ctx.workspaceRoot, pathArg, resolved.blocks, { apply });
+          }
         }
-        return toolWrite(ctx.workspaceRoot, String(args.path ?? ""), String(args.content ?? ""), {
+        if (apply && ctx.turnId) {
+          recordFileBackup(ctx.workspaceRoot, ctx.turnId, ctx.sessionId, pathArg);
+        }
+        return toolWrite(ctx.workspaceRoot, pathArg, String(args.content ?? ""), {
           apply,
         });
       }

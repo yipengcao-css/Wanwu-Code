@@ -131,7 +131,7 @@ export function buildSystem(
     [
       "Exploration: ListDir for a folder, then Read/Glob/Grep. Prefer SearchCodebase for conceptual questions.",
       "Read large files with offset/limit. Issue independent Reads/Greps together when useful.",
-      "Editing: Read first. Edit uses unique old_string/new_string blocks; Write only for new files or full rewrites.",
+      "Editing: Read first. Edit with exact old_string when you have it, and always include intent. A fast apply model turns a sketch or intent into exact hunks (set apply_model / WANWU_APPLY_MODEL for a small model). Write only for new files or full rewrites; pass intent to patch an existing file instead of overwriting it.",
       "After edits: Diagnose (or project tests). Do not claim done until checks pass or you explain why they cannot run.",
       "Todo for 3+ steps. Task subagents for parallel explore/plan. WebSearch/WebFetch only for fresh public info.",
       "Be concise. If you hit a turn limit, summarize progress and remaining work.",

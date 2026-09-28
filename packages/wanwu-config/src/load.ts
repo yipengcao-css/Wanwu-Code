@@ -40,6 +40,7 @@ function parseOverlay(raw: unknown): Partial<WanwuConfig> {
         embeddingModel: asString(p.embedding_model) ?? asString(p.embeddingModel),
         fim: p.fim === true,
         completionModel: asString(p.completion_model) ?? asString(p.completionModel),
+        applyModel: asString(p.apply_model) ?? asString(p.applyModel),
       };
     }
   }
