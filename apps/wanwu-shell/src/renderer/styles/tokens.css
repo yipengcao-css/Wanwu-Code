@@ -1090,6 +1090,17 @@ button {
   color: var(--ww-muted);
 }
 
+.next-edit-jump {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ww-text);
+  background: var(--ww-surface-2);
+  border: 1px solid var(--ww-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  pointer-events: none;
+}
+
 .diff-host {
   flex: 1;
   min-height: 0;

@@ -31,6 +31,15 @@ export { resolveProvider, hasProviderCredentials } from "./resolve.js";
 export { completeChat, streamChat } from "./complete.js";
 export { uniquifyToolCalls } from "./toolCalls.js";
 export {
+  classifyNextEdit,
+  parseNextEdit,
+  predictNextEdit,
+  takeNextLine,
+  takeNextWord,
+  type NextEdit,
+  type NextEditMode,
+} from "./nextEdit.js";
+export {
   embedTexts,
   resolveEmbeddingModel,
   type EmbedOptions,

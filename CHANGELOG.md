@@ -19,6 +19,7 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **Tab 预测下一处编辑**：补全模型根据刚才的改动预测下一次修改；不在光标处时 Tab 先跳过去。Alt+→ 只接受一个词，Alt+↓ 只接受一行。可用 `completion_model` / `WANWU_COMPLETION_MODEL` 指定小模型
 - **聊天 Markdown**：回复里的标题、列表、引用、行内代码和 http(s) 链接按版式显示；不执行 HTML
 - **权限只留一层**：命令/路径/网址用中文摘要；风险显示为高/中/低
 - **终端命令先预览**：Ctrl+K 生成后确认「运行」才写入终端

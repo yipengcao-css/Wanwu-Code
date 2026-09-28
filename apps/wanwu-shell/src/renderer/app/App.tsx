@@ -373,7 +373,7 @@ export function App() {
         <span className={`status-dot${hasApiKey === false ? " warn" : ""}`} />
         <span>{status}</span>
         <span className="status-hotkeys">
-          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑/终端命令
+          F1 命令面板 · Ctrl/Cmd+, 设置 · Ctrl/Cmd+I Agent · Ctrl/Cmd+` 终端 · Ctrl+K 内联编辑/终端命令 · Tab 接受预测 · Alt+→ 接受一词
         </span>
       </footer>
 

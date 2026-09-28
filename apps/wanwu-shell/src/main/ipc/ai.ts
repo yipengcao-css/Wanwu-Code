@@ -1,6 +1,18 @@
 import { ipcMain } from "electron";
 import { loadUserCredentials, loadWanwuConfig } from "@wanwu/config";
-import { completeChat, completeInline, sanitizeCompletion } from "@wanwu/providers";
+import { completeChat, completeInline, predictNextEdit, sanitizeCompletion } from "@wanwu/providers";
+import { peekIndex, queryFromPrefix } from "../indexPeek.js";
+
+export interface NextEditRequest {
+  prefix: string;
+  suffix: string;
+  cursorLine: number;
+  cursorColumn: number;
+  language?: string;
+  path?: string;
+  diagnostics?: string;
+  recentEdits?: string;
+}
 
 export interface InlineCompleteRequest {
   prefix: string;
@@ -12,6 +24,42 @@ export interface InlineCompleteRequest {
 
 /** Inline completion (Tab ghost text) via the active provider. */
 export function registerAiIpc(getRoot: () => string | null): void {
+  ipcMain.handle("ai:predict", async (_e, req: NextEditRequest) => {
+    if (process.env.WANWU_TAB_COMPLETE === "0") return { mode: "none", text: "" };
+    try {
+      const cwd = getRoot() ?? process.cwd();
+      const { config } = loadWanwuConfig(cwd);
+      const env = { ...process.env, ...loadUserCredentials() };
+      const prefix = String(req?.prefix ?? "").slice(-3000);
+      const indexContext = peekIndex(cwd, queryFromPrefix(prefix));
+      const r = await predictNextEdit({
+        config,
+        prefix,
+        suffix: String(req?.suffix ?? "").slice(0, 800),
+        cursorLine: Number(req?.cursorLine) || 1,
+        cursorColumn: Number(req?.cursorColumn) || 1,
+        language: req?.language,
+        filePath: req?.path,
+        diagnostics: req?.diagnostics,
+        recentEdits: req?.recentEdits,
+        indexContext,
+        env,
+      });
+      return {
+        mode: r.mode,
+        text: r.edit.text,
+        line: r.edit.line,
+        column: r.edit.column,
+        endLine: r.edit.endLine,
+        endColumn: r.edit.endColumn,
+        action: r.edit.action,
+        model: r.model,
+      };
+    } catch (err) {
+      return { mode: "none" as const, text: "", error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
+    }
+  });
+
   ipcMain.handle("ai:complete", async (_e, req: InlineCompleteRequest) => {
     if (process.env.WANWU_TAB_COMPLETE === "0") return { text: "" };
     try {

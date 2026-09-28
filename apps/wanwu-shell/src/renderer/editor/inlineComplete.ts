@@ -1,7 +1,11 @@
 import * as monaco from "monaco-editor";
+import { noteRecentEdit, recentEditSummary } from "./recentEdits";
 
 /**
- * Tab ghost-text: lint-aware completion + jump to the next diagnostic after accept.
+ * Tab: a small model predicts the next edit.
+ * At the cursor it is ghost text (Alt+Right accepts one word).
+ * Elsewhere, Tab jumps there and then offers the text.
+ * Accepting still moves to the next diagnostic.
  */
 
 let registered = false;
@@ -11,6 +15,22 @@ let nextJumpCmd: string | null = null;
 const DEBOUNCE_MS = 300;
 const PREFIX_CHARS = 3000;
 const SUFFIX_CHARS = 800;
+
+type Armed = {
+  path: string;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+  text: string;
+  action: "insert" | "replace";
+};
+
+let jump: Armed | null = null;
+let armed: Armed | null = null;
+let jumpKey: monaco.editor.IContextKey<boolean> | null = null;
+let jumpEditor: monaco.editor.IStandaloneCodeEditor | null = null;
+let jumpWidget: monaco.editor.IContentWidget | null = null;
 
 function nearbyDiagnostics(
   model: monaco.editor.ITextModel,
@@ -41,20 +61,73 @@ function jumpToNextDiagnostic(): void {
       (m) =>
         m.severity === monaco.MarkerSeverity.Error || m.severity === monaco.MarkerSeverity.Warning,
     )
-    .sort(
-      (a, b) => a.startLineNumber - b.startLineNumber || a.startColumn - b.startColumn,
-    );
+    .sort((a, b) => a.startLineNumber - b.startLineNumber || a.startColumn - b.startColumn);
   if (!markers.length) return;
   const line = pos?.lineNumber ?? 0;
   const col = pos?.column ?? 0;
   const next =
-    markers.find(
-      (m) => m.startLineNumber > line || (m.startLineNumber === line && m.startColumn > col),
-    ) ?? markers[0];
+    markers.find((m) => m.startLineNumber > line || (m.startLineNumber === line && m.startColumn > col)) ??
+    markers[0];
   if (!next) return;
   editor.setPosition({ lineNumber: next.startLineNumber, column: next.startColumn });
   editor.revealLineInCenter(next.startLineNumber);
   void editor.trigger("wanwu", "editor.action.inlineSuggest.trigger", {});
+}
+
+function clearJumpWidget(): void {
+  if (jumpEditor && jumpWidget) jumpEditor.removeContentWidget(jumpWidget);
+  jumpWidget = null;
+}
+
+function showJumpWidget(editor: monaco.editor.IStandaloneCodeEditor, target: Armed): void {
+  clearJumpWidget();
+  const dom = document.createElement("div");
+  dom.className = "next-edit-jump";
+  dom.textContent = `Tab 跳到第 ${target.line} 行`;
+  const widget: monaco.editor.IContentWidget = {
+    getId: () => "wanwu-next-edit-jump",
+    getDomNode: () => dom,
+    getPosition: () => ({
+      position: { lineNumber: editor.getPosition()?.lineNumber ?? 1, column: 1 },
+      preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE],
+    }),
+  };
+  jumpWidget = widget;
+  editor.addContentWidget(widget);
+}
+
+function setJump(editor: monaco.editor.IStandaloneCodeEditor, target: Armed | null): void {
+  jump = target;
+  jumpKey?.set(Boolean(target));
+  if (!target) {
+    clearJumpWidget();
+    return;
+  }
+  showJumpWidget(editor, target);
+}
+
+function inlineItem(
+  model: monaco.editor.ITextModel,
+  position: monaco.Position,
+  edit: Armed,
+): monaco.languages.InlineCompletions {
+  const endLine = edit.action === "replace" ? Math.max(edit.endLine, position.lineNumber) : position.lineNumber;
+  const endColumn = edit.action === "replace" ? Math.max(edit.endColumn, position.column) : position.column;
+  const maxCol = model.getLineMaxColumn(Math.min(endLine, model.getLineCount()));
+  return {
+    items: [
+      {
+        insertText: edit.text,
+        range: new monaco.Range(
+          position.lineNumber,
+          position.column,
+          Math.min(endLine, model.getLineCount()),
+          Math.min(endColumn, maxCol),
+        ),
+        command: nextJumpCmd ? { id: nextJumpCmd, title: "下一处诊断" } : undefined,
+      },
+    ],
+  };
 }
 
 export function registerInlineCompletion(): void {
@@ -64,6 +137,17 @@ export function registerInlineCompletion(): void {
   monaco.languages.registerInlineCompletionsProvider("*", {
     groupId: "wanwu-inline",
     provideInlineCompletions: async (model, position) => {
+      const path = model.uri.path;
+      if (
+        armed &&
+        armed.path === path &&
+        position.lineNumber === Math.min(armed.line, model.getLineCount()) &&
+        position.column === armed.column
+      ) {
+        const item = inlineItem(model, position, armed);
+        return item;
+      }
+
       const mySeq = ++seq;
       await new Promise((r) => setTimeout(r, DEBOUNCE_MS));
       if (mySeq !== seq) return { items: [] };
@@ -76,30 +160,35 @@ export function registerInlineCompletion(): void {
       const diagnostics = nearbyDiagnostics(model, position);
 
       try {
-        const res = await window.wanwu.ai.complete({
+        const res = await window.wanwu.ai.predict({
           prefix,
           suffix,
+          cursorLine: position.lineNumber,
+          cursorColumn: position.column,
           language: model.getLanguageId(),
-          path: model.uri.path,
+          path,
           diagnostics: diagnostics || undefined,
+          recentEdits: recentEditSummary() || undefined,
         });
-        if (mySeq !== seq || !res.text) return { items: [] };
-        return {
-          items: [
-            {
-              insertText: res.text,
-              range: new monaco.Range(
-                position.lineNumber,
-                position.column,
-                position.lineNumber,
-                position.column,
-              ),
-              command: nextJumpCmd
-                ? { id: nextJumpCmd, title: "下一处诊断" }
-                : undefined,
-            },
-          ],
+        if (mySeq !== seq || !res.text || res.mode === "none") {
+          if (jumpEditor) setJump(jumpEditor, null);
+          return { items: [] };
+        }
+        const edit: Armed = {
+          path,
+          line: res.line || position.lineNumber,
+          column: res.column || position.column,
+          endLine: res.endLine || res.line || position.lineNumber,
+          endColumn: res.endColumn || res.column || position.column,
+          text: res.text,
+          action: res.action === "replace" ? "replace" : "insert",
         };
+        if (res.mode === "jump") {
+          if (jumpEditor) setJump(jumpEditor, edit);
+          return { items: [] };
+        }
+        if (jumpEditor) setJump(jumpEditor, null);
+        return inlineItem(model, position, edit);
       } catch {
         return { items: [] };
       }
@@ -110,8 +199,44 @@ export function registerInlineCompletion(): void {
   });
 }
 
-/** Bind the post-accept “next diagnostic” command to a concrete editor. */
+/** Bind Tab jump, partial accept, recent-edit capture, and the post-accept diagnostic jump. */
 export function attachTabNextJump(editor: monaco.editor.IStandaloneCodeEditor): void {
+  jumpEditor = editor;
+  jumpKey = editor.createContextKey("wanwuHasJump", false);
   const id = editor.addCommand(0, () => jumpToNextDiagnostic());
   if (id) nextJumpCmd = id;
+
+  editor.addCommand(
+    monaco.KeyCode.Tab,
+    () => {
+      if (!jump) return;
+      const target = jump;
+      const model = editor.getModel();
+      setJump(editor, null);
+      armed = target;
+      const line = Math.min(target.line, model?.getLineCount() ?? target.line);
+      const column = Math.min(target.column, model?.getLineMaxColumn(line) ?? target.column);
+      editor.setPosition({ lineNumber: line, column });
+      editor.revealLineInCenter(line);
+      editor.focus();
+      void editor.trigger("wanwu", "editor.action.inlineSuggest.trigger", {});
+    },
+    "wanwuHasJump",
+  );
+
+  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.RightArrow, () => {
+    editor.trigger("wanwu", "editor.action.inlineSuggest.acceptNextWord", {});
+  });
+  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.DownArrow, () => {
+    editor.trigger("wanwu", "editor.action.inlineSuggest.acceptNextLine", {});
+  });
+
+  editor.onDidChangeModelContent((e) => {
+    const model = editor.getModel();
+    if (!model) return;
+    const path = model.uri.path;
+    for (const change of e.changes) {
+      noteRecentEdit(path, `L${change.range.startLineNumber} ${change.text || "⌫"}`);
+    }
+  });
 }
