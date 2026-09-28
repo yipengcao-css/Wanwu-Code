@@ -276,6 +276,8 @@ function countOccurrences(haystack: string, needle: string): number {
 /** Normalize line trailing whitespace — tolerant fallback for exact match. */
 function normalizeLineEndings(text: string): string {
   return text
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
     .split("\n")
     .map((l) => l.replace(/[ \t]+$/g, ""))
     .join("\n");
@@ -298,7 +300,7 @@ export function findEditMatch(
   const contentLines = content.split("\n");
   const oldLines = normalizeLineEndings(oldString).split("\n");
   if (!oldLines.length || oldLines.length > contentLines.length) return undefined;
-  const normContent = contentLines.map((l) => l.replace(/[ \t]+$/g, ""));
+  const normContent = contentLines.map((l) => l.replace(/\r$/, "").replace(/[ \t]+$/g, ""));
   outer: for (let i = 0; i + oldLines.length <= contentLines.length; i += 1) {
     for (let j = 0; j < oldLines.length; j += 1) {
       if (normContent[i + j] !== oldLines[j]) continue outer;

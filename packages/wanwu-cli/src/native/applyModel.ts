@@ -14,8 +14,9 @@ export function resolveApplyModel(config: WanwuConfig): string | undefined {
 }
 
 export function parseApplyHunks(raw: string): EditBlock[] {
-  const fenced = raw.match(/```(?:\w+)?\n([\s\S]*?)```/);
-  const body = fenced?.[1] ?? raw;
+  const normalized = raw.replace(/\r\n/g, "\n");
+  const fenced = normalized.match(/```(?:\w+)?\n([\s\S]*?)```/);
+  const body = fenced?.[1] ?? normalized;
   const blocks: EditBlock[] = [];
   const re = /@@OLD\n([\s\S]*?)\n@@NEW\n([\s\S]*?)\n@@END/g;
   for (const match of body.matchAll(re)) {

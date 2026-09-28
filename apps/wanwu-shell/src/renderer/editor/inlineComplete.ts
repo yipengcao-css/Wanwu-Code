@@ -31,6 +31,7 @@ let armed: Armed | null = null;
 let jumpKey: monaco.editor.IContextKey<boolean> | null = null;
 let jumpEditor: monaco.editor.IStandaloneCodeEditor | null = null;
 let jumpWidget: monaco.editor.IContentWidget | null = null;
+const attachedEditors = new WeakSet<monaco.editor.IStandaloneCodeEditor>();
 
 function nearbyDiagnostics(
   model: monaco.editor.ITextModel,
@@ -138,25 +139,30 @@ export function registerInlineCompletion(): void {
     groupId: "wanwu-inline",
     provideInlineCompletions: async (model, position) => {
       const path = model.uri.path;
-      if (
-        armed &&
-        armed.path === path &&
-        position.lineNumber === Math.min(armed.line, model.getLineCount()) &&
-        position.column === armed.column
-      ) {
-        const item = inlineItem(model, position, armed);
-        return item;
+      if (armed && armed.path === path) {
+        const line = Math.min(armed.line, model.getLineCount());
+        if (position.lineNumber === line && position.column === armed.column) {
+          return inlineItem(model, position, armed);
+        }
+        const cursor = jumpEditor?.getPosition();
+        const atCursor =
+          !cursor ||
+          (cursor.lineNumber === position.lineNumber && cursor.column === position.column);
+        if (atCursor && jumpEditor?.getModel()?.uri.path === path) armed = null;
       }
 
       const mySeq = ++seq;
       await new Promise((r) => setTimeout(r, DEBOUNCE_MS));
-      if (mySeq !== seq) return { items: [] };
+      if (mySeq !== seq || model.isDisposed()) return { items: [] };
 
       const text = model.getValue();
       const offset = model.getOffsetAt(position);
       const prefix = text.slice(Math.max(0, offset - PREFIX_CHARS), offset);
       const suffix = text.slice(offset, offset + SUFFIX_CHARS);
-      if (prefix.trim().length < 8) return { items: [] };
+      if (prefix.trim().length < 8) {
+        if (jump && jump.path === path && jumpEditor) setJump(jumpEditor, null);
+        return { items: [] };
+      }
       const diagnostics = nearbyDiagnostics(model, position);
 
       try {
@@ -170,8 +176,10 @@ export function registerInlineCompletion(): void {
           diagnostics: diagnostics || undefined,
           recentEdits: recentEditSummary() || undefined,
         });
-        if (mySeq !== seq || !res.text || res.mode === "none") {
-          if (jumpEditor) setJump(jumpEditor, null);
+        if (mySeq !== seq) return { items: [] };
+        const stillThisFile = jumpEditor?.getModel()?.uri.path === path;
+        if (!res.text || res.mode === "none") {
+          if (stillThisFile && jumpEditor) setJump(jumpEditor, null);
           return { items: [] };
         }
         const edit: Armed = {
@@ -184,12 +192,13 @@ export function registerInlineCompletion(): void {
           action: res.action === "replace" ? "replace" : "insert",
         };
         if (res.mode === "jump") {
-          if (jumpEditor) setJump(jumpEditor, edit);
+          if (stillThisFile && jumpEditor) setJump(jumpEditor, edit);
           return { items: [] };
         }
-        if (jumpEditor) setJump(jumpEditor, null);
+        if (stillThisFile && jumpEditor) setJump(jumpEditor, null);
         return inlineItem(model, position, edit);
       } catch {
+        if (mySeq === seq && jump?.path === path && jumpEditor) setJump(jumpEditor, null);
         return { items: [] };
       }
     },
@@ -201,6 +210,14 @@ export function registerInlineCompletion(): void {
 
 /** Bind Tab jump, partial accept, recent-edit capture, and the post-accept diagnostic jump. */
 export function attachTabNextJump(editor: monaco.editor.IStandaloneCodeEditor): void {
+  if (attachedEditors.has(editor)) return;
+  attachedEditors.add(editor);
+  if (jumpEditor && jumpEditor !== editor) {
+    clearJumpWidget();
+    jumpKey?.set(false);
+    jump = null;
+    armed = null;
+  }
   jumpEditor = editor;
   jumpKey = editor.createContextKey("wanwuHasJump", false);
   const id = editor.addCommand(0, () => jumpToNextDiagnostic());
@@ -213,9 +230,10 @@ export function attachTabNextJump(editor: monaco.editor.IStandaloneCodeEditor): 
       const target = jump;
       const model = editor.getModel();
       setJump(editor, null);
-      armed = target;
       const line = Math.min(target.line, model?.getLineCount() ?? target.line);
-      const column = Math.min(target.column, model?.getLineMaxColumn(line) ?? target.column);
+      const maxCol = model?.getLineMaxColumn(line) ?? target.column;
+      const column = Math.min(Math.max(target.column, 1), Math.max(maxCol, 1));
+      armed = { ...target, line, column };
       editor.setPosition({ lineNumber: line, column });
       editor.revealLineInCenter(line);
       editor.focus();
@@ -236,7 +254,10 @@ export function attachTabNextJump(editor: monaco.editor.IStandaloneCodeEditor): 
     if (!model) return;
     const path = model.uri.path;
     for (const change of e.changes) {
-      noteRecentEdit(path, `L${change.range.startLineNumber} ${change.text || "⌫"}`);
+      const inserted = change.text ?? "";
+      const removed = change.rangeLength ?? 0;
+      if (inserted.length <= 1 && removed <= 1) continue;
+      noteRecentEdit(path, `L${change.range.startLineNumber} ${inserted || "⌫"}`);
     }
   });
 }

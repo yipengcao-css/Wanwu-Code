@@ -47,7 +47,7 @@ export function parseNextEdit(raw: string): NextEdit | null {
     return action === "none" ? { action, line: 1, column: 1, endLine: 1, endColumn: 1, text: "" } : null;
   }
   if (text.length > 800) return null;
-  return { action, line, column, endLine, endColumn, text: text.replace(/\s+$/, "") };
+  return { action, line, column, endLine, endColumn, text: text.replace(/[ \t]+$/g, "") };
 }
 
 function num(value: unknown): number {

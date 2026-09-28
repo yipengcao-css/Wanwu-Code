@@ -93,6 +93,14 @@ describe("applyEditBlocks", () => {
     expect(r.replacements).toBe(2);
   });
 
+  it("matches a CRLF file when the sketch uses LF", () => {
+    const r = applyEditBlocks("alpha\r\nbeta\r\n", [
+      { old_string: "alpha\nbeta", new_string: "alpha\ngamma" },
+    ]);
+    expect(r.ok).toBe(true);
+    expect(r.after).toBe("alpha\ngamma\n");
+  });
+
   it("fails when old_string is not unique", () => {
     const r = applyEditBlocks("foo bar foo", [{ old_string: "foo", new_string: "baz" }]);
     expect(r.ok).toBe(false);

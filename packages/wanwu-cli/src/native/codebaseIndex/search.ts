@@ -26,15 +26,16 @@ function cosine(a: number[], b: number[]): number {
 }
 
 function keywordScore(queryTokens: string[], chunk: StoredChunk): number {
-  if (!chunk.tokens?.length || !queryTokens.length) return 0;
+  const tokens = chunk.tokens?.length ? chunk.tokens : tokenize(chunk.text);
+  if (!tokens.length || !queryTokens.length) return 0;
   const counts = new Map<string, number>();
-  for (const t of chunk.tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
+  for (const t of tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
   let score = 0;
   for (const q of new Set(queryTokens)) {
     score += counts.get(q) ?? 0;
   }
-  // normalize by chunk length to avoid long-chunk bias
-  return score / Math.sqrt(chunk.tokens.length);
+  // normalize by token count so a long chunk does not always win
+  return score / Math.sqrt(tokens.length);
 }
 
 export interface SearchOptions {

@@ -67,8 +67,11 @@ async function blocksViaApply(
   intent: string,
 ): Promise<{ ok: true; blocks: EditBlock[] } | { ok: false; error: string }> {
   const exact = blocks.length > 0 && applyEditBlocks(original, blocks).ok;
-  if (exact || process.env.WANWU_APPLY === "0") {
-    return blocks.length ? { ok: true, blocks } : { ok: false, error: "Edit requires edits or intent" };
+  if (exact) return { ok: true, blocks };
+  if (process.env.WANWU_APPLY === "0") {
+    return blocks.length
+      ? { ok: true, blocks }
+      : { ok: false, error: "intent needs the apply model (WANWU_APPLY=0)" };
   }
   return materializeEdit({
     original,

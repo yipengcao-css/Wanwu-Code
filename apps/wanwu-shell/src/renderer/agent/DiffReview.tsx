@@ -15,7 +15,11 @@ export function DiffReview(props: {
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") props.onReject();
+      if (e.key !== "Escape") return;
+      const target = e.target;
+      if (target instanceof HTMLElement && target.closest("textarea, input, select, .monaco-editor")) return;
+      if (document.querySelector("[role='dialog'], .modal-backdrop")) return;
+      props.onReject();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

@@ -9,28 +9,27 @@ export function mountHunkReview(
   onToggle: (id: string, accept: boolean) => void,
 ): () => void {
   const shown = hunks.slice(0, 12);
+  const lineCount = Math.max(editor.getModel()?.getLineCount() ?? 1, 1);
   const decorations = editor.createDecorationsCollection(
     shown
       .filter((h) => accepted[h.id] !== false && h.before.length > 0)
-      .map((h) => ({
-        range: new monaco.Range(
-          h.startLine,
-          1,
-          h.startLine + Math.max(h.before.length - 1, 0),
-          1,
-        ),
-        options: {
-          isWholeLine: true,
-          className: "hunk-old-line",
-          overviewRuler: {
-            color: "#f25f7c",
-            position: monaco.editor.OverviewRulerLane.Left,
+      .map((h) => {
+        const start = Math.min(Math.max(h.startLine, 1), lineCount);
+        const end = Math.min(start + Math.max(h.before.length - 1, 0), lineCount);
+        return {
+          range: new monaco.Range(start, 1, end, 1),
+          options: {
+            isWholeLine: true,
+            className: "hunk-old-line",
+            overviewRuler: {
+              color: "#f25f7c",
+              position: monaco.editor.OverviewRulerLane.Left,
+            },
           },
-        },
-      })),
+        };
+      }),
   );
   const widgets: monaco.editor.IContentWidget[] = [];
-  const lineCount = editor.getModel()?.getLineCount() ?? 1;
   for (const hunk of shown) {
     const dom = document.createElement("div");
     dom.className = `hunk-zone${accepted[hunk.id] === false ? " is-off" : ""}`;

@@ -16,6 +16,11 @@ describe("parseNextEdit", () => {
     expect(edit).toMatchObject({ action: "replace", line: 40, column: 3, text: "count" });
   });
 
+  it("keeps a trailing newline in the predicted text", () => {
+    const edit = parseNextEdit('{"action":"insert","line":2,"column":1,"endLine":2,"endColumn":1,"text":"return;\\n"}');
+    expect(edit?.text).toBe("return;\n");
+  });
+
   it("rejects chatter without json", () => {
     expect(parseNextEdit("sure, here is the edit")).toBeNull();
   });

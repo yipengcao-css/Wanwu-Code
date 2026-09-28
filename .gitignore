@@ -16,6 +16,7 @@ target/
 *.tsbuildinfo
 .pnpm-store/
 .wanwu/plans/
+.wanwu/index/
 .wanwu/settings.toml
 .wanwu/worktrees/
 .wanwu/cloud-tasks/
