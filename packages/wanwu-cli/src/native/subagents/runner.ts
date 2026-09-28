@@ -1,5 +1,6 @@
 import type { ChatMessage } from "@wanwu/providers";
 import { runLlmAgentLoop } from "../llmAgentLoop.js";
+import { clampTurnBudget } from "../turnBudget.js";
 import { runPlanAsync } from "../../plan.js";
 import { runHooks } from "../../hooks.js";
 import { emitSubagentComplete, emitSubagentStart } from "./emit.js";
@@ -104,11 +105,11 @@ export async function runSubagent(
 
     const room = Math.max(policy.turnCeiling - policy.maxTurns, 0);
     const out = await runLlmAgentLoop(ctx, opts.config, spec.prompt, {
-      turnBudget: {
+      turnBudget: clampTurnBudget({
         start: policy.maxTurns,
         ceiling: Math.max(policy.turnCeiling, policy.maxTurns),
         step: room === 0 ? 0 : Math.min(8, room),
-      },
+      }),
       fetchImpl: opts.fetchImpl,
       history: [],
       // Fixture fetchImpls return JSON, not SSE — keep them on the complete path.

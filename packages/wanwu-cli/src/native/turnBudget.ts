@@ -2,7 +2,7 @@
  * How many model rounds one prompt may take.
  * A fixed cap stops long tasks too early. The default starts at `start` and
  * grows by `step` while the agent is still calling different tools, until `ceiling`.
- * `WANWU_AGENT_MAX_TURNS` is a hard cap. `WANWU_AGENT_TURN_CEILING` only raises the ceiling.
+ * `WANWU_AGENT_MAX_TURNS` is a hard cap. `WANWU_AGENT_TURN_CEILING` sets the adaptive ceiling.
  */
 
 export interface TurnBudget {
@@ -40,14 +40,60 @@ export function resolveTurnBudget(
   };
 }
 
+function canonicalArguments(raw: string): string {
+  const trimmed = raw.trim();
+  try {
+    return stableJson(JSON.parse(trimmed) as unknown);
+  } catch {
+    return trimmed;
+  }
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
 export function toolRoundSignature(
   calls: Array<{ name: string; arguments: string }> | undefined,
 ): string {
   if (!calls?.length) return "";
   return [...calls]
-    .map((call) => `${call.name}\n${call.arguments}`)
+    .map((call) => `${call.name}\n${canonicalArguments(call.arguments)}`)
     .sort()
     .join("\n---\n");
+}
+
+/** Keep a smaller budget inside the process-wide cap. A hard cap wins over a ceiling. */
+export function clampTurnBudget(budget: TurnBudget, env: NodeJS.ProcessEnv = process.env): TurnBudget {
+  const hard = positiveInt(env.WANWU_AGENT_MAX_TURNS);
+  const ceilingCap = hard ?? positiveInt(env.WANWU_AGENT_TURN_CEILING);
+  if (!ceilingCap) return budget;
+  const ceiling = Math.min(budget.ceiling, ceilingCap);
+  const start = Math.min(budget.start, ceiling);
+  const room = Math.max(ceiling - start, 0);
+  return { start, ceiling, step: room === 0 ? 0 : Math.min(budget.step, room) };
+}
+
+export function formatTurnLimitNotice(
+  limit: number,
+  budget: TurnBudget,
+  turnId: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string {
+  const undo = `检查点 ${turnId} 可撤销本轮文件改动。`;
+  const hard = positiveInt(env.WANWU_AGENT_MAX_TURNS);
+  if (hard && limit >= hard) {
+    return `\n\n[回合上限 ${limit} 已到。已完成的步骤见上方；再说一次即可继续。WANWU_AGENT_MAX_TURNS 可改这个固定上限。${undo}]`;
+  }
+  if (budget.step > 0 && limit >= budget.ceiling && budget.ceiling >= DEFAULT_TURN_BUDGET.ceiling) {
+    return `\n\n[自适应上限 ${limit} 已到。已完成的步骤见上方；再说一次即可继续。WANWU_AGENT_TURN_CEILING 可再放宽。${undo}]`;
+  }
+  return `\n\n[回合上限 ${limit} 已到。已完成的步骤见上方；再说一次即可继续。${undo}]`;
 }
 
 export function nextTurnLimit(opts: {

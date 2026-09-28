@@ -28,7 +28,13 @@ import { WANWU_TOOL_SPECS } from "./toolSpecs.js";
 import { maybeAutoRemember } from "./autoMemory.js";
 import { stripSkillTags } from "../skills.js";
 import { buildSystem, parseEditorContext } from "./agentPrompt.js";
-import { nextTurnLimit, resolveTurnBudget, toolRoundSignature, type TurnBudget } from "./turnBudget.js";
+import {
+  formatTurnLimitNotice,
+  nextTurnLimit,
+  resolveTurnBudget,
+  toolRoundSignature,
+  type TurnBudget,
+} from "./turnBudget.js";
 import { toolsForMode } from "./modeTools.js";
 import { canRunToolsInParallel } from "./parallelTools.js";
 
@@ -400,6 +406,8 @@ export async function runLlmAgentLoop(
         lintLoopRemaining -= 1;
         const files = [...new Set(appliedEdits)].join(", ");
         appliedEdits = [];
+        previousSignature = "";
+        repeatCount = 0;
         sessionUpdate(ctx.sessionId, {
           sessionUpdate: "agent_message_chunk",
           content: {
@@ -428,7 +436,7 @@ export async function runLlmAgentLoop(
   }
 
   if (!stopNotice && turns >= limit && last?.toolCalls?.length) {
-    const notice = `\n\n[回合上限 ${limit} 已到。已完成的步骤见上方；再说一次即可继续。可用 WANWU_AGENT_TURN_CEILING 放宽自适应上限，或用检查点 ${turnId} 撤销本轮文件改动。]`;
+    const notice = formatTurnLimitNotice(limit, budget, turnId, process.env);
     stopNotice = notice;
   }
   if (stopNotice && last) {
