@@ -14,7 +14,6 @@ import { DiffReview } from "../agent/DiffReview";
 import { ConfirmModal } from "../agent/ConfirmModal";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
 import { CommandPalette } from "../palette/CommandPalette";
-import { WelcomeGate } from "../onboarding/WelcomeGate";
 
 const MonacoPane = lazy(() =>
   import("../editor/MonacoPane").then((m) => ({ default: m.MonacoPane })),
@@ -272,6 +271,8 @@ export function App() {
     setStatus(`已保存 · ${activeTab.path}`);
   }, [activeTab]);
 
+  const showEditor = tabs.length > 0 || Boolean(review);
+
   const style = {
     ["--ww-files-w" as string]: `${filesW}px`,
     ["--ww-agent-w" as string]: `${agentW}px`,
@@ -289,7 +290,7 @@ export function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         workspaceLabel={root ? root.split(/[\\/]/).filter(Boolean).slice(-2).join("/") : "未打开工作区"}
       />
-      <div className="workspace">
+      <div className={`workspace${showEditor ? "" : " no-editor"}`}>
         <aside className="panel files-panel">
           <div className="panel-title" style={{ display: "flex", gap: 8 }}>
             <button
@@ -333,6 +334,7 @@ export function App() {
           orientation="vertical"
           onDrag={(d) => setFilesW((w) => Math.min(420, Math.max(160, w + d)))}
         />
+        {showEditor ? (
         <section className="editor-pane">
           {review ? (
             <DiffReview
@@ -376,7 +378,7 @@ export function App() {
               onRejectAll={edits.length > 1 ? () => setEdits([]) : undefined}
             />
           ) : null}
-          {root ? (
+          {tabs.length > 0 ? (
             <Suspense fallback={<div className="empty">加载编辑器…</div>}>
               <MonacoPane
                 tabs={tabs}
@@ -403,18 +405,15 @@ export function App() {
                 }}
               />
             </Suspense>
-          ) : (
-            <WelcomeGate
-              onOpenFolder={() => void openFolder()}
-              onOpenSettings={() => setSettingsOpen(true)}
-              hasApiKey={hasApiKey}
-            />
-          )}
+          ) : null}
         </section>
+        ) : null}
+        {showEditor ? (
         <SplitHandle
           orientation="vertical"
           onDrag={(d) => setAgentW((w) => Math.min(640, Math.max(300, w - d)))}
         />
+        ) : null}
         <aside className="panel agent">
           <div className="panel-title">Agent Studio</div>
           <AgentStudio
