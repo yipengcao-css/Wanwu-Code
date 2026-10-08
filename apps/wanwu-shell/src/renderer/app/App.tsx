@@ -4,6 +4,7 @@ import { SplitHandle } from "../layout/SplitHandle";
 import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
+import type { CursorFocus } from "../editor/editorContext";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
@@ -25,13 +26,13 @@ function riskLabel(risk?: string): string {
   return "未知";
 }
 
-/** Flatten LSP markers into a compact summary for the agent (@diagnostics). */
+/** Flatten LSP markers into a compact summary. Lines and columns are 1-based, like the editor and Read. */
 function formatDiagnosticsSummary(diagnostics: Record<string, MarkerDiag[]>): string {
   const lines: string[] = [];
   for (const [path, diags] of Object.entries(diagnostics)) {
     for (const d of diags) {
       if (d.severity !== "error" && d.severity !== "warning") continue;
-      lines.push(`${path}:${d.startLine}:${d.startCharacter} ${d.severity} ${d.message}`);
+      lines.push(`${path}:${d.startLine + 1}:${d.startCharacter + 1} ${d.severity} ${d.message}`);
       if (lines.length >= 50) break;
     }
     if (lines.length >= 50) break;
@@ -68,6 +69,7 @@ export function App() {
   const [acceptedHunks, setAcceptedHunks] = useState<Record<string, boolean>>({});
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [selection, setSelection] = useState<EditorSelection | null>(null);
+  const [cursorFocus, setCursorFocus] = useState<CursorFocus | null>(null);
   const [addSelectionTick, setAddSelectionTick] = useState(0);
   const [modelLabel, setModelLabel] = useState("");
 
@@ -376,6 +378,7 @@ export function App() {
                 onSelect={setActivePath}
                 onChange={onChange}
                 onSelectionChange={setSelection}
+                onCursorContext={setCursorFocus}
                 review={inlineReview}
                 onClose={(p) => {
                   setTabs((prev) => prev.filter((t) => t.path !== p));
@@ -413,6 +416,7 @@ export function App() {
             activePath={activePath}
             openTabs={tabs.map((t) => t.path)}
             selection={selection}
+            cursor={cursorFocus}
             addSelectionTick={addSelectionTick}
             modelLabel={modelLabel}
             diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}

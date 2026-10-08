@@ -43,4 +43,44 @@ const x = 1
       text: "const x = 1",
     });
   });
+
+  it("extracts the caret window and active-file diagnostics", () => {
+    const ctx = parseEditorContext(`[EDITOR_CONTEXT]
+Active file: src/a.ts
+Cursor: src/a.ts:40:2
+Around cursor (src/a.ts:16-64):
+\`\`\`
+40|const x = 1
+\`\`\`
+Diagnostics:
+src/a.ts:40:2 error boom
+[/EDITOR_CONTEXT]`);
+    expect(ctx.cursor).toEqual({
+      path: "src/a.ts",
+      line: 40,
+      column: 2,
+      startLine: 16,
+      endLine: 64,
+      text: "40|const x = 1",
+    });
+    expect(ctx.diagnostics).toBe("src/a.ts:40:2 error boom");
+  });
+
+  it("keeps a drive-letter path on the caret", () => {
+    const ctx = parseEditorContext(`[EDITOR_CONTEXT]
+Cursor: C:/foo/a.ts:40:3
+Around cursor (C:/foo/a.ts:16-64):
+\`\`\`
+40|const x = 1
+\`\`\`
+[/EDITOR_CONTEXT]`);
+    expect(ctx.cursor).toEqual({
+      path: "C:/foo/a.ts",
+      line: 40,
+      column: 3,
+      startLine: 16,
+      endLine: 64,
+      text: "40|const x = 1",
+    });
+  });
 });

@@ -21,6 +21,7 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **光标上下文**：没有选区时，Agent 也会看到光标所在行和周围带行号的代码，以及当前文件的错误/警告（行号、列号从 1 计，与编辑器一致）。有选区时仍以选区为准。切到别的文件后，上一份光标窗口不会跟着送出
 - **索引自动参与**：每一轮 Agent 会带上本地代码索引里的相关片段；Tab 预测也会读同一份索引。`WANWU_AUTO_INDEX=0` 关闭自动注入
 - **按代码块审阅**：编辑器里对每一块改动单独接受或拒绝，只写入接受的块
 - **Apply 模型**：大模型给出修改意图或草图，快模型写成能对上文件的精确替换块。精确匹配的 Edit 不会多打一次模型。`apply_model` / `WANWU_APPLY_MODEL` 指定小模型，`WANWU_APPLY=0` 关闭

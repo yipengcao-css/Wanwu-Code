@@ -13,10 +13,21 @@ export interface EditorSelection {
   text: string;
 }
 
+export interface EditorCursor {
+  path?: string;
+  line: number;
+  column: number;
+  startLine?: number;
+  endLine?: number;
+  text?: string;
+}
+
 export interface EditorContext {
   activePath?: string;
   openTabs: string[];
   selection?: EditorSelection;
+  cursor?: EditorCursor;
+  diagnostics?: string;
 }
 
 const EDITOR_BLOCK = /\[EDITOR_CONTEXT\]([\s\S]*?)\[\/EDITOR_CONTEXT\]/;
@@ -53,7 +64,27 @@ export function parseEditorContext(prompt: string): EditorContext {
     }
   }
 
-  return { activePath, openTabs, selection };
+  const cursorHead = body.match(/Cursor:\s*(.+):(\d+):(\d+)\s*$/m);
+  let cursor: EditorCursor | undefined;
+  if (cursorHead) {
+    cursor = {
+      path: cursorHead[1]?.trim(),
+      line: Number(cursorHead[2]),
+      column: Number(cursorHead[3]),
+    };
+    const around = body.match(/Around cursor \(([^)]+)\):\s*```(?:\w*)\n([\s\S]*?)```/);
+    if (around) {
+      const range = around[1]?.match(/:(\d+)-(\d+)$/);
+      cursor.startLine = range ? Number(range[1]) : undefined;
+      cursor.endLine = range ? Number(range[2]) : undefined;
+      const text = (around[2] ?? "").replace(/\n$/, "");
+      if (text.trim()) cursor.text = text;
+    }
+  }
+
+  const diagnostics = body.match(/\nDiagnostics:\n([\s\S]*)$/)?.[1]?.trim() || undefined;
+
+  return { activePath, openTabs, selection, cursor, diagnostics };
 }
 
 export function buildSystem(
@@ -107,6 +138,17 @@ export function buildSystem(
     editorLines.push(`Current selection${loc ? ` (${loc})` : ""}:`);
     editorLines.push(editor.selection.text.slice(0, 4000));
   }
+  if (editor.cursor) {
+    const where = editor.cursor.path
+      ? `${editor.cursor.path}:${editor.cursor.line}:${editor.cursor.column}`
+      : `${editor.cursor.line}:${editor.cursor.column}`;
+    editorLines.push(`Cursor: ${where}`);
+    if (!editor.selection?.text && editor.cursor.text) {
+      editorLines.push("Code around the cursor:");
+      editorLines.push(editor.cursor.text.slice(0, 3500));
+    }
+  }
+  if (editor.diagnostics) editorLines.push(`Diagnostics:\n${editor.diagnostics.slice(0, 2000)}`);
 
   const modeGuide =
     mode === "ask"
