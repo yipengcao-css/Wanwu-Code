@@ -24,12 +24,15 @@ export function parseGitPorcelain(stdout: string): GitStatusEntry[] {
 }
 
 export function gitStatus(cwd: string): GitStatusEntry[] {
+  if (!cwd) return [];
   try {
     // Line-oriented porcelain is enough for UI/tools; -z is harder to parse for renames.
     const stdout = execFileSync("git", ["status", "--porcelain=v1"], {
       cwd,
       encoding: "utf8",
       timeout: 4000,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
     });
     return parseGitPorcelain(stdout);
   } catch {

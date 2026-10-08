@@ -360,7 +360,14 @@ export function AgentStudio(props: {
           setChats((prev) =>
             prev.map((c) =>
               c.localId === first.localId
-                ? { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
+                ? loaded.missing
+                  ? {
+                      ...c,
+                      hydrated: true,
+                      acpSessionId: undefined,
+                      log: [{ kind: "status", text: "这份会话记录已经不在了，可以直接开始新的对话。" }],
+                    }
+                  : { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
                 : c,
             ),
           );
@@ -432,11 +439,18 @@ export function AgentStudio(props: {
         setChats((prev) =>
           prev.map((c) =>
             c.localId === localId
-              ? { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
+              ? loaded.missing
+                ? {
+                    ...c,
+                    hydrated: true,
+                    acpSessionId: undefined,
+                    log: [{ kind: "status", text: "这份会话记录已经不在了，可以直接开始新的对话。" }],
+                  }
+                : { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
               : c,
           ),
         );
-        props.onStatus(`恢复会话 · ${target.title}`);
+        props.onStatus(loaded.missing ? "会话记录已不在" : `恢复会话 · ${target.title}`);
         return;
       }
       if (target.acpSessionId) {
@@ -446,6 +460,58 @@ export function AgentStudio(props: {
     } catch (err) {
       props.onStatus(sessionErrorText(err));
     }
+  }
+
+  async function closeChat(localId: string): Promise<void> {
+    if (busyRef.current && localId === activeLocalIdRef.current) return;
+    const current = chatsRef.current;
+    const target = current.find((c) => c.localId === localId);
+    if (!target) return;
+    if (target.acpSessionId) {
+      await window.wanwu.acp.deleteSession(target.acpSessionId).catch(() => undefined);
+    }
+    const rest = current.filter((c) => c.localId !== localId);
+    setTodos([]);
+    setDebugWaiting(false);
+    if (rest.length === 0) {
+      const id = newLocalId();
+      setChats([{ localId: id, title: "会话 1", hydrated: true, log: emptyWelcome() }]);
+      setActiveLocalId(id);
+      props.onStatus("已关闭会话");
+      return;
+    }
+    setChats(rest);
+    if (activeLocalIdRef.current !== localId) {
+      props.onStatus("已关闭会话");
+      return;
+    }
+    const next = rest[0]!;
+    setActiveLocalId(next.localId);
+    try {
+      if (next.acpSessionId && !next.hydrated) {
+        const loaded = await window.wanwu.acp.loadSession(next.acpSessionId);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.localId === next.localId
+              ? loaded.missing
+                ? {
+                    ...c,
+                    hydrated: true,
+                    acpSessionId: undefined,
+                    log: [{ kind: "status", text: "这份会话记录已经不在了，可以直接开始新的对话。" }],
+                  }
+                : { ...c, hydrated: true, log: historyToLog(loaded.history ?? []) }
+              : c,
+          ),
+        );
+      } else if (next.acpSessionId) {
+        await window.wanwu.acp.setSession(next.acpSessionId);
+      }
+    } catch (err) {
+      props.onStatus(sessionErrorText(err));
+      return;
+    }
+    props.onStatus("已关闭会话");
   }
 
   async function createChat(): Promise<void> {
@@ -856,18 +922,31 @@ export function AgentStudio(props: {
       <div className="session-rail" role="tablist" aria-label="会话列表">
         <div className="session-list">
           {chats.map((c) => (
-            <button
+            <div
               key={c.localId}
-              type="button"
               role="tab"
               aria-selected={c.localId === activeLocalId}
               className={`session-tab${c.localId === activeLocalId ? " active" : ""}`}
-              disabled={busy && c.localId !== activeLocalId}
-              onClick={() => void switchChat(c.localId)}
               title={c.acpSessionId ?? c.title}
             >
-              {c.title}
-            </button>
+              <button
+                type="button"
+                className="session-label"
+                disabled={busy && c.localId !== activeLocalId}
+                onClick={() => void switchChat(c.localId)}
+              >
+                {c.title}
+              </button>
+              <button
+                type="button"
+                className="session-close"
+                aria-label={`关闭会话 ${c.title}`}
+                disabled={busy && c.localId === activeLocalId}
+                onClick={() => void closeChat(c.localId)}
+              >
+                ×
+              </button>
+            </div>
           ))}
         </div>
         <button

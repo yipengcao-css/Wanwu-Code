@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { listSessionSummaries, listSessions, loadSession, saveSession, sessionPreview } from "./sessionStore.js";
+import { deleteSession, listSessionSummaries, listSessions, loadSession, saveSession, sessionPreview } from "./sessionStore.js";
 
 describe("sessionStore", () => {
   it("saves and loads session history", () => {
@@ -57,5 +57,21 @@ describe("sessionStore", () => {
       history: [{ role: "user", content: "remember this" }],
     });
     expect(listSessionSummaries(root)[0]?.preview).toBe("remember this");
+  });
+
+  it("deletes a session file and ignores unsafe ids", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-session-del-"));
+    saveSession({
+      id: "gone",
+      workspaceRoot: root,
+      createdAt: "2026-08-12T00:00:00Z",
+      updatedAt: "2026-08-12T00:00:00Z",
+      history: [],
+    });
+    expect(deleteSession(root, "../gone")).toBe(false);
+    expect(loadSession(root, "gone")).toBeTruthy();
+    expect(deleteSession(root, "gone")).toBe(true);
+    expect(loadSession(root, "gone")).toBeUndefined();
+    expect(deleteSession(root, "gone")).toBe(false);
   });
 });

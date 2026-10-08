@@ -21,6 +21,11 @@ describe("parseGitPorcelain", () => {
     expect(rows[0]?.code).toBe("R");
   });
 
+  it("returns nothing when the folder is not a repository", () => {
+    const dir = mkdtempSync(join(tmpdir(), "wanwu-git-none-"));
+    expect(gitStatus(dir)).toEqual([]);
+  });
+
   it("reads a real git worktree", () => {
     const dir = mkdtempSync(join(tmpdir(), "wanwu-git-status-"));
     execFileSync("git", ["init"], { cwd: dir });
