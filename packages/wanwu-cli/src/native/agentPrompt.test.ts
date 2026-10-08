@@ -64,6 +64,15 @@ src/a.ts:40:2 error boom
       text: "40|const x = 1",
     });
     expect(ctx.diagnostics).toBe("src/a.ts:40:2 error boom");
+    expect(ctx.recentFiles).toBeUndefined();
+  });
+
+  it("extracts recently viewed files without the active file requirement", () => {
+    const ctx = parseEditorContext(`[EDITOR_CONTEXT]
+Active file: src/a.ts
+Recent files: src/b.ts, src/c.ts
+[/EDITOR_CONTEXT]`);
+    expect(ctx.recentFiles).toEqual(["src/b.ts", "src/c.ts"]);
   });
 
   it("keeps a drive-letter path on the caret", () => {

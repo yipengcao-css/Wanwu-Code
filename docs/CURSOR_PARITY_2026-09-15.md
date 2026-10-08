@@ -45,6 +45,8 @@
 | 项 | 落点 |
 |---|---|
 | 无选区时把光标周围代码和当前文件诊断交给 Agent | `editorContext.ts` / `agentPrompt.ts` |
+| 最近查看的文件路径进入 Agent | `recentFiles.ts` / `editorContext.ts` |
+| 换模型或 ACP 重启后按编号重新加载会话 | `ipc/acp.ts` |
 
 ## 仍未做（2026-09-21）
 

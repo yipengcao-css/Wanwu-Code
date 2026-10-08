@@ -59,11 +59,18 @@ export function buildEditorContext(opts: {
   selection?: { path: string; text: string; startLine: number; endLine: number } | null;
   cursor?: CursorFocus | null;
   diagnostics?: string;
+  /** Most recent first, including the active file. The active file is omitted from the line. */
+  recentFiles?: string[];
 }): string {
   const lines: string[] = [];
   if (opts.activePath) lines.push(`Active file: ${opts.activePath}`);
   const tabs = (opts.openTabs ?? []).filter(Boolean);
   if (tabs.length) lines.push(`Open tabs: ${tabs.join(", ")}`);
+  const recent = (opts.recentFiles ?? [])
+    .map((item) => item.trim())
+    .filter((item) => item && item !== opts.activePath)
+    .slice(0, 8);
+  if (recent.length) lines.push(`Recent files: ${recent.join(", ")}`);
   const cursor =
     opts.cursor && (!opts.activePath || opts.cursor.path === opts.activePath) ? opts.cursor : null;
   if (cursor) {

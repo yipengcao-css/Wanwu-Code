@@ -109,6 +109,7 @@ export function AgentStudio(props: {
   workspaceRoot: string | null;
   activePath: string | null;
   openTabs?: string[];
+  recentFiles?: string[];
   selection?: StudioSelection | null;
   cursor?: CursorFocus | null;
   addSelectionTick?: number;
@@ -645,6 +646,7 @@ export function AgentStudio(props: {
       const ctx = buildEditorContext({
         activePath: props.activePath,
         openTabs: props.openTabs,
+        recentFiles: props.recentFiles,
         selection: includeSelection ? props.selection : null,
         cursor: props.cursor,
         diagnostics: diagnosticsForActiveFile(props.diagnosticsSummary, props.activePath),
