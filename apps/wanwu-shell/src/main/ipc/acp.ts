@@ -8,7 +8,7 @@ import {
   type AcpPermissionRequest,
 } from "@wanwu/acp-client";
 import { resolveShellAcpLaunch } from "../acpLaunch.js";
-import { shouldResetAcpSession } from "../acpSession.js";
+import { isUnknownSessionError, planSessionBind, shouldResetAcpSession } from "../acpSession.js";
 import { acpCredentialEnv } from "./settings.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -21,8 +21,13 @@ function findRepoRoot(): string {
 let client: AcpClient | undefined;
 let child: ChildProcessWithoutNullStreams | undefined;
 let sessionId: string | undefined;
+/** Session ids created or loaded in the current ACP process. */
+const liveSessions = new Set<string>();
 /** Workspace cwd the current ACP child was launched with. */
 let clientCwd: string | undefined;
+/** In-flight boot so two ensure() calls share one child. */
+let booting: Promise<void> | undefined;
+let bootGeneration = 0;
 
 function broadcast(win: BrowserWindow | null, channel: string, payload: unknown): void {
   win?.webContents.send(channel, payload);
@@ -52,37 +57,113 @@ function startNativeAcp(cwd: string): AcpClient {
   });
 }
 
-async function ensureClient(
-  root: string,
-  getWin: () => BrowserWindow | null,
-): Promise<string | undefined> {
+function rememberSession(id: string, getWin: () => BrowserWindow | null, cwd: string): string {
+  sessionId = id;
+  liveSessions.add(id);
+  broadcast(getWin(), "acp:session", { sessionId: id, cwd });
+  return id;
+}
+
+async function bootClient(root: string, getWin: () => BrowserWindow | null): Promise<void> {
   if (client && shouldResetAcpSession(clientCwd, root)) {
     disposeAcp();
   }
-  if (!client) {
-    client = startNativeAcp(root);
-    clientCwd = root;
-    client.on("message", (text: string) => broadcast(getWin(), "acp:message", text));
-    client.on("thought", (text: string) => broadcast(getWin(), "acp:thought", text));
-    client.on("tool", (tool) => broadcast(getWin(), "acp:tool", tool));
-    client.on("error", (err: Error) => broadcast(getWin(), "acp:error", err.message));
-    // Always re-read the window: a captured `win` is null if ensure() raced createWindow.
-    client.on("permission", (req: AcpPermissionRequest) =>
-      broadcast(getWin(), "acp:permission", req),
-    );
-    client.on("edit", (edit: AcpEditProposal) => broadcast(getWin(), "acp:edit", edit));
-    await client.initialize();
-    sessionId = await client.newSession(root);
-    broadcast(getWin(), "acp:session", { sessionId, cwd: root });
+  if (client) return;
+  const generation = bootGeneration;
+  if (!booting) {
+    booting = (async () => {
+      const next = startNativeAcp(root);
+      client = next;
+      clientCwd = root;
+      next.on("message", (text: string) => broadcast(getWin(), "acp:message", text));
+      next.on("thought", (text: string) => broadcast(getWin(), "acp:thought", text));
+      next.on("tool", (tool) => broadcast(getWin(), "acp:tool", tool));
+      next.on("error", (err: Error) => broadcast(getWin(), "acp:error", err.message));
+      // Always re-read the window: a captured `win` is null if ensure() raced createWindow.
+      next.on("permission", (req: AcpPermissionRequest) =>
+        broadcast(getWin(), "acp:permission", req),
+      );
+      next.on("edit", (edit: AcpEditProposal) => broadcast(getWin(), "acp:edit", edit));
+      try {
+        await next.initialize();
+      } catch (err) {
+        if (client === next) disposeAcp();
+        throw err;
+      }
+    })().finally(() => {
+      if (bootGeneration === generation) booting = undefined;
+    });
+  }
+  await booting;
+}
+
+/** Serializes session create/load so two ensure() calls cannot mint two ids. */
+let binding: Promise<void> | undefined;
+
+/** Select a live session, or load it from disk. Optionally mint a new one if the file is gone. */
+async function bindSession(
+  root: string,
+  getWin: () => BrowserWindow | null,
+  requestedId: string | undefined,
+  fallbackNew: boolean,
+): Promise<string | undefined> {
+  while (binding) await binding;
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  binding = gate;
+  try {
+    return await bindSessionUnlocked(root, getWin, requestedId, fallbackNew);
+  } finally {
+    if (binding === gate) binding = undefined;
+    release();
+  }
+}
+
+async function bindSessionUnlocked(
+  root: string,
+  getWin: () => BrowserWindow | null,
+  requestedId: string | undefined,
+  fallbackNew: boolean,
+): Promise<string | undefined> {
+  if (!client) throw new Error("ACP not ready");
+  const plan = planSessionBind(requestedId, liveSessions);
+  if (plan === "use") {
+    sessionId = requestedId!.trim();
+    return sessionId;
+  }
+  if (plan === "load") {
+    try {
+      const loaded = await client.loadSession(requestedId!.trim());
+      return rememberSession(loaded.sessionId, getWin, clientCwd ?? root);
+    } catch (err) {
+      if (!fallbackNew) throw err;
+    }
+  }
+  if (!sessionId || plan === "load") {
+    const created = await client.newSession(root);
+    return rememberSession(created, getWin, root);
   }
   return sessionId;
 }
 
+async function ensureClient(
+  root: string,
+  getWin: () => BrowserWindow | null,
+  resumeId?: string,
+  opts?: { fallbackNew?: boolean },
+): Promise<string | undefined> {
+  await bootClient(root, getWin);
+  if (!client) throw new Error("ACP not ready");
+  return bindSession(root, getWin, resumeId, opts?.fallbackNew !== false);
+}
+
 export function registerAcpIpc(getRoot: () => string | null, getWin: () => BrowserWindow | null): void {
-  ipcMain.handle("acp:ensure", async () => {
+  ipcMain.handle("acp:ensure", async (_e, resumeId?: string) => {
     const root = getRoot();
     if (!root) throw new Error("no workspace open");
-    const id = await ensureClient(root, getWin);
+    const id = await ensureClient(root, getWin, resumeId);
     return { sessionId: id, cwd: clientCwd };
   });
 
@@ -93,8 +174,25 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
       text: string,
       context?: { diagnostics?: string; terminal?: string; images?: string[] },
     ) => {
+      const root = getRoot();
+      if (!root) throw new Error("no workspace open");
       if (!client || !sessionId) throw new Error("ACP not ready");
-      return client.prompt(sessionId, text, context);
+      const send = async (): Promise<unknown> => {
+        if (!client || !sessionId) throw new Error("ACP not ready");
+        if (!liveSessions.has(sessionId)) {
+          await bindSession(root, getWin, sessionId, false);
+        }
+        return client.prompt(sessionId, text, context);
+      };
+      try {
+        return await send();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!isUnknownSessionError(message) || !sessionId) throw err;
+        liveSessions.delete(sessionId);
+        await bindSession(root, getWin, sessionId, false);
+        return send();
+      }
     },
   );
 
@@ -104,9 +202,8 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     if (!root) throw new Error("no workspace open");
     await ensureClient(root, getWin);
     if (!client) throw new Error("ACP not ready");
-    sessionId = await client.newSession(root);
-    const win = getWin();
-    broadcast(win, "acp:session", { sessionId, cwd: root });
+    const created = await client.newSession(root);
+    rememberSession(created, getWin, root);
     return { sessionId, cwd: root };
   });
 
@@ -116,10 +213,11 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     return true;
   });
 
-  ipcMain.handle("acp:setSession", (_e, nextId: string) => {
-    if (!client) throw new Error("ACP not ready");
-    sessionId = nextId;
-    return { sessionId };
+  ipcMain.handle("acp:setSession", async (_e, nextId: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    const id = await ensureClient(root, getWin, String(nextId), { fallbackNew: false });
+    return { sessionId: id };
   });
 
   ipcMain.handle("acp:listSessions", async () => {
@@ -136,8 +234,7 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     await ensureClient(root, getWin);
     if (!client) throw new Error("ACP not ready");
     const loaded = await client.loadSession(String(nextId));
-    sessionId = loaded.sessionId;
-    broadcast(getWin(), "acp:session", { sessionId, cwd: root });
+    rememberSession(loaded.sessionId, getWin, root);
     return loaded;
   });
 
@@ -154,11 +251,14 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
 }
 
 export function disposeAcp(): void {
+  bootGeneration += 1;
   client?.dispose();
   client = undefined;
   child = undefined;
   sessionId = undefined;
+  liveSessions.clear();
   clientCwd = undefined;
+  booting = undefined;
 }
 
 /** Call when the shell workspace root changes (breaks ACP singleton). */

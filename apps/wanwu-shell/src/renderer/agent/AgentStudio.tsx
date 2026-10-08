@@ -87,6 +87,12 @@ export type StudioSelection = {
   endLine: number;
 };
 
+function sessionErrorText(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
+  if (/unknown session|session not found/i.test(raw)) return "会话已失效，请新开一个会话";
+  return raw;
+}
+
 function modePrefix(mode: WanwuMode): string {
   if (mode === "plan") return "[MODE=plan] 只产出计划，不要修改文件。\n";
   if (mode === "ask") return "[MODE=ask] 只回答问题，不要修改文件。\n";
@@ -152,6 +158,7 @@ export function AgentStudio(props: {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileSkillsHydrated = useRef(false);
   const activeLocalIdRef = useRef(activeLocalId);
+  const chatsRef = useRef(chats);
   const busyRef = useRef(false);
   const queueRef = useRef<Array<{ prompt: string; images: PendingImage[] }>>([]);
   const sendRef = useRef<
@@ -163,6 +170,7 @@ export function AgentStudio(props: {
     }) => Promise<void>
   >(async () => undefined);
   activeLocalIdRef.current = activeLocalId;
+  chatsRef.current = chats;
 
   const active = chats.find((c) => c.localId === activeLocalId) ?? chats[0]!;
 
@@ -390,21 +398,20 @@ export function AgentStudio(props: {
         const sid = info.sessionId;
         if (!sid) return;
         setChats((prev) =>
-          prev.map((c) =>
-            c.localId === activeLocalIdRef.current
-              ? {
-                  ...c,
-                  acpSessionId: sid,
-                  log: [
-                    ...c.log,
-                    {
-                      kind: "status",
-                      text: `session=${sid} · cwd=${info.cwd ?? "?"}`,
-                    },
-                  ],
-                }
-              : c,
-          ),
+          prev.map((c) => {
+            if (c.localId !== activeLocalIdRef.current || c.acpSessionId) return c;
+            return {
+              ...c,
+              acpSessionId: sid,
+              log: [
+                ...c.log,
+                {
+                  kind: "status",
+                  text: `session=${sid} · cwd=${info.cwd ?? "?"}`,
+                },
+              ],
+            };
+          }),
         );
       }),
     ];
@@ -436,7 +443,7 @@ export function AgentStudio(props: {
         props.onStatus(`切换会话 · ${target.title}`);
       }
     } catch (err) {
-      props.onStatus(err instanceof Error ? err.message : String(err));
+      props.onStatus(sessionErrorText(err));
     }
   }
 
@@ -598,7 +605,8 @@ export function AgentStudio(props: {
     }
     try {
       props.onStatus("连接 ACP…");
-      const { sessionId, cwd } = await window.wanwu.acp.ensure();
+      const resumeId = chatsRef.current.find((c) => c.localId === activeLocalIdRef.current)?.acpSessionId;
+      const { sessionId, cwd } = await window.wanwu.acp.ensure(resumeId);
       setChats((prev) =>
         prev.map((c) =>
           c.localId === activeLocalIdRef.current
@@ -606,6 +614,9 @@ export function AgentStudio(props: {
             : c,
         ),
       );
+      if (resumeId && sessionId && sessionId !== resumeId) {
+        patchActive((prev) => [...prev, { kind: "status", text: "原会话已失效，已开始新的会话" }]);
+      }
       props.onStatus(`session=${sessionId ?? "?"} · ${cwd ?? props.workspaceRoot ?? "?"}`);
       if (!override) setLastPrompt(prompt);
       const attachedDirs = availableSkills.filter((s) => attachedSkillIds.includes(s.id));

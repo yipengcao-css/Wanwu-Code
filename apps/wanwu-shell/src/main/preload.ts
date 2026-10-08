@@ -88,7 +88,7 @@ export type WanwuBridge = {
     }) => Promise<{ text: string; model?: string; error?: string }>;
   };
   acp: {
-    ensure: () => Promise<{ sessionId?: string; cwd?: string }>;
+    ensure: (resumeId?: string) => Promise<{ sessionId?: string; cwd?: string }>;
     newChat: () => Promise<{ sessionId?: string; cwd?: string }>;
     setSession: (sessionId: string) => Promise<{ sessionId?: string }>;
     prompt: (
@@ -243,7 +243,7 @@ const bridge: WanwuBridge = {
     terminalAsk: (req) => ipcRenderer.invoke("ai:terminalAsk", req),
   },
   acp: {
-    ensure: () => ipcRenderer.invoke("acp:ensure"),
+    ensure: (resumeId) => ipcRenderer.invoke("acp:ensure", resumeId),
     newChat: () => ipcRenderer.invoke("acp:newChat"),
     setSession: (sessionId) => ipcRenderer.invoke("acp:setSession", sessionId),
     prompt: (text, context) => ipcRenderer.invoke("acp:prompt", text, context),
