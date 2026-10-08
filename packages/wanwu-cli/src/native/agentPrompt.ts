@@ -28,6 +28,7 @@ export interface EditorContext {
   selection?: EditorSelection;
   cursor?: EditorCursor;
   diagnostics?: string;
+  recentFiles?: string[];
 }
 
 const EDITOR_BLOCK = /\[EDITOR_CONTEXT\]([\s\S]*?)\[\/EDITOR_CONTEXT\]/;
@@ -83,8 +84,19 @@ export function parseEditorContext(prompt: string): EditorContext {
   }
 
   const diagnostics = body.match(/\nDiagnostics:\n([\s\S]*)$/)?.[1]?.trim() || undefined;
+  const recentFiles = (body.match(/Recent files:\s*(.+)/i)?.[1] ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 
-  return { activePath, openTabs, selection, cursor, diagnostics };
+  return {
+    activePath,
+    openTabs,
+    selection,
+    cursor,
+    diagnostics,
+    ...(recentFiles.length ? { recentFiles } : {}),
+  };
 }
 
 export function buildSystem(
@@ -121,11 +133,15 @@ export function buildSystem(
   const rules = renderRulesForPrompt(discoverRules(ctx.workspaceRoot), [
     ...activeFiles,
     ...editor.openTabs,
+    ...(editor.recentFiles ?? []),
   ]);
 
   const editorLines: string[] = [];
   if (editor.activePath) editorLines.push(`Active file: ${editor.activePath}`);
   if (editor.openTabs.length) editorLines.push(`Open editors: ${editor.openTabs.join(", ")}`);
+  if (editor.recentFiles?.length) {
+    editorLines.push(`Recently viewed: ${editor.recentFiles.join(", ")}`);
+  }
   if (editor.selection?.text) {
     const loc =
       editor.selection.path != null

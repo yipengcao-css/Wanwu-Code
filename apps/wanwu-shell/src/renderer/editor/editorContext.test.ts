@@ -21,9 +21,12 @@ assert.equal(
 const block = buildEditorContext({
   activePath: "src/a.ts",
   openTabs: ["src/a.ts"],
+  recentFiles: ["src/a.ts", "src/b.ts", "src/c.ts"],
   cursor: { path: "src/a.ts", line: 40, column: 2, startLine: 16, endLine: 64, text: "40|line 40" },
   diagnostics: "src/a.ts:40:2 error boom",
 });
+assert.match(block, /Recent files: src\/b\.ts, src\/c\.ts/);
+assert.doesNotMatch(block, /Recent files:.*src\/a\.ts/);
 assert.match(block, /Cursor: src\/a\.ts:40:2/);
 assert.match(block, /Around cursor \(src\/a\.ts:16-64\)/);
 assert.match(block, /40\|line 40/);

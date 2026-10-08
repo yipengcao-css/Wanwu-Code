@@ -5,6 +5,7 @@ import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
 import type { CursorFocus } from "../editor/editorContext";
+import { rememberViewed } from "../editor/recentFiles";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
@@ -70,8 +71,13 @@ export function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [selection, setSelection] = useState<EditorSelection | null>(null);
   const [cursorFocus, setCursorFocus] = useState<CursorFocus | null>(null);
+  const [recentFiles, setRecentFiles] = useState<string[]>([]);
   const [addSelectionTick, setAddSelectionTick] = useState(0);
   const [modelLabel, setModelLabel] = useState("");
+
+  useEffect(() => {
+    setRecentFiles((prev) => rememberViewed(prev, activePath));
+  }, [activePath]);
 
   const activeTab = useMemo(
     () => tabs.find((t) => t.path === activePath) ?? null,
@@ -193,6 +199,7 @@ export function App() {
       setTabs([]);
       setActivePath(null);
       setSelection(null);
+      setRecentFiles([]);
       setDiagnostics({});
       void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
@@ -223,6 +230,7 @@ export function App() {
       setTabs([]);
       setActivePath(null);
       setSelection(null);
+      setRecentFiles([]);
       setDiagnostics({});
       void window.wanwu.lsp.dispose();
       setStatus(`工作区 · ${dir}`);
@@ -415,6 +423,7 @@ export function App() {
             workspaceRoot={root}
             activePath={activePath}
             openTabs={tabs.map((t) => t.path)}
+            recentFiles={recentFiles}
             selection={selection}
             cursor={cursorFocus}
             addSelectionTick={addSelectionTick}

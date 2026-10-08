@@ -16,9 +16,9 @@
 - **配置**：`~/.wanwu/config.toml` + 工作区 `.wanwu/`；密钥走 `credentials.env`
 - **工具**：Read（行号 + offset/limit）/ ListDir / Glob / Grep / Edit / Write / Bash / Todo / WebFetch / WebSearch / Browser / Debug / Diagnose / SearchCodebase / Task
 - **编辑落盘**：`ask` 只提案（宿主 Diff 接受才写）；`accept-edits` / `accept-all` 在权限通过后直接写盘并打检查点
-- **上下文**：打开标签 + **真实选区** + 光标周围代码（无选区时）+ 当前文件诊断；`@codebase` / `@selection`；只读工具可并行
+- **上下文**：打开标签 + 最近查看的文件路径 + **真实选区** + 光标周围代码（无选区时）+ 当前文件诊断；`@codebase` / `@selection`；只读工具可并行
 - **模式工具面**：Ask/Plan/Verify 不向模型暴露写工具；Debug 可插桩但须标 WANWU_DEBUG 并在 cleanup 删除；Plan 可先探索再出计划，UI「按此计划执行」
-- **会话**：ACP `session/list` + `session/load`；Shell 侧栏可恢复 `.wanwu/sessions/`
+- **会话**：ACP `session/list` + `session/load`；Shell 侧栏可恢复 `.wanwu/sessions/`。进程重启后按会话编号重新 load，不把磁盘里的编号直接拿去 prompt
 
 ## 决策记忆（勿擅自推翻）
 
@@ -56,4 +56,6 @@
 - (2026-09-28) 索引保存不留 codebase.json.tmp；没有差异的审阅不进队列
 - (2026-09-28) Agent 回合默认 40，仍在推进时自适应加到 120；重复同一组工具调用会停（键顺序不同也算同一组）。`WANWU_AGENT_MAX_TURNS` 同样限制子代理
 - (2026-10-08) 无选区时 Agent 带上光标周围带行号的代码，以及当前文件的诊断（行号从 1 计）；切文件后不沿用上一份光标窗口
+- (2026-10-08) 换模型或重启 ACP 后，继续当前会话会重新 load；界面上的旧编号不会直接 prompt
+- (2026-10-08) Agent 会看到最近查看的文件路径（不含当前文件，最多 8 个）
 - 明确不做：Cloud Agents / Bugbot / DAP（Debug 是插桩约定，不是调试器协议）
