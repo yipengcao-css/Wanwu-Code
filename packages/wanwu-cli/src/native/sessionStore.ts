@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { flattenText, type ChatMessage } from "@wanwu/providers";
 
@@ -22,6 +22,17 @@ export function saveSession(session: StoredSession): void {
     JSON.stringify(session, null, 2),
     "utf8",
   );
+}
+
+const SESSION_ID = /^[\w.-]+$/;
+
+/** Remove a saved session. Missing files are fine. Rejects path tricks. */
+export function deleteSession(workspaceRoot: string, id: string): boolean {
+  if (!SESSION_ID.test(id)) return false;
+  const file = join(sessionsRoot(workspaceRoot), `${id}.json`);
+  if (!existsSync(file)) return false;
+  unlinkSync(file);
+  return true;
 }
 
 export function loadSession(

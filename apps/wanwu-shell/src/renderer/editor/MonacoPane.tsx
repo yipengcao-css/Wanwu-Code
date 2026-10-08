@@ -200,19 +200,32 @@ export function MonacoPane(props: {
   return (
     <>
       <div className="tabs">
-        {props.tabs.map((t) => (
-          <button
-            key={t.path}
-            type="button"
-            className={`tab${t.path === props.activePath ? " active" : ""}${t.dirty ? " dirty" : ""}`}
-            onClick={() => props.onSelect(t.path)}
-            onAuxClick={(e) => {
-              if (e.button === 1) props.onClose(t.path);
-            }}
-          >
-            {t.path.split("/").pop()}
-          </button>
-        ))}
+        {props.tabs.map((t) => {
+          const name = t.path.split("/").pop() ?? t.path;
+          return (
+            <div
+              key={t.path}
+              role="tab"
+              aria-selected={t.path === props.activePath}
+              className={`tab${t.path === props.activePath ? " active" : ""}${t.dirty ? " dirty" : ""}`}
+              onAuxClick={(e) => {
+                if (e.button === 1) props.onClose(t.path);
+              }}
+            >
+              <button type="button" className="tab-main" onClick={() => props.onSelect(t.path)}>
+                {name}
+              </button>
+              <button
+                type="button"
+                className="tab-close"
+                aria-label={`关闭 ${name}`}
+                onClick={() => props.onClose(t.path)}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
       </div>
       <div className="monaco-host">
         {active ? (

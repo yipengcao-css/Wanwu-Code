@@ -1,5 +1,6 @@
 import { app, ipcMain, type BrowserWindow } from "electron";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -233,9 +234,39 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     if (!root) throw new Error("no workspace open");
     await ensureClient(root, getWin);
     if (!client) throw new Error("ACP not ready");
-    const loaded = await client.loadSession(String(nextId));
-    rememberSession(loaded.sessionId, getWin, root);
-    return loaded;
+    try {
+      const loaded = await client.loadSession(String(nextId));
+      rememberSession(loaded.sessionId, getWin, root);
+      return loaded;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/session not found/i.test(message)) {
+        return { sessionId: String(nextId), missing: true, history: [] as unknown[] };
+      }
+      throw err;
+    }
+  });
+
+  ipcMain.handle("acp:deleteSession", async (_e, rawId: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    const id = String(rawId).trim();
+    if (!/^[\w.-]+$/.test(id)) throw new Error("invalid session id");
+    liveSessions.delete(id);
+    if (sessionId === id) sessionId = undefined;
+    if (client) {
+      try {
+        await client.deleteSession(id);
+        return { ok: true };
+      } catch {
+        /* Older backends have no session/delete; remove the file locally. */
+      }
+    }
+    const file = path.join(root, ".wanwu", "sessions", `${id}.json`);
+    const rel = path.relative(root, file);
+    if (rel.startsWith("..") || path.isAbsolute(rel)) throw new Error("invalid session path");
+    if (existsSync(file)) unlinkSync(file);
+    return { ok: true };
   });
 
   // send/on — not invoke/handle. Nested invoke behind an in-flight acp:prompt

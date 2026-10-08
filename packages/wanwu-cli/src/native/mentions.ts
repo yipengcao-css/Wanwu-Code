@@ -102,6 +102,8 @@ function runGit(root: string, args: string[]): string {
       cwd: root,
       timeout: 10_000,
       maxBuffer: 1024 * 1024,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, GIT_PAGER: "cat", PAGER: "cat" },
     })
       .toString()

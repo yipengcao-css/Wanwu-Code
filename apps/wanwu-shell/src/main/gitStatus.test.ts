@@ -20,6 +20,9 @@ assert.equal(scmCodeForPath("src/a.ts", rows), "M");
 assert.equal(scmCodeForPath("src", rows), "dirty");
 assert.equal(scmCodeForPath("README.md", rows), undefined);
 
+const plain = mkdtempSync(join(tmpdir(), "wanwu-shell-nogit-"));
+assert.deepEqual(gitStatus(plain), []);
+
 const dir = mkdtempSync(join(tmpdir(), "wanwu-shell-git-"));
 execFileSync("git", ["init"], { cwd: dir });
 writeFileSync(join(dir, "tracked-soon.txt"), "x");

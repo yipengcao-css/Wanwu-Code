@@ -1,4 +1,6 @@
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import path from "node:path";
 
 export type GitStatusCode = "M" | "A" | "D" | "?" | "U" | "R" | "C";
 
@@ -24,12 +26,15 @@ export function parseGitPorcelain(stdout: string): GitStatusEntry[] {
 }
 
 export function gitStatus(cwd: string): GitStatusEntry[] {
+  if (!cwd || !existsSync(path.join(cwd, ".git"))) return [];
   try {
     // Line-oriented porcelain is enough for UI/tools; -z is harder to parse for renames.
     const stdout = execFileSync("git", ["status", "--porcelain=v1"], {
       cwd,
       encoding: "utf8",
       timeout: 4000,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
     });
     return parseGitPorcelain(stdout);
   } catch {

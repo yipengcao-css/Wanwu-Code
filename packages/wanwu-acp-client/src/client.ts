@@ -153,6 +153,11 @@ export class AcpClient extends EventEmitter {
     return result.sessionId ?? "unknown";
   }
 
+  async deleteSession(sessionId: string): Promise<boolean> {
+    const result = (await this.request("session/delete", { sessionId })) as { removed?: boolean };
+    return Boolean(result?.removed);
+  }
+
   async loadSession(sessionId: string): Promise<{ sessionId: string; history?: unknown[] }> {
     const result = (await this.request("session/load", { sessionId })) as {
       sessionId?: string;

@@ -109,7 +109,8 @@ export type WanwuBridge = {
         preview?: string;
       }>;
     }>;
-    loadSession: (sessionId: string) => Promise<{ sessionId: string; history?: unknown[] }>;
+    loadSession: (sessionId: string) => Promise<{ sessionId: string; history?: unknown[]; missing?: boolean }>;
+    deleteSession: (sessionId: string) => Promise<{ ok: boolean }>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
@@ -250,6 +251,7 @@ const bridge: WanwuBridge = {
     cancel: () => ipcRenderer.invoke("acp:cancel"),
     listSessions: () => ipcRenderer.invoke("acp:listSessions"),
     loadSession: (sessionId) => ipcRenderer.invoke("acp:loadSession", sessionId),
+    deleteSession: (sessionId) => ipcRenderer.invoke("acp:deleteSession", sessionId),
     respondPermission: (id, optionId) => {
       ipcRenderer.send("acp:respondPermission", id, optionId);
       return Promise.resolve(true);
