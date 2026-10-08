@@ -228,6 +228,10 @@ button {
   min-height: 0;
 }
 
+.workspace.no-editor {
+  grid-template-columns: var(--ww-files-w) 6px minmax(0, 1fr);
+}
+
 .panel {
   min-height: 0;
   background: rgba(15, 21, 36, 0.78);
