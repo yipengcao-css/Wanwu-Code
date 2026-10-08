@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { WanwuMode } from "../layout/OrbitBar";
+import { buildEditorContext, diagnosticsForActiveFile, type CursorFocus } from "../editor/editorContext";
 import {
   applyMention,
   completeMentions,
@@ -86,25 +87,6 @@ export type StudioSelection = {
   endLine: number;
 };
 
-function buildEditorContext(opts: {
-  activePath: string | null;
-  openTabs?: string[];
-  selection?: StudioSelection | null;
-}): string {
-  const lines: string[] = [];
-  if (opts.activePath) lines.push(`Active file: ${opts.activePath}`);
-  const tabs = (opts.openTabs ?? []).filter(Boolean);
-  if (tabs.length) lines.push(`Open tabs: ${tabs.join(", ")}`);
-  if (opts.selection?.text.trim()) {
-    const s = opts.selection;
-    lines.push(`Selection (${s.path}:${s.startLine}-${s.endLine}):`);
-    lines.push("```");
-    lines.push(s.text.slice(0, 8000));
-    lines.push("```");
-  }
-  return lines.length ? `[EDITOR_CONTEXT]\n${lines.join("\n")}\n[/EDITOR_CONTEXT]\n` : "";
-}
-
 function modePrefix(mode: WanwuMode): string {
   if (mode === "plan") return "[MODE=plan] 只产出计划，不要修改文件。\n";
   if (mode === "ask") return "[MODE=ask] 只回答问题，不要修改文件。\n";
@@ -122,6 +104,7 @@ export function AgentStudio(props: {
   activePath: string | null;
   openTabs?: string[];
   selection?: StudioSelection | null;
+  cursor?: CursorFocus | null;
   addSelectionTick?: number;
   modelLabel?: string;
   /** Flattened LSP diagnostics for @diagnostics mention resolution. */
@@ -652,6 +635,8 @@ export function AgentStudio(props: {
         activePath: props.activePath,
         openTabs: props.openTabs,
         selection: includeSelection ? props.selection : null,
+        cursor: props.cursor,
+        diagnostics: diagnosticsForActiveFile(props.diagnosticsSummary, props.activePath),
       });
       const result = await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt || "请查看附图。"}`, {
         diagnostics: props.diagnosticsSummary,

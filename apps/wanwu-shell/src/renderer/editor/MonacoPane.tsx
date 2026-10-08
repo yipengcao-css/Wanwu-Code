@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import type { DiffHunk } from "../agent/diffHunks";
+import { formatCursorWindow, type CursorFocus } from "./editorContext";
 import { mountHunkReview } from "./hunkReview";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
@@ -86,6 +87,8 @@ export function MonacoPane(props: {
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
   onSelectionChange?: (sel: EditorSelection | null) => void;
+  /** Caret plus a numbered window. The window is omitted while a selection is active. */
+  onCursorContext?: (cursor: CursorFocus | null) => void;
   review?: {
     hunks: DiffHunk[];
     accepted: Record<string, boolean>;
@@ -129,28 +132,46 @@ export function MonacoPane(props: {
     attachTabNextJump(editor);
     attachInlineEdit(editor);
     registerLspFeatures();
-    const emitSelection = (): void => {
+    let focusTimer = 0;
+    const emitFocus = (): void => {
       const model = editor.getModel();
-      const range = editor.getSelection();
       const path = props.activePath;
-      if (!model || !range || !path || range.isEmpty()) {
+      const pos = editor.getPosition();
+      const range = editor.getSelection();
+      if (!model || !path || !pos) {
         props.onSelectionChange?.(null);
+        props.onCursorContext?.(null);
         return;
       }
-      const text = model.getValueInRange(range);
-      if (!text.trim()) {
-        props.onSelectionChange?.(null);
+      if (range && !range.isEmpty()) {
+        const text = model.getValueInRange(range);
+        props.onSelectionChange?.(
+          text.trim()
+            ? { path, text, startLine: range.startLineNumber, endLine: range.endLineNumber }
+            : null,
+        );
+        props.onCursorContext?.({ path, line: pos.lineNumber, column: pos.column });
         return;
       }
-      props.onSelectionChange?.({
+      props.onSelectionChange?.(null);
+      const windowed = formatCursorWindow(model.getValue(), pos.lineNumber, pos.column);
+      props.onCursorContext?.({
         path,
-        text,
-        startLine: range.startLineNumber,
-        endLine: range.endLineNumber,
+        line: pos.lineNumber,
+        column: windowed.column,
+        startLine: windowed.startLine,
+        endLine: windowed.endLine,
+        text: windowed.text,
       });
     };
-    editor.onDidChangeCursorSelection(emitSelection);
-    emitSelection();
+    const scheduleFocus = (): void => {
+      window.clearTimeout(focusTimer);
+      focusTimer = window.setTimeout(emitFocus, 180);
+    };
+    editor.onDidChangeCursorSelection(scheduleFocus);
+    editor.onDidChangeModelContent(scheduleFocus);
+    editor.onDidDispose(() => window.clearTimeout(focusTimer));
+    emitFocus();
   };
 
   // Jump to a line requested by global search.

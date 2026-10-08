@@ -40,6 +40,12 @@
 | MCP HTTP + 本机 OAuth | `mcp/httpClient.ts` / `mcp/oauth.ts` |
 | 扩展侧栏 + 停止/恢复 | `sidebarView.ts` / `wanwu.cancel` / `wanwu.resumeSession` |
 
+## 2026-10-08 已落地
+
+| 项 | 落点 |
+|---|---|
+| 无选区时把光标周围代码和当前文件诊断交给 Agent | `editorContext.ts` / `agentPrompt.ts` |
+
 ## 仍未做（2026-09-21）
 
 1. Cloud Agents / Bugbot / DAP（明确不做本批）
