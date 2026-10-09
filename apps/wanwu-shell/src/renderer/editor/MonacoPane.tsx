@@ -297,7 +297,7 @@ export function MonacoPane(props: {
                 key={`split-${split.path}`}
                 height="100%"
                 theme="vs-dark"
-                path={split.path}
+                path={`${split.path}#split`}
                 language={languageFor(split.path)}
                 value={split.content}
                 onMount={(editor) => {
