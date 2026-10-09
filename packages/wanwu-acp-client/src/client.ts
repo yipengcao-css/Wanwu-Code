@@ -153,6 +153,11 @@ export class AcpClient extends EventEmitter {
     return result.sessionId ?? "unknown";
   }
 
+  async renameSession(sessionId: string, title: string): Promise<boolean> {
+    const result = (await this.request("session/rename", { sessionId, title })) as { ok?: boolean };
+    return Boolean(result?.ok);
+  }
+
   async deleteSession(sessionId: string): Promise<boolean> {
     const result = (await this.request("session/delete", { sessionId })) as { removed?: boolean };
     return Boolean(result?.removed);
@@ -173,6 +178,7 @@ export class AcpClient extends EventEmitter {
       updatedAt?: string;
       messages?: number;
       preview?: string;
+      title?: string;
     }>;
   }> {
     const result = (await this.request("session/list", {})) as {
@@ -182,6 +188,7 @@ export class AcpClient extends EventEmitter {
         updatedAt?: string;
         messages?: number;
         preview?: string;
+        title?: string;
       }>;
     };
     return { sessions: result.sessions ?? [] };

@@ -1201,6 +1201,21 @@ button {
   pointer-events: none;
 }
 
+.session-search,
+.session-rename {
+  border: 1px solid var(--ww-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--ww-text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.session-search {
+  width: 120px;
+}
+
 .session-rail {
   display: flex;
   align-items: center;

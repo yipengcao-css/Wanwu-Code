@@ -8,6 +8,8 @@ export interface StoredSession {
   createdAt: string;
   updatedAt: string;
   history: ChatMessage[];
+  /** User-facing name. Survives later saves that only refresh history. */
+  title?: string;
 }
 
 function sessionsRoot(workspaceRoot: string): string {
@@ -17,11 +19,9 @@ function sessionsRoot(workspaceRoot: string): string {
 export function saveSession(session: StoredSession): void {
   const dir = sessionsRoot(session.workspaceRoot);
   mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, `${session.id}.json`),
-    JSON.stringify(session, null, 2),
-    "utf8",
-  );
+  const prev = loadSession(session.workspaceRoot, session.id);
+  const next: StoredSession = { ...session, title: session.title ?? prev?.title };
+  writeFileSync(join(dir, `${session.id}.json`), JSON.stringify(next, null, 2), "utf8");
 }
 
 const SESSION_ID = /^[\w.-]+$/;
@@ -32,6 +32,23 @@ export function deleteSession(workspaceRoot: string, id: string): boolean {
   const file = join(sessionsRoot(workspaceRoot), `${id}.json`);
   if (!existsSync(file)) return false;
   unlinkSync(file);
+  return true;
+}
+
+export function renameSession(workspaceRoot: string, id: string, title: string): boolean {
+  if (!SESSION_ID.test(id)) return false;
+  const clean = title.trim().slice(0, 80);
+  if (!clean) return false;
+  const existing = loadSession(workspaceRoot, id);
+  const now = new Date().toISOString();
+  saveSession({
+    id,
+    workspaceRoot,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: existing?.updatedAt ?? now,
+    history: existing?.history ?? [],
+    title: clean,
+  });
   return true;
 }
 
@@ -78,6 +95,7 @@ export interface SessionSummary {
   updatedAt: string;
   messages: number;
   preview: string;
+  title?: string;
 }
 
 export function listSessionSummaries(workspaceRoot: string): SessionSummary[] {
@@ -85,7 +103,8 @@ export function listSessionSummaries(workspaceRoot: string): SessionSummary[] {
     id: s.id,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
-    messages: s.history.length,
-    preview: sessionPreview(s.history),
-  }));
+      messages: s.history.length,
+      preview: sessionPreview(s.history),
+      title: s.title,
+    }));
 }
