@@ -10,7 +10,7 @@ import { dirname, join, relative } from "node:path";
 import type { PermissionMode, SandboxMode } from "@wanwu/config";
 import { assessBash } from "../permission.js";
 import { runSandboxed } from "./sandbox/runSandboxed.js";
-import { loadIgnore } from "./ignore.js";
+import { isIgnoredPath, loadIgnore } from "./ignore.js";
 import { PathSandboxError, assertInsideWorkspace, isDirectory } from "./workspacePaths.js";
 
 export interface ToolResult {
@@ -127,6 +127,10 @@ export function toolRead(
 ): ToolResult {
   try {
     const abs = assertInsideWorkspace(workspaceRoot, pathArg);
+    const rel = relative(workspaceRoot, abs).replace(/\\/g, "/");
+    if (isIgnoredPath(workspaceRoot, rel, false)) {
+      return { ok: false, title: "Read", text: `ignored by .wanwuignore: ${rel}` };
+    }
     if (!existsSync(abs) || isDirectory(abs)) {
       return { ok: false, title: "Read", text: `not a file: ${pathArg}` };
     }

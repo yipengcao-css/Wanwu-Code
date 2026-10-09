@@ -51,6 +51,14 @@ describe("resolveMentions", () => {
     expect(out).toContain("src/x.ts");
   });
 
+  it("does not inline ignored file contents", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-mention-"));
+    writeFileSync(join(root, ".env"), "SECRET=1\n", "utf8");
+    const out = await resolveMentions(root, [{ raw: "@.env", kind: "file", arg: ".env" }]);
+    expect(out).toMatch(/ignored/i);
+    expect(out).not.toContain("SECRET");
+  });
+
   it("jails escape attempts", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-mention-"));
     const out = await resolveMentions(root, [{ raw: "@../etc", kind: "file", arg: "../etc" }]);

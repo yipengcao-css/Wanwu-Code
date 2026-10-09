@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { loadIgnore } from "./ignore.js";
+import { isIgnoredPath, loadIgnore } from "./ignore.js";
 import { assertInsideWorkspace, PathSandboxError } from "./workspacePaths.js";
 
 /**
@@ -69,6 +69,8 @@ function readFileMention(root: string, rel: string): string {
   const abs = assertInsideWorkspace(root, rel);
   if (!existsSync(abs)) return `(not found: ${rel})`;
   const st = statSync(abs);
+  const relNorm = abs.slice(root.length + 1).replace(/\\/g, "/") || rel.replace(/\\/g, "/");
+  if (isIgnoredPath(root, relNorm, st.isDirectory())) return `(ignored: ${rel})`;
   if (st.isDirectory()) {
     const lines: string[] = [];
     const ignore = loadIgnore(root);
