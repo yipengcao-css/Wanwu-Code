@@ -1201,6 +1201,29 @@ button {
   pointer-events: none;
 }
 
+.context-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ww-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.context-bar {
+  width: 72px;
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.context-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--ww-accent, #7ee0c3);
+}
+
 .session-search,
 .session-rename {
   border: 1px solid var(--ww-border);

@@ -7,6 +7,7 @@ import {
   mentionTokenAt,
   type MentionSuggestion,
 } from "./mentionComplete";
+import { contextPercent, contextWindowFor, estimateTokens } from "./contextMeter";
 import { MessageBody, ToolChip } from "./MessageBody";
 import { modelsForProvider } from "./modelPresets";
 import {
@@ -1400,6 +1401,23 @@ export function AgentStudio(props: {
           }}
         />
         <div className="composer-row">
+          <span className="context-meter" title="按当前对话估算的上下文占用">
+            {(() => {
+              const textBody = active.log
+                .map((item) => (item.kind === "tool" ? `${item.title}\n${item.detail ?? ""}` : item.text))
+                .join("\n");
+              const tokens = Math.max(estimateTokens(textBody), lastUsage?.in ?? 0);
+              const pct = contextPercent(tokens, contextWindowFor(props.modelLabel ?? ""));
+              return (
+                <>
+                  <span className="context-bar" aria-hidden>
+                    <span style={{ width: `${pct}%` }} />
+                  </span>
+                  上下文 {pct}%
+                </>
+              );
+            })()}
+          </span>
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
             <span className="model-menu-wrap">
               <button
