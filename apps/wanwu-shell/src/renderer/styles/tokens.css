@@ -1201,6 +1201,27 @@ button {
   pointer-events: none;
 }
 
+.library-panel {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.library-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.library-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+
 .subagent {
   margin: 6px 0;
   border: 1px solid var(--ww-border);

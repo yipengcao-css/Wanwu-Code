@@ -17,6 +17,15 @@ export type WanwuBridge = {
     listFiles: () => Promise<string[]>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
+  library: {
+    list: () => Promise<{
+      rules: Array<{ name: string; scope: "user" | "workspace"; body: string }>;
+      memories: Array<{ index: number; text: string }>;
+    }>;
+    writeRule: (payload: { name: string; body: string; scope: "user" | "workspace" }) => Promise<{ ok: boolean }>;
+    deleteRule: (name: string, scope: "user" | "workspace") => Promise<{ ok: boolean }>;
+    deleteMemory: (index: number) => Promise<{ ok: boolean }>;
+  };
   git: {
     status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
     changes: () => Promise<{ repo: boolean; files: Array<{ path: string; code: string; staged: boolean }> }>;
@@ -224,6 +233,12 @@ const bridge: WanwuBridge = {
     search: (query) => ipcRenderer.invoke("fs:search", query),
     listFiles: () => ipcRenderer.invoke("fs:listFiles"),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
+  },
+  library: {
+    list: () => ipcRenderer.invoke("library:list"),
+    writeRule: (payload) => ipcRenderer.invoke("library:writeRule", payload),
+    deleteRule: (name, scope) => ipcRenderer.invoke("library:deleteRule", name, scope),
+    deleteMemory: (index) => ipcRenderer.invoke("library:deleteMemory", index),
   },
   git: {
     status: () => ipcRenderer.invoke("git:status"),
