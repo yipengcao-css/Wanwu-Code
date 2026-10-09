@@ -61,8 +61,8 @@ describe("toolBrowser", () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-browser-click-"));
     const home = "<html><title>Home</title><body><a href='/next'>Next</a><input name='q' /></body></html>";
     const next = "<html><title>Next</title><body><h1>Arrived</h1><button name='save'>Save</button></body></html>";
-    const fetchImpl = async (url: string) =>
-      new Response(String(url).includes("/next") ? next : home, { status: 200 });
+    const fetchImpl = async (input: string | URL | Request) =>
+      new Response(String(input).includes("/next") ? next : home, { status: 200 });
     await toolBrowser(root, { action: "navigate", url: "https://example.test/" }, { fetchImpl });
     const typed = await toolBrowser(root, { action: "type", target: "q", text: "wanwu" }, { fetchImpl });
     expect(typed.text).toContain("q=wanwu");
