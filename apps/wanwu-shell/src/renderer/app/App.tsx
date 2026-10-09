@@ -7,6 +7,12 @@ import { SearchPanel } from "../files/SearchPanel";
 import type { CursorFocus } from "../editor/editorContext";
 import { formatPrimaryEditor } from "../editor/editorActions";
 import { rememberViewed } from "../editor/recentFiles";
+import {
+  RECENT_WORKSPACES_KEY,
+  readRecentWorkspaces,
+  rememberWorkspace,
+  workspaceLabel,
+} from "../workspace/recentWorkspaces";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { ProblemsPanel } from "../problems/ProblemsPanel";
@@ -47,6 +53,13 @@ function formatDiagnosticsSummary(diagnostics: Record<string, MarkerDiag[]>): st
 export function App() {
   const initial = loadLayout();
   const [root, setRoot] = useState<string | null>(null);
+  const [recentWorkspaces, setRecentWorkspaces] = useState<string[]>(() => {
+    try {
+      return readRecentWorkspaces(localStorage.getItem(RECENT_WORKSPACES_KEY));
+    } catch {
+      return [];
+    }
+  });
   const [mode, setMode] = useState<WanwuMode>("agent");
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
@@ -60,6 +73,7 @@ export function App() {
   );
   const [termOpen, setTermOpen] = useState(initial.termOpen);
   const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
+  const [revealDir, setRevealDir] = useState<string | null>(null);
   const [splitPath, setSplitPath] = useState<string | null>(null);
   const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
   const gotoSeq = useRef(0);
@@ -128,6 +142,17 @@ export function App() {
   useEffect(() => {
     saveLayout({ filesW, agentW, termH, termOpen });
   }, [filesW, agentW, termH, termOpen]);
+
+  useEffect(() => {
+    if (!root) return;
+    try {
+      const next = rememberWorkspace(localStorage.getItem(RECENT_WORKSPACES_KEY), root);
+      localStorage.setItem(RECENT_WORKSPACES_KEY, next);
+      setRecentWorkspaces(readRecentWorkspaces(next));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [root]);
 
   useEffect(() => {
     void window.wanwu.workspace.getRoot().then((r) => {
@@ -276,6 +301,18 @@ export function App() {
     };
   }, [root]);
 
+  const openRecent = useCallback(async (dir: string) => {
+    const opened = await window.wanwu.workspace.openPath(dir);
+    setRoot(opened);
+    setTabs([]);
+    setActivePath(null);
+    setSelection(null);
+    setRecentFiles([]);
+    setDiagnostics({});
+    void window.wanwu.lsp.dispose();
+    setStatus(`工作区 · ${opened}`);
+  }, []);
+
   const openFolder = useCallback(async () => {
     const dir = await window.wanwu.workspace.openDialog();
     if (dir) {
@@ -341,10 +378,12 @@ export function App() {
         mode={mode}
         onMode={setMode}
         onOpenFolder={() => void openFolder()}
+        onOpenRecent={(dir) => void openRecent(dir)}
+        recentWorkspaces={recentWorkspaces}
         onToggleTerminal={() => setTermOpen((v) => !v)}
         onSave={() => void saveActive()}
         onOpenSettings={() => setSettingsOpen(true)}
-        workspaceLabel={root ? root.split(/[\\/]/).filter(Boolean).slice(-2).join("/") : "未打开工作区"}
+        workspaceLabel={root ? workspaceLabel(root) : "未打开工作区"}
       />
       <div className={`workspace${showEditor ? "" : " no-editor"}`}>
         <aside className="panel files-panel">
@@ -384,7 +423,12 @@ export function App() {
           </div>
           {root ? (
             sideTab === "files" ? (
-              <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
+              <FileTree
+                rootLabel={root}
+                onOpenFile={(p) => void openFile(p)}
+                activePath={activePath}
+                revealDir={revealDir}
+              />
             ) : sideTab === "search" ? (
               <SearchPanel
                 onOpenFile={(p, line) => {
@@ -411,6 +455,17 @@ export function App() {
               <button className="btn primary" style={{ marginTop: 12 }} onClick={() => void openFolder()}>
                 打开文件夹
               </button>
+              {recentWorkspaces.length > 0 ? (
+                <ul className="recent-list">
+                  {recentWorkspaces.map((dir) => (
+                    <li key={dir}>
+                      <button type="button" className="btn" onClick={() => void openRecent(dir)}>
+                        {workspaceLabel(dir)}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           )}
         </aside>
@@ -473,6 +528,10 @@ export function App() {
                 onChange={onChange}
                 onSelectionChange={setSelection}
                 onCursorContext={setCursorFocus}
+                onOpenDir={(dir) => {
+                  setSideTab("files");
+                  setRevealDir(dir);
+                }}
                 review={inlineReview}
                 splitPath={splitPath}
                 onToggleSplit={() =>

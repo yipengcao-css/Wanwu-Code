@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Editor, { loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import type { DiffHunk } from "../agent/diffHunks";
 import { formatCursorWindow, type CursorFocus } from "./editorContext";
+import { outlineSymbols, symbolAtLine, type OutlineSymbol } from "./outline";
 import { mountHunkReview } from "./hunkReview";
 import { setPrimaryFormatter } from "./editorActions";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
@@ -49,16 +50,66 @@ export type MarkerDiag = {
   source?: string;
 };
 
-function Breadcrumb(props: { path: string }) {
-  const parts = props.path.split("/");
+function Breadcrumb(props: {
+  path: string;
+  symbol?: string | null;
+  symbols?: OutlineSymbol[];
+  onOpenDir?: (dir: string) => void;
+  onJump?: (line: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const parts = props.path.split("/").filter(Boolean);
   return (
     <nav className="breadcrumb" aria-label="文件路径">
-      {parts.map((part, i) => (
-        <span key={`${part}-${i}`}>
-          {i > 0 ? <span className="crumb-sep"> / </span> : null}
-          {part}
+      {parts.map((part, i) => {
+        const isFile = i === parts.length - 1;
+        const dir = parts.slice(0, i + 1).join("/");
+        return (
+          <span key={`${dir}-${i}`}>
+            {i > 0 ? <span className="crumb-sep"> / </span> : null}
+            {isFile ? (
+              <span>{part}</span>
+            ) : (
+              <button type="button" className="crumb" onClick={() => props.onOpenDir?.(dir)}>
+                {part}
+              </button>
+            )}
+          </span>
+        );
+      })}
+      {props.symbol ? (
+        <span className="crumb-symbol">
+          <span className="crumb-sep"> / </span>
+          <button
+            type="button"
+            className="crumb"
+            aria-expanded={open}
+            aria-label="大纲"
+            onClick={() => setOpen((v) => !v)}
+          >
+            {props.symbol}
+          </button>
+          {open && props.symbols?.length ? (
+            <ul className="outline-menu" role="menu">
+              {props.symbols.map((symbol) => (
+                <li key={`${symbol.line}:${symbol.name}`}>
+                  <button
+                    type="button"
+                    className={symbol.name === props.symbol ? "active" : ""}
+                    onClick={() => {
+                      setOpen(false);
+                      props.onJump?.(symbol.line);
+                    }}
+                  >
+                    {symbol.name}
+                    <span className="crumb-sep"> :{symbol.line}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </span>
-      ))}
+      ) : null}
     </nav>
   );
 }
@@ -116,6 +167,8 @@ export function MonacoPane(props: {
   onSelectionChange?: (sel: EditorSelection | null) => void;
   /** Caret plus a numbered window. The window is omitted while a selection is active. */
   onCursorContext?: (cursor: CursorFocus | null) => void;
+  /** Open the file tree at this directory when a breadcrumb segment is clicked. */
+  onOpenDir?: (dir: string) => void;
   review?: {
     hunks: DiffHunk[];
     accepted: Record<string, boolean>;
@@ -126,6 +179,18 @@ export function MonacoPane(props: {
   const split = props.tabs.find((t) => t.path === props.splitPath);
   const primaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const secondaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const [cursorLine, setCursorLine] = useState(1);
+  const symbols = useMemo(() => outlineSymbols(active?.content ?? ""), [active?.content]);
+  const currentSymbol = symbolAtLine(symbols, cursorLine);
+
+  function jumpTo(line: number): void {
+    const ed = primaryRef.current;
+    if (!ed) return;
+    ed.revealLineInCenter(line);
+    ed.setPosition({ lineNumber: line, column: 1 });
+    ed.focus();
+    setCursorLine(line);
+  }
 
   useEffect(() => {
     const ed = primaryRef.current;
@@ -182,6 +247,7 @@ export function MonacoPane(props: {
         props.onCursorContext?.(null);
         return;
       }
+      setCursorLine(pos.lineNumber);
       if (range && !range.isEmpty()) {
         const text = model.getValueInRange(range);
         props.onSelectionChange?.(
@@ -272,7 +338,15 @@ export function MonacoPane(props: {
       </div>
       <div className={`editor-body${split ? " split" : ""}`}>
         <div className="editor-col">
-          {active ? <Breadcrumb path={active.path} /> : null}
+          {active ? (
+            <Breadcrumb
+              path={active.path}
+              symbol={currentSymbol?.name}
+              symbols={symbols}
+              onOpenDir={props.onOpenDir}
+              onJump={jumpTo}
+            />
+          ) : null}
           <div className="monaco-host">
             {active ? (
               <Editor
@@ -291,7 +365,7 @@ export function MonacoPane(props: {
         </div>
         {split ? (
           <div className="editor-col">
-            <Breadcrumb path={split.path} />
+            <Breadcrumb path={split.path} onOpenDir={props.onOpenDir} />
             <div className="monaco-host">
               <Editor
                 key={`split-${split.path}`}

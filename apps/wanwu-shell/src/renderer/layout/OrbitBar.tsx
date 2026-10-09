@@ -14,10 +14,12 @@ export function OrbitBar(props: {
   mode: WanwuMode;
   onMode: (m: WanwuMode) => void;
   onOpenFolder: () => void;
+  onOpenRecent?: (dir: string) => void;
   onToggleTerminal: () => void;
   onSave: () => void;
   onOpenSettings: () => void;
   workspaceLabel: string;
+  recentWorkspaces?: string[];
 }) {
   return (
     <header className="orbit">
@@ -39,9 +41,22 @@ export function OrbitBar(props: {
           </button>
         ))}
       </div>
-      <span className="orbit-ws" title={props.workspaceLabel}>
-        {props.workspaceLabel}
-      </span>
+      <details className="recent-ws">
+        <summary className="orbit-ws" title={props.workspaceLabel}>
+          {props.workspaceLabel}
+        </summary>
+        <div className="recent-ws-menu" role="menu">
+          {(props.recentWorkspaces ?? []).length === 0 ? (
+            <p className="field-hint">还没有最近打开的项目。</p>
+          ) : (
+            (props.recentWorkspaces ?? []).map((dir) => (
+              <button key={dir} type="button" role="menuitem" onClick={() => props.onOpenRecent?.(dir)}>
+                {dir}
+              </button>
+            ))
+          )}
+        </div>
+      </details>
       <div className="orbit-actions">
         <button type="button" className="btn" onClick={props.onOpenFolder}>
           打开文件夹
