@@ -1,6 +1,7 @@
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import type { SandboxMode } from "@wanwu/config";
 import { detectSandboxBackend } from "./detect.js";
+import { runPathJail } from "./pathJail.js";
 import { resolveSandboxPolicy } from "./policy.js";
 
 export interface SandboxRunOptions {
@@ -124,7 +125,8 @@ function runDocker(opts: SandboxRunOptions): SandboxRunResult {
 
 /**
  * Run a shell command under the configured OS sandbox.
- * Falls back to raw spawn only when mode=off or no backend and mode=workspace.
+ * workspace + no OS backend uses the path jail (Windows included).
+ * strict + no OS backend fails closed. mode=off stays a raw spawn.
  */
 export function runSandboxed(opts: SandboxRunOptions): SandboxRunResult {
   const backend = detectSandboxBackend();
@@ -139,6 +141,7 @@ export function runSandboxed(opts: SandboxRunOptions): SandboxRunResult {
         error: policy.reason ?? "sandbox strict unavailable",
       };
     }
+    if (opts.mode === "workspace") return runPathJail(opts);
     return runRaw(opts);
   }
 
