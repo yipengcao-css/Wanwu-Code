@@ -21,6 +21,6 @@ describe("sandbox policy", () => {
   it("workspace without backend soft-falls back", () => {
     const p = resolveSandboxPolicy("workspace", "none");
     expect(p.enforce).toBe(false);
-    expect(p.reason).toMatch(/falling back/);
+    expect(p.reason).toMatch(/path jail/);
   });
 });

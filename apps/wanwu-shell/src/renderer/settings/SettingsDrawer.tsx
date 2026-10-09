@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { RulesMemoryPanel } from "./RulesMemoryPanel";
 
 const PROVIDERS = [
   { id: "openai", label: "OpenAI 兼容（DeepSeek / Moonshot…）" },
@@ -161,6 +162,8 @@ export function SettingsDrawer(props: {
           <p className="field-hint">配置文件：{configPath || "~/.wanwu/config.toml"}</p>
 
           {status ? <p className="settings-status">{status}</p> : null}
+
+          <RulesMemoryPanel open={props.open} />
 
           <div className="drawer-actions">
             <button type="button" className="btn" onClick={props.onClose}>

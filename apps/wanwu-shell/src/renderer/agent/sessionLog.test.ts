@@ -5,6 +5,7 @@ import {
   historyToLog,
   parseDebugWaiting,
   parseTodoToolText,
+  groupLog,
   splitMessageBlocks,
   summarizeToolDetail,
   thoughtPreview,
@@ -81,5 +82,18 @@ const openThink = splitMessageBlocks("<think>还在想");
 assert.equal(openThink[0]?.type, "think");
 assert.equal(openThink[0]?.type === "think" ? openThink[0].text : "", "还在想");
 assert.equal(thoughtPreview("先定位文件，再改循环变量"), "先定位文件，再改循环变量");
+
+const grouped = groupLog([
+  { kind: "user", text: "go" },
+  { kind: "tool", id: "s", title: "Subagent:explore:scan", status: "pending", subagentId: "sub-1" },
+  { kind: "assistant", text: "parent" },
+  { kind: "tool", id: "r", title: "Read", status: "completed", detail: "src/a.ts:1", subagentId: "sub-1" },
+]);
+assert.equal(grouped.length, 3);
+assert.equal(grouped[1]?.kind, "subagent");
+if (grouped[1]?.kind === "subagent") {
+  assert.equal(grouped[1].title, "子代理 explore · scan");
+  assert.equal(grouped[1].items.length, 2);
+}
 
 console.log("sessionLog tests passed");

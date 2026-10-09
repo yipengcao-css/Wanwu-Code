@@ -30,7 +30,7 @@ export function resolveSandboxPolicy(
       mode,
       backend,
       enforce: false,
-      reason: "sandbox=workspace but no backend available; falling back to path+env jail",
+      reason: "sandbox=workspace but no OS backend; path jail enforces workspace paths",
     };
   }
   return { mode, backend, enforce: true };

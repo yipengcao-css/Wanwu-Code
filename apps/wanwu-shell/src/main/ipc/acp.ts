@@ -247,6 +247,15 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     }
   });
 
+  ipcMain.handle("acp:renameSession", async (_e, rawId: string, title: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
+    if (!client) throw new Error("ACP not ready");
+    const ok = await client.renameSession(String(rawId), String(title));
+    return { ok };
+  });
+
   ipcMain.handle("acp:deleteSession", async (_e, rawId: string) => {
     const root = getRoot();
     if (!root) throw new Error("no workspace open");

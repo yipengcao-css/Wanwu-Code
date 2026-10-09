@@ -5,9 +5,12 @@ import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
 import type { CursorFocus } from "../editor/editorContext";
+import { formatPrimaryEditor } from "../editor/editorActions";
 import { rememberViewed } from "../editor/recentFiles";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
+import { ProblemsPanel } from "../problems/ProblemsPanel";
+import { SourceControl } from "../scm/SourceControl";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { applyHunkChoices, diffHunks } from "../agent/diffHunks";
 import { DiffReview } from "../agent/DiffReview";
@@ -48,7 +51,8 @@ export function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<Record<string, MarkerDiag[]>>({});
   const [termOpen, setTermOpen] = useState(initial.termOpen);
-  const [sideTab, setSideTab] = useState<"files" | "search">("files");
+  const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
+  const [splitPath, setSplitPath] = useState<string | null>(null);
   const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
   const gotoSeq = useRef(0);
   const [filesW, setFilesW] = useState(initial.filesW);
@@ -264,9 +268,11 @@ export function App() {
 
   const saveActive = useCallback(async () => {
     if (!activeTab) return;
-    await window.wanwu.fs.write(activeTab.path, activeTab.content);
+    const formatted = await formatPrimaryEditor();
+    const content = formatted ?? activeTab.content;
+    await window.wanwu.fs.write(activeTab.path, content);
     setTabs((prev) =>
-      prev.map((t) => (t.path === activeTab.path ? { ...t, dirty: false } : t)),
+      prev.map((t) => (t.path === activeTab.path ? { ...t, content, dirty: false } : t)),
     );
     setStatus(`已保存 · ${activeTab.path}`);
   }, [activeTab]);
@@ -309,15 +315,41 @@ export function App() {
             >
               搜索
             </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: "1px 8px", fontSize: 11, opacity: sideTab === "scm" ? 1 : 0.55 }}
+              onClick={() => setSideTab("scm")}
+            >
+              更改
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: "1px 8px", fontSize: 11, opacity: sideTab === "problems" ? 1 : 0.55 }}
+              onClick={() => setSideTab("problems")}
+            >
+              问题
+            </button>
           </div>
           {root ? (
             sideTab === "files" ? (
               <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
-            ) : (
+            ) : sideTab === "search" ? (
               <SearchPanel
                 onOpenFile={(p, line) => {
                   void openFile(p);
                   if (line) setGotoLine({ path: p, line, n: ++gotoSeq.current });
+                }}
+              />
+            ) : sideTab === "scm" ? (
+              <SourceControl rootLabel={root} onOpenFile={(p) => void openFile(p)} />
+            ) : (
+              <ProblemsPanel
+                diagnostics={diagnostics}
+                onOpen={(p, line) => {
+                  void openFile(p);
+                  setGotoLine({ path: p, line, n: ++gotoSeq.current });
                 }}
               />
             )
@@ -390,8 +422,13 @@ export function App() {
                 onSelectionChange={setSelection}
                 onCursorContext={setCursorFocus}
                 review={inlineReview}
+                splitPath={splitPath}
+                onToggleSplit={() =>
+                  setSplitPath((prev) => (prev ? null : activePath))
+                }
                 onClose={(p) => {
                   setTabs((prev) => prev.filter((t) => t.path !== p));
+                  if (splitPath === p) setSplitPath(null);
                   if (activePath === p) {
                     setActivePath(null);
                     setSelection(null);
@@ -435,6 +472,40 @@ export function App() {
             onModelChange={(label) => {
               setModelLabel(label);
               setStatus(`已切换模型 · ${label}`);
+            }}
+            onOpenFile={(p, line) => {
+              void openFile(p)
+                .then(() => {
+                  if (line) setGotoLine({ path: p, line, n: ++gotoSeq.current });
+                  setStatus(line ? `已打开 ${p}:${line}` : `已打开 ${p}`);
+                })
+                .catch((err: unknown) => {
+                  setStatus(err instanceof Error ? err.message : String(err));
+                });
+            }}
+            onApplyCode={(code, mode) => {
+              const tab = tabs.find((t) => t.path === activePath);
+              if (!tab || !activePath) {
+                setStatus("先打开一个文件，再把代码块插进去");
+                return;
+              }
+              if (mode === "replace") {
+                onChange(activePath, code);
+                setStatus(`已用代码块替换 ${activePath}`);
+                return;
+              }
+              const lines = tab.content.split("\n");
+              if (selection && selection.path === activePath && selection.text) {
+                const count = selection.endLine - selection.startLine + 1;
+                lines.splice(Math.max(0, selection.startLine - 1), count, code);
+                onChange(activePath, lines.join("\n"));
+                setStatus(`已用代码块替换选区 · ${activePath}`);
+                return;
+              }
+              const at = cursorFocus?.path === activePath ? cursorFocus.line : lines.length + 1;
+              lines.splice(Math.max(0, at - 1), 0, code);
+              onChange(activePath, lines.join("\n"));
+              setStatus(`已插入到 ${activePath}:${at}`);
             }}
           />
         </aside>

@@ -54,6 +54,16 @@ describe("acp extract", () => {
     });
     expect(chip?.title).toBe("Read");
     expect(chip?.detail).toBe("ok");
+    const child = extractTool({
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId: "t2",
+        title: "Read",
+        status: "completed",
+        content: { type: "text", text: "ok", subagentId: "sub-1" },
+      },
+    });
+    expect(child?.subagentId).toBe("sub-1");
     const long = "q".repeat(500);
     const kept = extractTool({
       update: {

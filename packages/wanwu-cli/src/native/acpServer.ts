@@ -15,7 +15,7 @@ import type { JsonRpc } from "./jsonRpcStdio.js";
 import { sendError, sendResult, sessionUpdate } from "./jsonRpcStdio.js";
 import { detectMode, stripModeTags } from "./mode.js";
 import { resolvePermissionRequest } from "./permissions.js";
-import { deleteSession, listSessionSummaries, loadSession, saveSession } from "./sessionStore.js";
+import { deleteSession, listSessionSummaries, loadSession, renameSession, saveSession } from "./sessionStore.js";
 import { runHooks } from "../hooks.js";
 import { normalizePromptText, resolvePromptAttachments } from "./promptAttachments.js";
 
@@ -96,6 +96,18 @@ export function startNativeAcpStdioServer(): void {
 
     if (method === "session/list" || method === "listSessions") {
       sendResult(id, { sessions: listSessionSummaries(workspaceRoot) });
+      return;
+    }
+
+    if (method === "session/rename" || method === "renameSession") {
+      const params = (msg.params ?? {}) as { sessionId?: string; title?: string };
+      const targetId = params.sessionId?.trim();
+      const title = params.title?.trim();
+      if (!targetId || !title) {
+        sendError(id, -32602, "sessionId and title required");
+        return;
+      }
+      sendResult(id, { ok: renameSession(workspaceRoot, targetId, title) });
       return;
     }
 

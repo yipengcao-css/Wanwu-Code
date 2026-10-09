@@ -307,6 +307,9 @@ export async function runLlmAgentLoop(
         toolCalls: calls,
         reasoning: last.reasoning,
       });
+      const subagentId = ctx.sessionId.includes(":")
+        ? ctx.sessionId.slice(ctx.sessionId.indexOf(":") + 1)
+        : undefined;
       const planned = calls.map((call) => {
         toolsUsed.push(call.name);
         const toolCallId = `native-tool-${toolsUsed.length}`;
@@ -315,7 +318,11 @@ export async function runLlmAgentLoop(
           toolCallId,
           title: call.name,
           status: "pending",
-          content: { type: "text", text: call.arguments.slice(0, 4000) },
+          content: {
+            type: "text",
+            text: call.arguments.slice(0, 4000),
+            ...(subagentId ? { subagentId } : {}),
+          },
         });
         return { call, toolCallId };
       });
@@ -341,6 +348,7 @@ export async function runLlmAgentLoop(
             path: result.diff?.path,
             before: result.diff?.before,
             after: result.diff?.after,
+            ...(subagentId ? { subagentId } : {}),
           },
         });
         return { call: item.call, result };

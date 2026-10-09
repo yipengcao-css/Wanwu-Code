@@ -57,6 +57,22 @@ describe("toolBrowser", () => {
     }
   });
 
+  it("clicks a link and types into a field", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-browser-click-"));
+    const home = "<html><title>Home</title><body><a href='/next'>Next</a><input name='q' /></body></html>";
+    const next = "<html><title>Next</title><body><h1>Arrived</h1><button name='save'>Save</button></body></html>";
+    const fetchImpl = async (input: string | URL | Request) =>
+      new Response(String(input).includes("/next") ? next : home, { status: 200 });
+    await toolBrowser(root, { action: "navigate", url: "https://example.test/" }, { fetchImpl });
+    const typed = await toolBrowser(root, { action: "type", target: "q", text: "wanwu" }, { fetchImpl });
+    expect(typed.text).toContain("q=wanwu");
+    const clicked = await toolBrowser(root, { action: "click", target: "Next" }, { fetchImpl });
+    expect(clicked.ok).toBe(true);
+    expect(clicked.text).toContain("Arrived");
+    const button = await toolBrowser(root, { action: "click", target: "save" }, { fetchImpl });
+    expect(button.text).toContain("clicked save");
+  });
+
   it("refuses non-http navigate", async () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-browser-bad-"));
     const r = await toolBrowser(root, { action: "navigate", url: "file:///etc/passwd" });

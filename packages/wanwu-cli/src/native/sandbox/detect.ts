@@ -17,8 +17,8 @@ function commandExists(cmd: string): boolean {
 export function detectSandboxBackend(): SandboxBackend {
   if (process.platform === "linux" && commandExists("bwrap")) return "bwrap";
   if (process.platform === "darwin" && commandExists("sandbox-exec")) return "sandbox-exec";
-  // Windows path is Docker (WSL was detected-but-never-executed; removed to
-  // keep doctor honest).
+  // Windows uses Docker when it is installed. Otherwise workspace mode
+  // runs through the path jail instead of an unrestricted shell.
   if (commandExists("docker")) return "docker";
   return "none";
 }

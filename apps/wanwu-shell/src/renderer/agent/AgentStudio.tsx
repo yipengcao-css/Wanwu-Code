@@ -7,6 +7,7 @@ import {
   mentionTokenAt,
   type MentionSuggestion,
 } from "./mentionComplete";
+import { contextPercent, contextWindowFor, estimateTokens } from "./contextMeter";
 import { MessageBody, ToolChip } from "./MessageBody";
 import { modelsForProvider } from "./modelPresets";
 import {
@@ -14,6 +15,7 @@ import {
   historyToLog,
   parseDebugWaiting,
   parseTodoToolText,
+  groupLog,
   upsertToolLog,
   type LogItem,
   type TodoRow,
@@ -122,6 +124,8 @@ export function AgentStudio(props: {
   onMode?: (m: WanwuMode) => void;
   onOpenSettings?: () => void;
   onModelChange?: (label: string) => void;
+  onOpenFile?: (path: string, line?: number) => void;
+  onApplyCode?: (code: string, mode: "insert" | "replace") => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
     { localId: newLocalId(), title: "会话 1", log: emptyWelcome() },
@@ -143,6 +147,9 @@ export function AgentStudio(props: {
   const [debugWaiting, setDebugWaiting] = useState(false);
   const [lastPrompt, setLastPrompt] = useState<string | null>(null);
   const [availableSkills, setAvailableSkills] = useState<StudioSkill[]>([]);
+  const [sessionQuery, setSessionQuery] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const [attachedSkillIds, setAttachedSkillIds] = useState<string[]>([]);
   const [skillPickerOpen, setSkillPickerOpen] = useState(false);
   const [fileSkills, setFileSkills] = useState<FileSkill[]>([]);
@@ -342,7 +349,7 @@ export function AgentStudio(props: {
         }
         const mapped: ChatSession[] = sessions.map((s) => ({
           localId: s.id,
-          title: (s.preview || "会话").slice(0, 24),
+          title: (s.title || s.preview || "会话").slice(0, 48),
           acpSessionId: s.id,
           hydrated: false,
           log: [
@@ -920,8 +927,21 @@ export function AgentStudio(props: {
   return (
     <>
       <div className="session-rail" role="tablist" aria-label="会话列表">
+        <input
+          className="session-search"
+          value={sessionQuery}
+          onChange={(e) => setSessionQuery(e.target.value)}
+          placeholder="搜索会话"
+          aria-label="搜索会话"
+        />
         <div className="session-list">
-          {chats.map((c) => (
+          {chats
+            .filter((c) => {
+              const q = sessionQuery.trim().toLowerCase();
+              if (!q) return true;
+              return c.title.toLowerCase().includes(q) || (c.acpSessionId ?? "").toLowerCase().includes(q);
+            })
+            .map((c) => (
             <div
               key={c.localId}
               role="tab"
@@ -929,14 +949,44 @@ export function AgentStudio(props: {
               className={`session-tab${c.localId === activeLocalId ? " active" : ""}`}
               title={c.acpSessionId ?? c.title}
             >
-              <button
-                type="button"
-                className="session-label"
-                disabled={busy && c.localId !== activeLocalId}
-                onClick={() => void switchChat(c.localId)}
-              >
-                {c.title}
-              </button>
+              {renamingId === c.localId ? (
+                <input
+                  className="session-rename"
+                  value={renameDraft}
+                  aria-label={`会话名称 ${c.title}`}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setRenamingId(null);
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void (async () => {
+                        const title = renameDraft.trim().slice(0, 48);
+                        if (!title) return;
+                        if (c.acpSessionId) {
+                          await window.wanwu.acp.renameSession(c.acpSessionId, title).catch(() => undefined);
+                        }
+                        setChats((prev) => prev.map((row) => (row.localId === c.localId ? { ...row, title } : row)));
+                        setRenamingId(null);
+                        props.onStatus(`已重命名会话 · ${title}`);
+                      })();
+                    }
+                  }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="session-label"
+                  disabled={busy && c.localId !== activeLocalId}
+                  title="双击改名"
+                  onClick={() => void switchChat(c.localId)}
+                  onDoubleClick={() => {
+                    setRenamingId(c.localId);
+                    setRenameDraft(c.title);
+                  }}
+                >
+                  {c.title}
+                </button>
+              )}
               <button
                 type="button"
                 className="session-close"
@@ -988,9 +1038,23 @@ export function AgentStudio(props: {
           for (let n = 0; n < active.log.length; n += 1) {
             if (active.log[n]?.kind === "thought") latestThought = n;
           }
-          return active.log.map((item, i) => {
+          return groupLog(active.log).map((group) => {
+          if (group.kind === "subagent") {
+            return (
+              <details key={group.id} className="subagent" open>
+                <summary>{group.title}</summary>
+                {group.items.map((item, j) =>
+                  item.kind === "tool" ? (
+                    <ToolChip key={item.id ?? j} item={item} onOpenFile={props.onOpenFile} />
+                  ) : null,
+                )}
+              </details>
+            );
+          }
+          const item = group.item;
+          const i = group.index;
           if (item.kind === "tool") {
-            return <ToolChip key={item.id ?? i} item={item} />;
+            return <ToolChip key={item.id ?? i} item={item} onOpenFile={props.onOpenFile} />;
           }
           if (item.kind === "status") {
             return (
@@ -1009,7 +1073,12 @@ export function AgentStudio(props: {
           if (item.kind === "assistant") {
             return (
               <div key={i} className="card assistant">
-                <MessageBody text={item.text} defaultThinkOpen={busy && i === active.log.length - 1} />
+                <MessageBody
+                  text={item.text}
+                  defaultThinkOpen={busy && i === active.log.length - 1}
+                  onOpenFile={props.onOpenFile}
+                  onApplyCode={props.onApplyCode}
+                />
               </div>
             );
           }
@@ -1347,6 +1416,23 @@ export function AgentStudio(props: {
           }}
         />
         <div className="composer-row">
+          <span className="context-meter" title="按当前对话估算的上下文占用">
+            {(() => {
+              const textBody = active.log
+                .map((item) => (item.kind === "tool" ? `${item.title}\n${item.detail ?? ""}` : item.text))
+                .join("\n");
+              const tokens = Math.max(estimateTokens(textBody), lastUsage?.in ?? 0);
+              const pct = contextPercent(tokens, contextWindowFor(props.modelLabel ?? ""));
+              return (
+                <>
+                  <span className="context-bar" aria-hidden>
+                    <span style={{ width: `${pct}%` }} />
+                  </span>
+                  上下文 {pct}%
+                </>
+              );
+            })()}
+          </span>
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
             <span className="model-menu-wrap">
               <button

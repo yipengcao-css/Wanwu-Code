@@ -18,6 +18,7 @@ import { disposeTerm, registerTermIpc } from "./ipc/term.js";
 import { registerSettingsIpc } from "./ipc/settings.js";
 import { registerAiIpc } from "./ipc/ai.js";
 import { registerGitIpc } from "./ipc/git.js";
+import { registerLibraryIpc } from "./ipc/library.js";
 import { registerCkptIpc } from "./ipc/ckpt.js";
 import { registerMediaIpc } from "./ipc/media.js";
 import { registerSkillsIpc } from "./ipc/skills.js";
@@ -132,6 +133,7 @@ app.whenReady().then(() => {
   registerSettingsIpc(() => workspaceRoot);
   registerAiIpc(() => workspaceRoot);
   registerGitIpc(() => workspaceRoot);
+  registerLibraryIpc(() => workspaceRoot);
   registerCkptIpc(() => workspaceRoot);
   registerMediaIpc(() => workspaceRoot);
   registerSkillsIpc(() => workspaceRoot);

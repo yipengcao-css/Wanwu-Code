@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
+import { loadIgnore } from "./ignore.js";
 import { assertInsideWorkspace, PathSandboxError } from "./workspacePaths.js";
 
 /**
@@ -70,12 +71,18 @@ function readFileMention(root: string, rel: string): string {
   const st = statSync(abs);
   if (st.isDirectory()) {
     const lines: string[] = [];
+    const ignore = loadIgnore(root);
     const walk = (dir: string, depth: number): void => {
       if (lines.length >= LIST_CAP || depth > 2) return;
       for (const name of readdirSync(dir)) {
         if (name === "node_modules" || name === ".git") continue;
         const full = join(dir, name);
-        const r = full.slice(root.length + 1);
+        const r = full.slice(root.length + 1).replace(/\\/g, "/");
+        try {
+          if (ignore(r, statSync(full).isDirectory())) continue;
+        } catch {
+          continue;
+        }
         try {
           if (statSync(full).isDirectory()) {
             lines.push(`${r}/`);

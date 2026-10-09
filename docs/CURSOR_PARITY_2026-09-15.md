@@ -48,13 +48,12 @@
 | 最近查看的文件路径进入 Agent | `recentFiles.ts` / `editorContext.ts` |
 | 换模型或 ACP 重启后按编号重新加载会话 | `ipc/acp.ts` |
 
-## 仍未做（2026-09-21）
+## 仍未做（2026-10-09）
 
 1. Cloud Agents / Bugbot / DAP（明确不做本批）
-2. Browser 点击与交互（现只读）
-3. MCP **prompts**（stdio resources + HTTP/OAuth 已做）
-4. `WorkflowMachine` 未进 UI；`crates/` 仍空
-5. 插件注册表 `registry.wanwu.dev` 未证实上线
+2. MCP **prompts**（stdio resources + HTTP/OAuth 已做；Browser 已能点击链接、记录按钮和输入）
+3. `WorkflowMachine` 未进 UI；`crates/` 仍空
+4. 插件注册表 `registry.wanwu.dev` 未证实上线
 
 ## 2026-09-20 Cursor 模板优化（第二轮）
 

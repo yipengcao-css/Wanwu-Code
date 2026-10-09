@@ -17,8 +17,21 @@ export type WanwuBridge = {
     listFiles: () => Promise<string[]>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
+  library: {
+    list: () => Promise<{
+      rules: Array<{ name: string; scope: "user" | "workspace"; body: string }>;
+      memories: Array<{ index: number; text: string }>;
+    }>;
+    writeRule: (payload: { name: string; body: string; scope: "user" | "workspace" }) => Promise<{ ok: boolean }>;
+    deleteRule: (name: string, scope: "user" | "workspace") => Promise<{ ok: boolean }>;
+    deleteMemory: (index: number) => Promise<{ ok: boolean }>;
+  };
   git: {
     status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
+    changes: () => Promise<{ repo: boolean; files: Array<{ path: string; code: string; staged: boolean }> }>;
+    diff: (rel: string) => Promise<string>;
+    stage: (rels: string[], staged: boolean) => Promise<{ ok: boolean; text: string }>;
+    commit: (message: string) => Promise<{ ok: boolean; text: string }>;
   };
   ckpt: {
     list: () => Promise<Array<{ id: string; createdAt: string; files: number }>>;
@@ -107,16 +120,18 @@ export type WanwuBridge = {
         updatedAt?: string;
         messages?: number;
         preview?: string;
+        title?: string;
       }>;
     }>;
     loadSession: (sessionId: string) => Promise<{ sessionId: string; history?: unknown[]; missing?: boolean }>;
+    renameSession: (sessionId: string, title: string) => Promise<{ ok: boolean }>;
     deleteSession: (sessionId: string) => Promise<{ ok: boolean }>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
     onThought: (cb: (text: string) => void) => () => void;
     onTool: (
-      cb: (tool: { id?: string; title: string; status: string; detail?: string }) => void,
+      cb: (tool: { id?: string; title: string; status: string; detail?: string; subagentId?: string }) => void,
     ) => () => void;
     onError: (cb: (text: string) => void) => () => void;
     onSession: (cb: (info: { sessionId?: string; cwd?: string }) => void) => () => void;
@@ -219,8 +234,18 @@ const bridge: WanwuBridge = {
     listFiles: () => ipcRenderer.invoke("fs:listFiles"),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
   },
+  library: {
+    list: () => ipcRenderer.invoke("library:list"),
+    writeRule: (payload) => ipcRenderer.invoke("library:writeRule", payload),
+    deleteRule: (name, scope) => ipcRenderer.invoke("library:deleteRule", name, scope),
+    deleteMemory: (index) => ipcRenderer.invoke("library:deleteMemory", index),
+  },
   git: {
     status: () => ipcRenderer.invoke("git:status"),
+    changes: () => ipcRenderer.invoke("git:changes"),
+    diff: (rel) => ipcRenderer.invoke("git:diff", rel),
+    stage: (rels, staged) => ipcRenderer.invoke("git:stage", rels, staged),
+    commit: (message) => ipcRenderer.invoke("git:commit", message),
   },
   ckpt: {
     list: () => ipcRenderer.invoke("ckpt:list"),
@@ -251,6 +276,7 @@ const bridge: WanwuBridge = {
     cancel: () => ipcRenderer.invoke("acp:cancel"),
     listSessions: () => ipcRenderer.invoke("acp:listSessions"),
     loadSession: (sessionId) => ipcRenderer.invoke("acp:loadSession", sessionId),
+    renameSession: (sessionId, title) => ipcRenderer.invoke("acp:renameSession", sessionId, title),
     deleteSession: (sessionId) => ipcRenderer.invoke("acp:deleteSession", sessionId),
     respondPermission: (id, optionId) => {
       ipcRenderer.send("acp:respondPermission", id, optionId);
