@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type RuleRow = { name: string; scope: "user" | "workspace"; body: string };
 type MemoryRow = { index: number; text: string };
@@ -11,6 +11,7 @@ export function RulesMemoryPanel(props: { open: boolean }) {
   const [scope, setScope] = useState<"workspace" | "user">("workspace");
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const reload = useCallback(() => {
     void window.wanwu.library.list().then((r) => {
@@ -25,6 +26,12 @@ export function RulesMemoryPanel(props: { open: boolean }) {
   useEffect(() => {
     if (props.open) reload();
   }, [props.open, reload]);
+
+  useEffect(() => {
+    if (!editing) return;
+    bodyRef.current?.scrollIntoView({ block: "center" });
+    bodyRef.current?.focus();
+  }, [editing, name]);
 
   function resetForm(): void {
     setName("");
@@ -103,7 +110,7 @@ export function RulesMemoryPanel(props: { open: boolean }) {
       </label>
       <label className="field">
         <span className="field-label">内容</span>
-        <textarea value={body} rows={4} onChange={(e) => setBody(e.target.value)} />
+        <textarea ref={bodyRef} value={body} rows={4} onChange={(e) => setBody(e.target.value)} />
       </label>
       <div className="library-actions">
         <button type="button" className="btn" disabled={!name.trim()} onClick={() => void saveRule()}>
