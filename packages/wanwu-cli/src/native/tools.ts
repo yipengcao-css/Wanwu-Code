@@ -10,6 +10,7 @@ import { dirname, join, relative } from "node:path";
 import type { PermissionMode, SandboxMode } from "@wanwu/config";
 import { assessBash } from "../permission.js";
 import { runSandboxed } from "./sandbox/runSandboxed.js";
+import { loadIgnore } from "./ignore.js";
 import { PathSandboxError, assertInsideWorkspace, isDirectory } from "./workspacePaths.js";
 
 export interface ToolResult {
@@ -39,7 +40,13 @@ const SKIP_DIRS = new Set([
   "target",
 ]);
 
-function walkFiles(root: string, dir: string, out: string[], max = WALK_MAX): void {
+function walkFiles(
+  root: string,
+  dir: string,
+  out: string[],
+  max = WALK_MAX,
+  ignore: (rel: string, isDir: boolean) => boolean = () => false,
+): void {
   if (out.length >= max) return;
   let entries: string[];
   try {
@@ -56,10 +63,12 @@ function walkFiles(root: string, dir: string, out: string[], max = WALK_MAX): vo
     } catch {
       continue;
     }
+    const rel = (relative(root, full) || name).replace(/\\/g, "/");
+    if (ignore(rel, st.isDirectory())) continue;
     if (st.isDirectory()) {
-      walkFiles(root, full, out, max);
+      walkFiles(root, full, out, max, ignore);
     } else if (st.isFile()) {
-      out.push(relative(root, full) || name);
+      out.push(rel);
       if (out.length >= max) return;
     }
   }
@@ -162,6 +171,7 @@ export function toolListDir(
       return { ok: false, title: "ListDir", text: `not a directory: ${rel}` };
     }
     const maxDepth = Math.min(4, Math.max(1, Math.floor(depth)));
+    const ignore = loadIgnore(workspaceRoot);
     const out: string[] = [];
     const walk = (dir: string, prefix: string, level: number): void => {
       if (out.length >= LIST_DIR_MAX) return;
@@ -182,6 +192,7 @@ export function toolListDir(
         } catch {
           continue;
         }
+        if (ignore(child.replace(/\\/g, "/"), st.isDirectory())) continue;
         if (st.isDirectory()) {
           out.push(`${child}/`);
           if (level < maxDepth) walk(full, child, level + 1);
@@ -212,13 +223,13 @@ export function toolListDir(
 /** List workspace files (walk caps apply) — used by TUI @-completion. */
 export function listWorkspaceFiles(workspaceRoot: string, max = WALK_MAX): string[] {
   const files: string[] = [];
-  walkFiles(workspaceRoot, workspaceRoot, files, max);
+  walkFiles(workspaceRoot, workspaceRoot, files, max, loadIgnore(workspaceRoot));
   return files;
 }
 
 export function toolGlob(workspaceRoot: string, pattern: string): ToolResult {
   const files: string[] = [];
-  walkFiles(workspaceRoot, workspaceRoot, files);
+  walkFiles(workspaceRoot, workspaceRoot, files, WALK_MAX, loadIgnore(workspaceRoot));
   const pat = pattern.trim() || "**/*";
   const hits = files.filter((f) => matchGlob(f, pat));
   return {
@@ -236,7 +247,7 @@ export function toolGrep(workspaceRoot: string, pattern: string, globPat = "**/*
     return { ok: false, title: "Grep", text: `invalid regexp: ${pattern}` };
   }
   const files: string[] = [];
-  walkFiles(workspaceRoot, workspaceRoot, files);
+  walkFiles(workspaceRoot, workspaceRoot, files, WALK_MAX, loadIgnore(workspaceRoot));
   const filtered = files.filter((f) => matchGlob(f, globPat));
   const lines: string[] = [];
   for (const rel of filtered.slice(0, 200)) {
