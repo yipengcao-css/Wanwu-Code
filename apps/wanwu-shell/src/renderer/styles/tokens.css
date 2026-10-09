@@ -1237,6 +1237,67 @@ button {
   background: rgba(42, 212, 160, 0.1);
 }
 
+.scm-panel,
+.problem-list {
+  padding: 8px;
+}
+
+.scm-toolbar,
+.scm-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.scm-list,
+.problem-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+}
+
+.scm-path,
+.problem-row {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ww-text);
+  text-align: left;
+  padding: 4px 0;
+  min-height: 0;
+}
+
+.scm-diff {
+  max-height: 180px;
+  overflow: auto;
+  font-family: var(--ww-font-mono);
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px;
+}
+
+.problem-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 2px;
+}
+
+.problem-sev {
+  font-size: 11px;
+  color: var(--ww-muted);
+}
+
+.problem-row.sev-error .problem-sev {
+  color: #f25f7c;
+}
+
+.problem-loc {
+  font-size: 11px;
+  color: var(--ww-muted);
+}
+
 .file-ref {
   border: 0;
   background: transparent;

@@ -8,6 +8,8 @@ import type { CursorFocus } from "../editor/editorContext";
 import { rememberViewed } from "../editor/recentFiles";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
+import { ProblemsPanel } from "../problems/ProblemsPanel";
+import { SourceControl } from "../scm/SourceControl";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { applyHunkChoices, diffHunks } from "../agent/diffHunks";
 import { DiffReview } from "../agent/DiffReview";
@@ -48,7 +50,7 @@ export function App() {
   const [activePath, setActivePath] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<Record<string, MarkerDiag[]>>({});
   const [termOpen, setTermOpen] = useState(initial.termOpen);
-  const [sideTab, setSideTab] = useState<"files" | "search">("files");
+  const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
   const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
   const gotoSeq = useRef(0);
   const [filesW, setFilesW] = useState(initial.filesW);
@@ -309,15 +311,41 @@ export function App() {
             >
               搜索
             </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: "1px 8px", fontSize: 11, opacity: sideTab === "scm" ? 1 : 0.55 }}
+              onClick={() => setSideTab("scm")}
+            >
+              更改
+            </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ padding: "1px 8px", fontSize: 11, opacity: sideTab === "problems" ? 1 : 0.55 }}
+              onClick={() => setSideTab("problems")}
+            >
+              问题
+            </button>
           </div>
           {root ? (
             sideTab === "files" ? (
               <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
-            ) : (
+            ) : sideTab === "search" ? (
               <SearchPanel
                 onOpenFile={(p, line) => {
                   void openFile(p);
                   if (line) setGotoLine({ path: p, line, n: ++gotoSeq.current });
+                }}
+              />
+            ) : sideTab === "scm" ? (
+              <SourceControl rootLabel={root} onOpenFile={(p) => void openFile(p)} />
+            ) : (
+              <ProblemsPanel
+                diagnostics={diagnostics}
+                onOpen={(p, line) => {
+                  void openFile(p);
+                  setGotoLine({ path: p, line, n: ++gotoSeq.current });
                 }}
               />
             )

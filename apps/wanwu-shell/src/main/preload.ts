@@ -19,6 +19,10 @@ export type WanwuBridge = {
   };
   git: {
     status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
+    changes: () => Promise<{ repo: boolean; files: Array<{ path: string; code: string; staged: boolean }> }>;
+    diff: (rel: string) => Promise<string>;
+    stage: (rels: string[], staged: boolean) => Promise<{ ok: boolean; text: string }>;
+    commit: (message: string) => Promise<{ ok: boolean; text: string }>;
   };
   ckpt: {
     list: () => Promise<Array<{ id: string; createdAt: string; files: number }>>;
@@ -221,6 +225,10 @@ const bridge: WanwuBridge = {
   },
   git: {
     status: () => ipcRenderer.invoke("git:status"),
+    changes: () => ipcRenderer.invoke("git:changes"),
+    diff: (rel) => ipcRenderer.invoke("git:diff", rel),
+    stage: (rels, staged) => ipcRenderer.invoke("git:stage", rels, staged),
+    commit: (message) => ipcRenderer.invoke("git:commit", message),
   },
   ckpt: {
     list: () => ipcRenderer.invoke("ckpt:list"),
