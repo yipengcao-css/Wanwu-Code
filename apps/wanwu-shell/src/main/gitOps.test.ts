@@ -16,6 +16,9 @@ writeFileSync(join(dir, "note.txt"), "hello\n");
 const before = gitScmStatus(dir);
 assert.equal(before.repo, true);
 assert.ok(before.files.some((f) => f.path === "note.txt" && !f.staged));
+const added = gitDiff(dir, "note.txt");
+assert.match(added, /新文件/);
+assert.match(added, /\+hello/);
 
 const staged = gitStage(dir, ["note.txt"], true);
 assert.equal(staged.ok, true);

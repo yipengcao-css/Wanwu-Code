@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export type ScmFile = {
@@ -63,14 +63,36 @@ export function gitScmStatus(cwd: string): { repo: boolean; files: ScmFile[] } {
   return { repo: true, files };
 }
 
+function untrackedDiff(cwd: string, rel: string): string {
+  const abs = path.join(cwd, ...rel.split("/"));
+  if (!existsSync(abs)) return "";
+  let text: string;
+  try {
+    text = readFileSync(abs, "utf8");
+  } catch {
+    return "";
+  }
+  if (text.includes("\0")) return "（二进制文件，没有文本差异）";
+  const lines = text.split(/\r?\n/);
+  const shown = lines.slice(0, 200);
+  const more = lines.length > 200 ? "\n…（只显示前 200 行）" : "";
+  return `--- 新文件 ---\n${shown.map((line) => `+${line}`).join("\n")}${more}`;
+}
+
 export function gitDiff(cwd: string, rel: string): string {
   const safe = safeRepoPath(rel);
   if (!safe || !gitIsRepo(cwd)) return "";
   const unstaged = runGit(cwd, ["diff", "--no-color", "--", safe]);
   const staged = runGit(cwd, ["diff", "--cached", "--no-color", "--", safe]);
-  return [staged.stdout && `--- 已暂存 ---\n${staged.stdout}`, unstaged.stdout && `--- 未暂存 ---\n${unstaged.stdout}`]
-    .filter(Boolean)
-    .join("\n");
+  const parts = [
+    staged.stdout && `--- 已暂存 ---\n${staged.stdout}`,
+    unstaged.stdout && `--- 未暂存 ---\n${unstaged.stdout}`,
+  ].filter(Boolean);
+  if (parts.length) return parts.join("\n");
+  const status = runGit(cwd, ["status", "--porcelain=v1", "--", safe]);
+  const line = status.stdout.split(/\r?\n/).find((row) => row.trim());
+  if (!line?.startsWith("??")) return "";
+  return untrackedDiff(cwd, safe);
 }
 
 export function gitStage(cwd: string, rels: string[], staged: boolean): { ok: boolean; text: string } {

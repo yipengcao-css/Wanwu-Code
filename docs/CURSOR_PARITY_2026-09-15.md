@@ -48,6 +48,12 @@
 | 最近查看的文件路径进入 Agent | `recentFiles.ts` / `editorContext.ts` |
 | 换模型或 ACP 重启后按编号重新加载会话 | `ipc/acp.ts` |
 
+## 2026-10-09 已落地
+
+| 项 | 落点 |
+|---|---|
+| 更改列表随文件变化刷新；未跟踪文件显示新增内容 | `SourceControl.tsx` / `gitOps.ts` |
+
 ## 仍未做（2026-10-09）
 
 1. Cloud Agents / Bugbot / DAP（明确不做本批）

@@ -26,6 +26,22 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
   }, [props.rootLabel, refresh]);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = window.wanwu.fs.onChanged(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => refresh(), 300);
+    });
+    return () => {
+      off();
+      if (timer) clearTimeout(timer);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
+    if (selected && !files.some((f) => f.path === selected)) setSelected(null);
+  }, [files, selected]);
+
+  useEffect(() => {
     if (!selected) {
       setDiff("");
       return;
@@ -91,7 +107,9 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
           </li>
         ))}
       </ul>
-      {selected && diff ? <pre className="scm-diff">{diff}</pre> : null}
+      {selected ? (
+        diff ? <pre className="scm-diff">{diff}</pre> : <p className="empty">没有可显示的文本差异。</p>
+      ) : null}
       <label className="field">
         <span className="field-label">提交说明</span>
         <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
