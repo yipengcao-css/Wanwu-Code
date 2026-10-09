@@ -4,6 +4,7 @@ import * as monaco from "monaco-editor";
 import type { DiffHunk } from "../agent/diffHunks";
 import { formatCursorWindow, type CursorFocus } from "./editorContext";
 import { mountHunkReview } from "./hunkReview";
+import { setPrimaryFormatter } from "./editorActions";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
 import { registerLspFeatures } from "./lspFeatures";
@@ -48,6 +49,30 @@ export type MarkerDiag = {
   source?: string;
 };
 
+function Breadcrumb(props: { path: string }) {
+  const parts = props.path.split("/");
+  return (
+    <nav className="breadcrumb" aria-label="文件路径">
+      {parts.map((part, i) => (
+        <span key={`${part}-${i}`}>
+          {i > 0 ? <span className="crumb-sep"> / </span> : null}
+          {part}
+        </span>
+      ))}
+    </nav>
+  );
+}
+
+const EDITOR_OPTIONS = {
+  fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",
+  fontSize: 13,
+  minimap: { enabled: false },
+  smoothScrolling: true,
+  padding: { top: 12 },
+  scrollBeyondLastLine: false,
+  automaticLayout: true,
+} as const;
+
 function languageFor(path: string): string {
   if (path.endsWith(".ts") || path.endsWith(".tsx")) return "typescript";
   if (path.endsWith(".js") || path.endsWith(".jsx") || path.endsWith(".mjs")) return "javascript";
@@ -86,6 +111,8 @@ export function MonacoPane(props: {
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
+  splitPath?: string | null;
+  onToggleSplit?: () => void;
   onSelectionChange?: (sel: EditorSelection | null) => void;
   /** Caret plus a numbered window. The window is omitted while a selection is active. */
   onCursorContext?: (cursor: CursorFocus | null) => void;
@@ -96,10 +123,12 @@ export function MonacoPane(props: {
   } | null;
 }) {
   const active = props.tabs.find((t) => t.path === props.activePath);
-  const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const split = props.tabs.find((t) => t.path === props.splitPath);
+  const primaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const secondaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
 
   useEffect(() => {
-    const ed = editorRef.current;
+    const ed = primaryRef.current;
     const path = active?.path;
     if (!ed || !path) return;
     const model = ed.getModel();
@@ -121,13 +150,23 @@ export function MonacoPane(props: {
   }, [active?.path, props.diagnostics, active?.content]);
 
   useEffect(() => {
-    const ed = editorRef.current;
+    const ed = primaryRef.current;
     if (!ed || !props.review || props.review.hunks.length === 0) return;
     return mountHunkReview(ed, props.review.hunks, props.review.accepted, props.review.onToggle);
   }, [props.review, active?.path, active?.content]);
 
   const onMount: OnMount = (editor) => {
-    editorRef.current = editor;
+    primaryRef.current = editor;
+    setPrimaryFormatter(async () => {
+      await editor.getAction("editor.action.formatDocument")?.run();
+      return editor.getModel()?.getValue() ?? null;
+    });
+    editor.onDidDispose(() => {
+      if (primaryRef.current === editor) {
+        primaryRef.current = null;
+        setPrimaryFormatter(null);
+      }
+    });
     registerInlineCompletion();
     attachTabNextJump(editor);
     attachInlineEdit(editor);
@@ -177,8 +216,9 @@ export function MonacoPane(props: {
   // Jump to a line requested by global search.
   useEffect(() => {
     const target = props.gotoLine;
-    const ed = editorRef.current;
-    if (!target || !ed || target.path !== active?.path) return;
+    if (!target) return;
+    const ed = target.path === split?.path ? secondaryRef.current ?? primaryRef.current : primaryRef.current;
+    if (!ed || (target.path !== active?.path && target.path !== split?.path)) return;
     // Wait a tick for the model to be ready after tab switch.
     const t = setTimeout(() => {
       ed.revealLineInCenter(target.line);
@@ -226,28 +266,48 @@ export function MonacoPane(props: {
             </div>
           );
         })}
+        <button type="button" className="btn tab-split" onClick={() => props.onToggleSplit?.()}>
+          {props.splitPath ? "关闭分屏" : "分屏"}
+        </button>
       </div>
-      <div className="monaco-host">
-        {active ? (
-          <Editor
-            key={active.path}
-            height="100%"
-            theme="vs-dark"
-            path={active.path}
-            language={languageFor(active.path)}
-            value={active.content}
-            onMount={onMount}
-            onChange={(v) => props.onChange(active.path, v ?? "")}
-            options={{
-              fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",
-              fontSize: 13,
-              minimap: { enabled: false },
-              smoothScrolling: true,
-              padding: { top: 12 },
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-            }}
-          />
+      <div className={`editor-body${split ? " split" : ""}`}>
+        <div className="editor-col">
+          {active ? <Breadcrumb path={active.path} /> : null}
+          <div className="monaco-host">
+            {active ? (
+              <Editor
+                key={active.path}
+                height="100%"
+                theme="vs-dark"
+                path={active.path}
+                language={languageFor(active.path)}
+                value={active.content}
+                onMount={onMount}
+                onChange={(v) => props.onChange(active.path, v ?? "")}
+                options={EDITOR_OPTIONS}
+              />
+            ) : null}
+          </div>
+        </div>
+        {split ? (
+          <div className="editor-col">
+            <Breadcrumb path={split.path} />
+            <div className="monaco-host">
+              <Editor
+                key={`split-${split.path}`}
+                height="100%"
+                theme="vs-dark"
+                path={split.path}
+                language={languageFor(split.path)}
+                value={split.content}
+                onMount={(editor) => {
+                  secondaryRef.current = editor;
+                }}
+                onChange={(v) => props.onChange(split.path, v ?? "")}
+                options={EDITOR_OPTIONS}
+              />
+            </div>
+          </div>
         ) : null}
       </div>
     </>

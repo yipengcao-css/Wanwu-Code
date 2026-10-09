@@ -5,6 +5,7 @@ import { loadLayout, saveLayout } from "../layout/layoutStorage";
 import { FileTree } from "../files/FileTree";
 import { SearchPanel } from "../files/SearchPanel";
 import type { CursorFocus } from "../editor/editorContext";
+import { formatPrimaryEditor } from "../editor/editorActions";
 import { rememberViewed } from "../editor/recentFiles";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
@@ -51,6 +52,7 @@ export function App() {
   const [diagnostics, setDiagnostics] = useState<Record<string, MarkerDiag[]>>({});
   const [termOpen, setTermOpen] = useState(initial.termOpen);
   const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
+  const [splitPath, setSplitPath] = useState<string | null>(null);
   const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
   const gotoSeq = useRef(0);
   const [filesW, setFilesW] = useState(initial.filesW);
@@ -266,9 +268,11 @@ export function App() {
 
   const saveActive = useCallback(async () => {
     if (!activeTab) return;
-    await window.wanwu.fs.write(activeTab.path, activeTab.content);
+    const formatted = await formatPrimaryEditor();
+    const content = formatted ?? activeTab.content;
+    await window.wanwu.fs.write(activeTab.path, content);
     setTabs((prev) =>
-      prev.map((t) => (t.path === activeTab.path ? { ...t, dirty: false } : t)),
+      prev.map((t) => (t.path === activeTab.path ? { ...t, content, dirty: false } : t)),
     );
     setStatus(`已保存 · ${activeTab.path}`);
   }, [activeTab]);
@@ -418,8 +422,13 @@ export function App() {
                 onSelectionChange={setSelection}
                 onCursorContext={setCursorFocus}
                 review={inlineReview}
+                splitPath={splitPath}
+                onToggleSplit={() =>
+                  setSplitPath((prev) => (prev ? null : activePath))
+                }
                 onClose={(p) => {
                   setTabs((prev) => prev.filter((t) => t.path !== p));
+                  if (splitPath === p) setSplitPath(null);
                   if (activePath === p) {
                     setActivePath(null);
                     setSelection(null);

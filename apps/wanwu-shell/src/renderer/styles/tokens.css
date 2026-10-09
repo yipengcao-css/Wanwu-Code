@@ -395,6 +395,36 @@ button {
   color: var(--ww-accent);
 }
 
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-body.split .editor-col + .editor-col {
+  border-left: 1px solid var(--ww-border);
+}
+
+.editor-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.breadcrumb {
+  padding: 4px 12px;
+  font-size: 12px;
+  color: var(--ww-muted);
+  border-bottom: 1px solid var(--ww-border);
+}
+
+.tab-split {
+  margin-left: auto;
+  min-height: 28px;
+  align-self: center;
+}
+
 .monaco-host {
   flex: 1;
   min-height: 0;
