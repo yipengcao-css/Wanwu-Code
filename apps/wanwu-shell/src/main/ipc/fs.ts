@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 import { createDesktopProject } from "../desktopWorkspace.js";
+import { LIST_SKIP, shouldListEntry } from "../listFilter.js";
 import { resolveInsideRoot } from "../pathSandbox.js";
 
 export type DirEntry = {
@@ -11,23 +12,12 @@ export type DirEntry = {
   type: "file" | "dir";
 };
 
-const SKIP = new Set([
-  "node_modules",
-  ".git",
-  "dist",
-  "out",
-  "code-oss",
-  ".wanwu",
-  "coverage",
-]);
-
 async function listDir(root: string, rel = "."): Promise<DirEntry[]> {
   const abs = resolveInsideRoot(root, rel);
   const names = await fs.readdir(abs);
   const out: DirEntry[] = [];
   for (const name of names.sort()) {
-    if (name.startsWith(".") && name !== ".gitignore") continue;
-    if (SKIP.has(name)) continue;
+    if (!shouldListEntry(name)) continue;
     const childAbs = path.join(abs, name);
     const st = await fs.stat(childAbs);
     const childRel = path.relative(root, childAbs).split(path.sep).join("/");
@@ -52,7 +42,7 @@ async function walkForSearch(root: string, dir: string, out: string[], cap: numb
     return;
   }
   for (const name of names) {
-    if (SKIP.has(name)) continue;
+    if (LIST_SKIP.has(name)) continue;
     const abs = path.join(dir, name);
     let st;
     try {
@@ -117,7 +107,7 @@ function startWatching(root: string, getWin: () => BrowserWindow | null): void {
       if (!filename) return;
       const rel = filename.split(path.sep).join("/");
       const first = rel.split("/")[0] ?? "";
-      if (SKIP.has(first) || first.startsWith(".git")) return;
+      if (LIST_SKIP.has(first)) return;
       // Debounce bursts (saves, formatter runs).
       if (watchTimer) clearTimeout(watchTimer);
       watchTimer = setTimeout(() => {
