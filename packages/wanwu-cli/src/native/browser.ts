@@ -6,7 +6,7 @@ import { htmlToText } from "./web.js";
 import { assertInsideWorkspace } from "./workspacePaths.js";
 import type { ToolResult } from "./tools.js";
 
-export type BrowserAction = "navigate" | "snapshot" | "screenshot";
+export type BrowserAction = "navigate" | "snapshot" | "screenshot" | "click" | "type";
 
 export interface BrowserPage {
   url: string;
@@ -14,6 +14,8 @@ export interface BrowserPage {
   html: string;
   text: string;
   fetchedAt: number;
+  fields?: Record<string, string>;
+  activated?: string[];
 }
 
 const pages = new Map<string, BrowserPage>();
@@ -66,6 +68,61 @@ export function htmlToSnapshot(html: string, url: string): string {
     .filter(Boolean)
     .join("\n\n")
     .slice(0, SNAPSHOT_CHARS);
+}
+
+function absUrl(href: string, base: string): string | undefined {
+  try {
+    const url = new URL(href, base);
+    if (url.protocol !== "http:" && url.protocol !== "https:") return undefined;
+    return url.toString();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Follow a link whose text or href matches, otherwise record a button/input click. */
+export function findClickTarget(
+  html: string,
+  baseUrl: string,
+  target: string,
+): { kind: "navigate"; url: string } | { kind: "activate"; label: string } | { kind: "miss" } {
+  const needle = target.trim().toLowerCase();
+  if (!needle) return { kind: "miss" };
+  for (const m of html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    const href = m[1] ?? "";
+    const label = htmlToText(m[2] ?? "").replace(/\s+/g, " ").trim();
+    if (label.toLowerCase().includes(needle) || href.toLowerCase().includes(needle)) {
+      const url = absUrl(href, baseUrl);
+      if (url) return { kind: "navigate", url };
+    }
+  }
+  for (const m of html.matchAll(/<(button|input|textarea|select)\b([^>]*)>/gi)) {
+    const attrs = m[2] ?? "";
+    const name = attrs.match(/\b(?:name|id|aria-label|value|placeholder)=["']([^"']+)["']/i)?.[1] ?? m[1] ?? "control";
+    if (name.toLowerCase().includes(needle) || attrs.toLowerCase().includes(needle)) {
+      return { kind: "activate", label: name };
+    }
+  }
+  return { kind: "miss" };
+}
+
+export function rememberBrowserField(
+  fields: Record<string, string> | undefined,
+  target: string,
+  value: string,
+): Record<string, string> {
+  const next = { ...(fields ?? {}) };
+  const key = target.trim();
+  if (key) next[key] = value;
+  return next;
+}
+
+function pageExtras(page: BrowserPage): string {
+  const lines: string[] = [];
+  const fields = Object.entries(page.fields ?? {});
+  if (fields.length) lines.push(`fields:\n${fields.map(([k, v]) => `- ${k}=${v}`).join("\n")}`);
+  if (page.activated?.length) lines.push(`activated:\n${page.activated.map((a) => `- ${a}`).join("\n")}`);
+  return lines.join("\n\n");
 }
 
 export function peekBrowserPage(workspaceRoot: string): BrowserPage | undefined {
@@ -129,12 +186,12 @@ function screenshotWithChrome(
 
 export async function toolBrowser(
   workspaceRoot: string,
-  args: { action?: string; url?: string; path?: string },
+  args: { action?: string; url?: string; path?: string; target?: string; text?: string },
   opts?: { fetchImpl?: FetchLike; chromeBin?: string | null },
 ): Promise<ToolResult> {
   const action = (args.action ?? "snapshot") as BrowserAction;
-  if (action !== "navigate" && action !== "snapshot" && action !== "screenshot") {
-    return { ok: false, title: "Browser", text: "action must be navigate | snapshot | screenshot" };
+  if (!["navigate", "snapshot", "screenshot", "click", "type"].includes(action)) {
+    return { ok: false, title: "Browser", text: "action must be navigate | snapshot | screenshot | click | type" };
   }
 
   if (action === "navigate") {
@@ -165,8 +222,48 @@ export async function toolBrowser(
     return { ok: false, title: "Browser", text: "no page loaded — call Browser navigate first" };
   }
 
+  if (action === "click") {
+    const target = String(args.target ?? args.text ?? "");
+    const hit = findClickTarget(current.html, current.url, target);
+    if (hit.kind === "miss") {
+      return { ok: false, title: "Browser", text: `no control matched ${target}` };
+    }
+    if (hit.kind === "navigate") {
+      try {
+        const page = await fetchPage(hit.url, opts?.fetchImpl);
+        const stored: BrowserPage = { url: hit.url, ...page, fetchedAt: Date.now(), fields: current.fields };
+        pages.set(workspaceRoot, stored);
+        return { ok: true, title: "Browser", text: `clicked link → ${hit.url}\n\n${htmlToSnapshot(page.html, hit.url)}` };
+      } catch (err) {
+        return { ok: false, title: "Browser", text: err instanceof Error ? err.message : String(err) };
+      }
+    }
+    const activated = [...(current.activated ?? []), hit.label];
+    pages.set(workspaceRoot, { ...current, activated });
+    return {
+      ok: true,
+      title: "Browser",
+      text: `clicked ${hit.label}\n\n${htmlToSnapshot(current.html, current.url)}\n\nactivated:\n- ${activated.join("\n- ")}`,
+    };
+  }
+
+  if (action === "type") {
+    const target = String(args.target ?? "");
+    const value = String(args.text ?? "");
+    if (!target) return { ok: false, title: "Browser", text: "type requires target" };
+    const fields = rememberBrowserField(current.fields, target, value);
+    const stored = { ...current, fields };
+    pages.set(workspaceRoot, stored);
+    return {
+      ok: true,
+      title: "Browser",
+      text: `typed into ${target}\n\n${htmlToSnapshot(current.html, current.url)}\n\n${pageExtras(stored)}`,
+    };
+  }
+
   if (action === "snapshot") {
-    return { ok: true, title: "Browser", text: htmlToSnapshot(current.html, current.url) };
+    const extra = pageExtras(current);
+    return { ok: true, title: "Browser", text: htmlToSnapshot(current.html, current.url) + (extra ? `\n\n${extra}` : "") };
   }
 
   const rel = String(args.path ?? `.wanwu/browser/shot-${Date.now()}.png`).replace(/^\/+/, "");

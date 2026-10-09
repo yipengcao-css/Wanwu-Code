@@ -174,13 +174,15 @@ export const WANWU_TOOL_SPECS: ToolSpec[] = [
   {
     name: "Browser",
     description:
-      "Read-only in-page browser: navigate an http(s) URL, snapshot headings/links/controls, or screenshot (Chrome if WANWU_BROWSER_BIN / system chrome exists; otherwise writes a text snapshot). No clicking. Call navigate before snapshot/screenshot.",
+      "Browser: navigate an http(s) URL, snapshot headings/links/controls, click a link or button by visible text, type into a named field, or screenshot (Chrome if WANWU_BROWSER_BIN / system chrome exists; otherwise writes a text snapshot). Click follows links with a new fetch. Button clicks and typed fields are recorded on the page; page JavaScript is not executed. Call navigate before snapshot/click/type/screenshot.",
     parameters: {
       type: "object",
       properties: {
-        action: { type: "string", enum: ["navigate", "snapshot", "screenshot"] },
+        action: { type: "string", enum: ["navigate", "snapshot", "screenshot", "click", "type"] },
         url: { type: "string", description: "Required for navigate" },
         path: { type: "string", description: "Workspace-relative PNG path for screenshot" },
+        target: { type: "string", description: "Link text, href, or field name for click/type" },
+        text: { type: "string", description: "Value to type" },
       },
       required: ["action"],
     },
