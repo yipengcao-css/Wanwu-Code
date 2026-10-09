@@ -58,6 +58,7 @@
 | 设置里可以改已有规则的正文 | `RulesMemoryPanel.tsx` |
 | 面包屑点文件夹会在文件树展开；当前符号可展开大纲并跳转 | `MonacoPane.tsx` / `outline.ts` |
 | 文件树显示点开头的配置文件 | `listFilter.ts` |
+| 最近打开的项目 | `recentWorkspaces.ts` / `OrbitBar.tsx` |
 
 ## 仍未做（2026-10-09）
 
