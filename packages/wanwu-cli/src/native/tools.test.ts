@@ -27,6 +27,21 @@ describe("native tools sandbox", () => {
     expect(r.text).toMatch(/1\|# Hi/);
   });
 
+  it("refuses Read of ignored files such as .env", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
+    writeFileSync(join(root, ".env"), "SECRET=1\n");
+    writeFileSync(join(root, ".wanwuignore"), "secrets/\n");
+    mkdirSync(join(root, "secrets"));
+    writeFileSync(join(root, "secrets", "key.txt"), "hidden\n");
+    const env = toolRead(root, ".env");
+    expect(env.ok).toBe(false);
+    expect(env.text).toMatch(/ignored/);
+    expect(env.text).not.toMatch(/SECRET/);
+    const nested = toolRead(root, "secrets/key.txt");
+    expect(nested.ok).toBe(false);
+    expect(nested.text).not.toMatch(/hidden/);
+  });
+
   it("pages Read with offset/limit and line numbers", () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
     writeFileSync(join(root, "n.txt"), "a\nb\nc\nd\n");

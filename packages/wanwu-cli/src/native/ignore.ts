@@ -94,3 +94,10 @@ export function loadIgnore(workspaceRoot: string): (rel: string, isDir: boolean)
   if (existsSync(local)) chunks.push(readFileSync(local, "utf8"));
   return compileIgnore(chunks.join("\n"));
 }
+
+/** True when a direct read of this workspace-relative path should be refused. */
+export function isIgnoredPath(workspaceRoot: string, rel: string, isDir = false): boolean {
+  const norm = rel.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/$/, "");
+  if (!norm || norm === ".") return false;
+  return loadIgnore(workspaceRoot)(norm, isDir);
+}

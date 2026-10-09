@@ -17,6 +17,23 @@ export type WanwuBridge = {
     listFiles: () => Promise<string[]>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
+  problems: {
+    scan: () => Promise<{
+      available: boolean;
+      label?: string;
+      note: string;
+      problems: Array<{
+        path: string;
+        message: string;
+        severity: "error" | "warning" | "info" | "hint";
+        startLine: number;
+        startCharacter: number;
+        endLine: number;
+        endCharacter: number;
+        source?: string;
+      }>;
+    }>;
+  };
   library: {
     list: () => Promise<{
       rules: Array<{ name: string; scope: "user" | "workspace"; body: string }>;
@@ -233,6 +250,9 @@ const bridge: WanwuBridge = {
     search: (query) => ipcRenderer.invoke("fs:search", query),
     listFiles: () => ipcRenderer.invoke("fs:listFiles"),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
+  },
+  problems: {
+    scan: () => ipcRenderer.invoke("problems:scan"),
   },
   library: {
     list: () => ipcRenderer.invoke("library:list"),

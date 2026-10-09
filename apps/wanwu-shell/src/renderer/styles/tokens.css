@@ -1252,6 +1252,12 @@ button {
   padding: 4px 0;
 }
 
+.library-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
 .subagent {
   margin: 6px 0;
   border: 1px solid var(--ww-border);
@@ -1537,6 +1543,7 @@ button {
   flex-direction: column;
   gap: 16px;
   box-shadow: -16px 0 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
 }
 
 .drawer-head {
@@ -1562,6 +1569,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .field {

@@ -48,6 +48,15 @@
 | 最近查看的文件路径进入 Agent | `recentFiles.ts` / `editorContext.ts` |
 | 换模型或 ACP 重启后按编号重新加载会话 | `ipc/acp.ts` |
 
+## 2026-10-09 已落地
+
+| 项 | 落点 |
+|---|---|
+| 更改列表随文件变化刷新；未跟踪文件显示新增内容 | `SourceControl.tsx` / `gitOps.ts` |
+| `Read` 和 `@文件` 遵守忽略规则，点名也读不到 `.env` | `tools.ts` / `mentions.ts` |
+| 问题列表合并工作区检查器（tsc / cargo / go / python），不必先打开文件 | `workspaceProblems.ts` |
+| 设置里可以改已有规则的正文 | `RulesMemoryPanel.tsx` |
+
 ## 仍未做（2026-10-09）
 
 1. Cloud Agents / Bugbot / DAP（明确不做本批）
