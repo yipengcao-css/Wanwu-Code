@@ -10,6 +10,7 @@ import { rememberViewed } from "../editor/recentFiles";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { ProblemsPanel } from "../problems/ProblemsPanel";
+import { mergeDiagnostics } from "../../shared/problems";
 import { SourceControl } from "../scm/SourceControl";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { applyHunkChoices, diffHunks } from "../agent/diffHunks";
@@ -50,6 +51,13 @@ export function App() {
   const [tabs, setTabs] = useState<EditorTab[]>([]);
   const [activePath, setActivePath] = useState<string | null>(null);
   const [diagnostics, setDiagnostics] = useState<Record<string, MarkerDiag[]>>({});
+  const [scanned, setScanned] = useState<Record<string, MarkerDiag[]>>({});
+  const [scanningProblems, setScanningProblems] = useState(false);
+  const [problemNote, setProblemNote] = useState<string | null>(null);
+  const mergedDiagnostics = useMemo(
+    () => mergeDiagnostics(diagnostics, scanned),
+    [diagnostics, scanned],
+  );
   const [termOpen, setTermOpen] = useState(initial.termOpen);
   const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
   const [splitPath, setSplitPath] = useState<string | null>(null);
@@ -226,6 +234,48 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!root) {
+      setScanned({});
+      setProblemNote(null);
+      setScanningProblems(false);
+      return;
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const run = () => {
+      setScanningProblems(true);
+      void window.wanwu.problems
+        .scan()
+        .then((result) => {
+          if (cancelled) return;
+          const next: Record<string, MarkerDiag[]> = {};
+          for (const row of result.problems) {
+            const { path: file, ...diag } = row;
+            (next[file] ??= []).push(diag);
+          }
+          setScanned(next);
+          setProblemNote(result.note || null);
+        })
+        .catch(() => {
+          if (!cancelled) setProblemNote("工作区扫描没有完成。");
+        })
+        .finally(() => {
+          if (!cancelled) setScanningProblems(false);
+        });
+    };
+    timer = setTimeout(run, 400);
+    const off = window.wanwu.fs.onChanged(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(run, 1200);
+    });
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+      off();
+    };
+  }, [root]);
+
   const openFolder = useCallback(async () => {
     const dir = await window.wanwu.workspace.openDialog();
     if (dir) {
@@ -346,7 +396,9 @@ export function App() {
               <SourceControl rootLabel={root} onOpenFile={(p) => void openFile(p)} />
             ) : (
               <ProblemsPanel
-                diagnostics={diagnostics}
+                diagnostics={mergedDiagnostics}
+                scanning={scanningProblems}
+                note={problemNote}
                 onOpen={(p, line) => {
                   void openFile(p);
                   setGotoLine({ path: p, line, n: ++gotoSeq.current });
@@ -415,7 +467,7 @@ export function App() {
               <MonacoPane
                 tabs={tabs}
                 activePath={activePath}
-                diagnostics={diagnostics}
+                diagnostics={mergedDiagnostics}
                 gotoLine={gotoLine}
                 onSelect={setActivePath}
                 onChange={onChange}
@@ -464,7 +516,7 @@ export function App() {
             cursor={cursorFocus}
             addSelectionTick={addSelectionTick}
             modelLabel={modelLabel}
-            diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
+            diagnosticsSummary={formatDiagnosticsSummary(mergedDiagnostics)}
             terminalSummary={termTail || undefined}
             onStatus={setStatus}
             onMode={setMode}

@@ -54,6 +54,7 @@
 |---|---|
 | 更改列表随文件变化刷新；未跟踪文件显示新增内容 | `SourceControl.tsx` / `gitOps.ts` |
 | `Read` 和 `@文件` 遵守忽略规则，点名也读不到 `.env` | `tools.ts` / `mentions.ts` |
+| 问题列表合并工作区检查器（tsc / cargo / go / python），不必先打开文件 | `workspaceProblems.ts` |
 
 ## 仍未做（2026-10-09）
 

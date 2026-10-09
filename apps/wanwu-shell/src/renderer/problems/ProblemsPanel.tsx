@@ -9,6 +9,8 @@ const ORDER: Record<MarkerDiag["severity"], number> = {
 
 export function ProblemsPanel(props: {
   diagnostics: Record<string, MarkerDiag[]>;
+  scanning?: boolean;
+  note?: string | null;
   onOpen: (path: string, line: number) => void;
 }) {
   const rows = Object.entries(props.diagnostics)
@@ -16,11 +18,18 @@ export function ProblemsPanel(props: {
     .sort((a, b) => ORDER[a.severity] - ORDER[b.severity] || a.path.localeCompare(b.path) || a.startLine - b.startLine);
 
   if (!rows.length) {
-    return <div className="empty">当前没有错误或警告。打开文件后，语言服务会把问题列在这里。</div>;
+    return (
+      <div className="empty">
+        {props.scanning ? "正在扫描工作区…" : "当前没有错误或警告。"}
+        {props.note ? <p className="field-hint">{props.note}</p> : null}
+      </div>
+    );
   }
 
   return (
     <ul className="problem-list" aria-label="问题">
+      {props.scanning ? <li className="field-hint">正在更新工作区问题…</li> : null}
+      {props.note ? <li className="field-hint">{props.note}</li> : null}
       {rows.map((row, i) => (
         <li key={`${row.path}:${row.startLine}:${i}`}>
           <button
