@@ -1201,6 +1201,18 @@ button {
   pointer-events: none;
 }
 
+.subagent {
+  margin: 6px 0;
+  border: 1px solid var(--ww-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.subagent summary {
+  cursor: pointer;
+  color: var(--ww-text);
+}
+
 .context-meter {
   display: inline-flex;
   align-items: center;

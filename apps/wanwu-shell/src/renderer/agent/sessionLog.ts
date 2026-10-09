@@ -1,6 +1,6 @@
 export type LogItem =
   | { kind: "user" | "assistant" | "error" | "status" | "thought"; text: string }
-  | { kind: "tool"; id?: string; title: string; status: string; detail?: string };
+  | { kind: "tool"; id?: string; title: string; status: string; detail?: string; subagentId?: string };
 
 export type MessageBlock =
   | { type: "text"; text: string }
@@ -145,9 +145,42 @@ export function parseDebugWaiting(title: string, detail?: string): boolean | nul
 }
 
 /** Upsert a tool chip by id (Cursor-style in-place status). */
+export function subagentLabel(title: string, id: string): string {
+  const m = title.match(/^Subagent:([^:]+):([\s\S]+)$/);
+  if (m) return `子代理 ${m[1]} · ${m[2]}`;
+  return `子代理 ${id}`;
+}
+
+export type LogGroup =
+  | { kind: "item"; index: number; item: LogItem }
+  | { kind: "subagent"; id: string; title: string; items: LogItem[] };
+
+/** Fold a subagent's tool chips into one group at the first chip. */
+export function groupLog(log: LogItem[]): LogGroup[] {
+  const grouped = new Set<string>();
+  const out: LogGroup[] = [];
+  log.forEach((item, index) => {
+    if (item.kind === "tool" && item.subagentId) {
+      if (grouped.has(item.subagentId)) return;
+      grouped.add(item.subagentId);
+      const items = log.filter((row) => row.kind === "tool" && row.subagentId === item.subagentId);
+      const titled = items.find((row) => row.kind === "tool" && row.title.startsWith("Subagent:"));
+      out.push({
+        kind: "subagent",
+        id: item.subagentId,
+        title: subagentLabel(titled && titled.kind === "tool" ? titled.title : "", item.subagentId),
+        items,
+      });
+      return;
+    }
+    out.push({ kind: "item", index, item });
+  });
+  return out;
+}
+
 export function upsertToolLog(
   prev: LogItem[],
-  tool: { id?: string; title: string; status: string; detail?: string },
+  tool: { id?: string; title: string; status: string; detail?: string; subagentId?: string },
 ): LogItem[] {
   const next: LogItem = {
     kind: "tool",
@@ -155,6 +188,7 @@ export function upsertToolLog(
     title: tool.title,
     status: tool.status,
     detail: tool.detail,
+    subagentId: tool.subagentId,
   };
   if (tool.id) {
     const idx = prev.findIndex((item) => item.kind === "tool" && item.id === tool.id);

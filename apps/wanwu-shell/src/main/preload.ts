@@ -122,7 +122,7 @@ export type WanwuBridge = {
     onMessage: (cb: (text: string) => void) => () => void;
     onThought: (cb: (text: string) => void) => () => void;
     onTool: (
-      cb: (tool: { id?: string; title: string; status: string; detail?: string }) => void,
+      cb: (tool: { id?: string; title: string; status: string; detail?: string; subagentId?: string }) => void,
     ) => () => void;
     onError: (cb: (text: string) => void) => () => void;
     onSession: (cb: (info: { sessionId?: string; cwd?: string }) => void) => () => void;

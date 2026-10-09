@@ -49,17 +49,20 @@ export function formatPermissionSummary(toolName: string, raw: string, reason?: 
 
 export function extractTool(
   params: unknown,
-): { id?: string; title: string; status: string; detail?: string } | undefined {
+): { id?: string; title: string; status: string; detail?: string; subagentId?: string } | undefined {
   const update = updateOf(params);
   if (update?.sessionUpdate !== "tool_call") return undefined;
   const title = update.title;
   const status = update.status;
   const detail = contentText(update);
+  const content = update.content as Record<string, unknown> | undefined;
   if (typeof title !== "string" || typeof status !== "string") return undefined;
+  const subagentId = typeof content?.subagentId === "string" ? content.subagentId : undefined;
   return {
     id: typeof update.toolCallId === "string" ? update.toolCallId : undefined,
     title,
     status,
     detail: typeof detail === "string" ? detail.slice(0, 4000) : undefined,
+    ...(subagentId ? { subagentId } : {}),
   };
 }

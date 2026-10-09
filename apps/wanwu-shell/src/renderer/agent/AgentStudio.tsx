@@ -15,6 +15,7 @@ import {
   historyToLog,
   parseDebugWaiting,
   parseTodoToolText,
+  groupLog,
   upsertToolLog,
   type LogItem,
   type TodoRow,
@@ -1037,7 +1038,21 @@ export function AgentStudio(props: {
           for (let n = 0; n < active.log.length; n += 1) {
             if (active.log[n]?.kind === "thought") latestThought = n;
           }
-          return active.log.map((item, i) => {
+          return groupLog(active.log).map((group) => {
+          if (group.kind === "subagent") {
+            return (
+              <details key={group.id} className="subagent" open>
+                <summary>{group.title}</summary>
+                {group.items.map((item, j) =>
+                  item.kind === "tool" ? (
+                    <ToolChip key={item.id ?? j} item={item} onOpenFile={props.onOpenFile} />
+                  ) : null,
+                )}
+              </details>
+            );
+          }
+          const item = group.item;
+          const i = group.index;
           if (item.kind === "tool") {
             return <ToolChip key={item.id ?? i} item={item} onOpenFile={props.onOpenFile} />;
           }
