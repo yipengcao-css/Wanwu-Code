@@ -436,6 +436,40 @@ export function App() {
               setModelLabel(label);
               setStatus(`已切换模型 · ${label}`);
             }}
+            onOpenFile={(p, line) => {
+              void openFile(p)
+                .then(() => {
+                  if (line) setGotoLine({ path: p, line, n: ++gotoSeq.current });
+                  setStatus(line ? `已打开 ${p}:${line}` : `已打开 ${p}`);
+                })
+                .catch((err: unknown) => {
+                  setStatus(err instanceof Error ? err.message : String(err));
+                });
+            }}
+            onApplyCode={(code, mode) => {
+              const tab = tabs.find((t) => t.path === activePath);
+              if (!tab || !activePath) {
+                setStatus("先打开一个文件，再把代码块插进去");
+                return;
+              }
+              if (mode === "replace") {
+                onChange(activePath, code);
+                setStatus(`已用代码块替换 ${activePath}`);
+                return;
+              }
+              const lines = tab.content.split("\n");
+              if (selection && selection.path === activePath && selection.text) {
+                const count = selection.endLine - selection.startLine + 1;
+                lines.splice(Math.max(0, selection.startLine - 1), count, code);
+                onChange(activePath, lines.join("\n"));
+                setStatus(`已用代码块替换选区 · ${activePath}`);
+                return;
+              }
+              const at = cursorFocus?.path === activePath ? cursorFocus.line : lines.length + 1;
+              lines.splice(Math.max(0, at - 1), 0, code);
+              onChange(activePath, lines.join("\n"));
+              setStatus(`已插入到 ${activePath}:${at}`);
+            }}
           />
         </aside>
       </div>

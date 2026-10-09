@@ -1237,6 +1237,24 @@ button {
   background: rgba(42, 212, 160, 0.1);
 }
 
+.file-ref {
+  border: 0;
+  background: transparent;
+  color: var(--ww-accent, #7ee0c3);
+  padding: 0 2px;
+  min-height: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.code-actions {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+
 .empty {
   padding: var(--ww-space-3);
   color: var(--ww-muted);

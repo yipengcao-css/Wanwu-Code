@@ -122,6 +122,8 @@ export function AgentStudio(props: {
   onMode?: (m: WanwuMode) => void;
   onOpenSettings?: () => void;
   onModelChange?: (label: string) => void;
+  onOpenFile?: (path: string, line?: number) => void;
+  onApplyCode?: (code: string, mode: "insert" | "replace") => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
     { localId: newLocalId(), title: "会话 1", log: emptyWelcome() },
@@ -990,7 +992,7 @@ export function AgentStudio(props: {
           }
           return active.log.map((item, i) => {
           if (item.kind === "tool") {
-            return <ToolChip key={item.id ?? i} item={item} />;
+            return <ToolChip key={item.id ?? i} item={item} onOpenFile={props.onOpenFile} />;
           }
           if (item.kind === "status") {
             return (
@@ -1009,7 +1011,12 @@ export function AgentStudio(props: {
           if (item.kind === "assistant") {
             return (
               <div key={i} className="card assistant">
-                <MessageBody text={item.text} defaultThinkOpen={busy && i === active.log.length - 1} />
+                <MessageBody
+                  text={item.text}
+                  defaultThinkOpen={busy && i === active.log.length - 1}
+                  onOpenFile={props.onOpenFile}
+                  onApplyCode={props.onApplyCode}
+                />
               </div>
             );
           }
