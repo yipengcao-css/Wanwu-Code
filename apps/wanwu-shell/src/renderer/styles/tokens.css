@@ -1252,6 +1252,12 @@ button {
   padding: 4px 0;
 }
 
+.library-actions {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
 .subagent {
   margin: 6px 0;
   border: 1px solid var(--ww-border);

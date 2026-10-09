@@ -6,9 +6,11 @@ import { deleteMemory, deleteRule, listMemories, listRules, writeRule } from "./
 
 const root = mkdtempSync(join(tmpdir(), "wanwu-lib-"));
 writeRule(root, "react", "use hooks\n", "workspace");
+writeRule(root, "react", "prefer existing spacing\n", "workspace");
 const rules = listRules(root).filter((r) => r.scope === "workspace");
+assert.equal(rules[0]?.body, "prefer existing spacing\n");
 assert.equal(rules[0]?.name, "react");
-assert.match(rules[0]?.body ?? "", /hooks/);
+assert.equal(rules.length, 1);
 assert.equal(deleteRule(root, "react", "workspace"), true);
 assert.equal(listRules(root).some((r) => r.scope === "workspace"), false);
 assert.throws(() => writeRule(root, "../x", "no", "workspace"));
