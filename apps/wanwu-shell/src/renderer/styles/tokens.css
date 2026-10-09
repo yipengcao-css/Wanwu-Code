@@ -413,10 +413,60 @@ button {
 }
 
 .breadcrumb {
+  position: relative;
   padding: 4px 12px;
   font-size: 12px;
   color: var(--ww-muted);
   border-bottom: 1px solid var(--ww-border);
+}
+
+.crumb {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.crumb:hover {
+  color: var(--ww-text);
+}
+
+.crumb-symbol {
+  position: relative;
+}
+
+.outline-menu {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 180px;
+  max-height: 240px;
+  overflow: auto;
+  background: var(--ww-surface-1);
+  border: 1px solid var(--ww-border);
+  border-radius: var(--ww-radius-md);
+}
+
+.outline-menu button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--ww-text);
+  font: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.outline-menu button.active,
+.outline-menu button:hover {
+  background: rgba(79, 140, 255, 0.16);
 }
 
 .tab-split {

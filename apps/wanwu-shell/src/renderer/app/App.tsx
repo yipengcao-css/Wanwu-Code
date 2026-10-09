@@ -60,6 +60,7 @@ export function App() {
   );
   const [termOpen, setTermOpen] = useState(initial.termOpen);
   const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
+  const [revealDir, setRevealDir] = useState<string | null>(null);
   const [splitPath, setSplitPath] = useState<string | null>(null);
   const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
   const gotoSeq = useRef(0);
@@ -384,7 +385,12 @@ export function App() {
           </div>
           {root ? (
             sideTab === "files" ? (
-              <FileTree rootLabel={root} onOpenFile={(p) => void openFile(p)} activePath={activePath} />
+              <FileTree
+                rootLabel={root}
+                onOpenFile={(p) => void openFile(p)}
+                activePath={activePath}
+                revealDir={revealDir}
+              />
             ) : sideTab === "search" ? (
               <SearchPanel
                 onOpenFile={(p, line) => {
@@ -473,6 +479,10 @@ export function App() {
                 onChange={onChange}
                 onSelectionChange={setSelection}
                 onCursorContext={setCursorFocus}
+                onOpenDir={(dir) => {
+                  setSideTab("files");
+                  setRevealDir(dir);
+                }}
                 review={inlineReview}
                 splitPath={splitPath}
                 onToggleSplit={() =>

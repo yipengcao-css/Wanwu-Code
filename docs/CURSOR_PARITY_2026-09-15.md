@@ -56,6 +56,7 @@
 | `Read` 和 `@文件` 遵守忽略规则，点名也读不到 `.env` | `tools.ts` / `mentions.ts` |
 | 问题列表合并工作区检查器（tsc / cargo / go / python），不必先打开文件 | `workspaceProblems.ts` |
 | 设置里可以改已有规则的正文 | `RulesMemoryPanel.tsx` |
+| 面包屑点文件夹会在文件树展开；当前符号可展开大纲并跳转 | `MonacoPane.tsx` / `outline.ts` |
 
 ## 仍未做（2026-10-09）
 

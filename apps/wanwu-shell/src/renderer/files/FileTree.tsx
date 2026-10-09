@@ -18,6 +18,7 @@ const SCM_TITLE: Record<string, string> = {
 export function FileTree(props: {
   rootLabel: string;
   activePath: string | null;
+  revealDir?: string | null;
   onOpenFile: (path: string) => void;
 }) {
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -53,6 +54,27 @@ export function FileTree(props: {
       });
     });
   }, [refreshScm]);
+
+  useEffect(() => {
+    const dir = props.revealDir?.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (!dir) return;
+    let cancelled = false;
+    const parts = dir.split("/").filter(Boolean);
+    void (async () => {
+      const next: Record<string, Entry[]> = {};
+      let acc = "";
+      for (const part of parts) {
+        acc = acc ? `${acc}/${part}` : part;
+        const kids = await window.wanwu.fs.list(acc);
+        if (cancelled) return;
+        next[acc] = kids;
+      }
+      if (!cancelled) setExpanded((prev) => ({ ...prev, ...next }));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [props.revealDir]);
 
   async function toggleDir(rel: string): Promise<void> {
     if (expanded[rel]) {
