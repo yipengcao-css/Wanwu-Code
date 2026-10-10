@@ -61,7 +61,16 @@
 | 文件树显示点开头的配置文件 | `listFilter.ts` |
 | 最近打开的项目；不存在的文件夹会从列表去掉 | `recentWorkspaces.ts` / `existingDirs.ts` |
 
-## 仍未做（2026-10-09）
+## 2026-10-10 已落地
+
+| 项 | 落点 |
+|---|---|
+| 大纲包含缩进的方法和构造函数，`if` / `for` 不会进符号列表 | `outline.ts` |
+| 更改面板里的差异和历史自己滚动，提交框留在底部 | `SourceControl.tsx` |
+| 面包屑显示当前行的提交；未提交的行会说明 | `gitOps.ts` / `MonacoPane.tsx` |
+| 上下文占用计入编辑器上下文、规则和记忆，并与模型返回的用量取较大值 | `contextMeter.ts` / `AgentStudio.tsx` |
+
+## 仍未做（2026-10-10）
 
 1. Cloud Agents / Bugbot / DAP（明确不做本批）
 2. MCP **prompts**（stdio resources + HTTP/OAuth 已做；Browser 已能点击链接、记录按钮和输入）
