@@ -90,51 +90,55 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
         </button>
         <span className="scm-count">{branch ? `${branch} · ` : ""}{files.length} 个更改</span>
       </div>
-      {files.length === 0 ? <p className="empty">工作区是干净的。</p> : null}
-      <ul className="scm-list">
-        {files.map((f) => (
-          <li key={f.path} className={selected === f.path ? "active" : ""}>
-            <label>
-              <input
-                type="checkbox"
-                checked={f.staged}
-                disabled={busy}
-                onChange={(e) => void stage(f, e.target.checked)}
-                aria-label={f.staged ? `取消暂存 ${f.path}` : `暂存 ${f.path}`}
-              />
-            </label>
-            <button type="button" className="scm-path" onClick={() => setSelected(f.path)}>
-              <span className={`scm-badge scm-${f.code}`}>{f.code}</span>
-              {f.path}
-            </button>
-            <button type="button" className="btn" onClick={() => props.onOpenFile(f.path)}>
-              打开
-            </button>
-          </li>
-        ))}
-      </ul>
-      {selected ? (
-        diff ? <pre className="scm-diff">{diff}</pre> : <p className="empty">没有可显示的文本差异。</p>
-      ) : null}
-      {selected ? (
-        <ul className="scm-log" aria-label="最近提交">
-          {history.length === 0 ? <li className="field-hint">这个文件还没有提交记录。</li> : null}
-          {history.map((entry) => (
-            <li key={entry.hash}>
-              <span className="scm-hash">{entry.hash}</span>
-              {entry.subject}
+      <div className="scm-scroll">
+        {files.length === 0 ? <p className="empty">工作区是干净的。</p> : null}
+        <ul className="scm-list">
+          {files.map((f) => (
+            <li key={f.path} className={selected === f.path ? "active" : ""}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={f.staged}
+                  disabled={busy}
+                  onChange={(e) => void stage(f, e.target.checked)}
+                  aria-label={f.staged ? `取消暂存 ${f.path}` : `暂存 ${f.path}`}
+                />
+              </label>
+              <button type="button" className="scm-path" onClick={() => setSelected(f.path)}>
+                <span className={`scm-badge scm-${f.code}`}>{f.code}</span>
+                {f.path}
+              </button>
+              <button type="button" className="btn" onClick={() => props.onOpenFile(f.path)}>
+                打开
+              </button>
             </li>
           ))}
         </ul>
-      ) : null}
-      <label className="field">
-        <span className="field-label">提交说明</span>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
-      </label>
-      <button type="button" className="btn primary" disabled={busy || !message.trim()} onClick={() => void commit()}>
-        提交
-      </button>
-      {status ? <p className="field-hint">{status}</p> : null}
+        {selected ? (
+          diff ? <pre className="scm-diff">{diff}</pre> : <p className="empty">没有可显示的文本差异。</p>
+        ) : null}
+        {selected ? (
+          <ul className="scm-log" aria-label="最近提交">
+            {history.length === 0 ? <li className="field-hint">这个文件还没有提交记录。</li> : null}
+            {history.map((entry) => (
+              <li key={entry.hash}>
+                <span className="scm-hash">{entry.hash}</span>
+                {entry.subject}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+      <div className="scm-commit">
+        <label className="field">
+          <span className="field-label">提交说明</span>
+          <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={3} />
+        </label>
+        <button type="button" className="btn primary" disabled={busy || !message.trim()} onClick={() => void commit()}>
+          提交
+        </button>
+        {status ? <p className="field-hint">{status}</p> : null}
+      </div>
     </div>
   );
 }
