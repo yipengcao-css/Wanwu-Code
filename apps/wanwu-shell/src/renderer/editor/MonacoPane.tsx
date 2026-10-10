@@ -61,6 +61,9 @@ function Breadcrumb(props: {
 }) {
   const [open, setOpen] = useState(false);
   const parts = props.path.split("/").filter(Boolean);
+  useEffect(() => {
+    setOpen(false);
+  }, [props.path, props.symbol]);
   return (
     <nav className="breadcrumb" aria-label="文件路径">
       {parts.map((part, i) => {
