@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { gitCommit, gitDiff, gitScmStatus, gitStage, safeRepoPath } from "./gitOps.ts";
+import { gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage, safeRepoPath } from "./gitOps.ts";
 
 assert.equal(safeRepoPath("../x"), null);
 assert.equal(safeRepoPath("src/a.ts"), "src/a.ts");
@@ -20,6 +20,10 @@ const added = gitDiff(dir, "note.txt");
 assert.match(added, /新文件/);
 assert.match(added, /\+hello/);
 
+const tooSoon = gitCommit(dir, "nope");
+assert.equal(tooSoon.ok, false);
+assert.match(tooSoon.text, /暂存/);
+
 const staged = gitStage(dir, ["note.txt"], true);
 assert.equal(staged.ok, true);
 const mid = gitScmStatus(dir);
@@ -29,6 +33,10 @@ assert.match(gitDiff(dir, "note.txt"), /hello/);
 const committed = gitCommit(dir, "add note");
 assert.equal(committed.ok, true, committed.text);
 assert.equal(gitScmStatus(dir).files.length, 0);
+assert.ok(gitBranch(dir).length > 0);
+const history = gitFileLog(dir, "note.txt");
+assert.equal(history[0]?.subject, "add note");
+assert.ok(history[0]?.hash);
 
 const plain = mkdtempSync(join(tmpdir(), "wanwu-scm-none-"));
 assert.equal(gitScmStatus(plain).repo, false);

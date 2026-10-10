@@ -52,7 +52,7 @@
 
 | 项 | 落点 |
 |---|---|
-| 更改列表随文件变化刷新；未跟踪文件显示新增内容 | `SourceControl.tsx` / `gitOps.ts` |
+| 更改列表随文件变化刷新；未跟踪文件显示新增内容；显示分支和该文件最近提交 | `SourceControl.tsx` / `gitOps.ts` |
 | `Read`、`Edit`、`Write` 和 `@文件` 遵守忽略规则，点名也读不到、改不了 `.env` | `tools.ts` / `mentions.ts` |
 | 问题列表合并工作区检查器（tsc / cargo / go / python），不必先打开文件 | `workspaceProblems.ts` |
 | 设置里可以改已有规则的正文 | `RulesMemoryPanel.tsx` |

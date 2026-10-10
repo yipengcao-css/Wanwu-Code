@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { gitCommit, gitDiff, gitScmStatus, gitStage } from "../gitOps.js";
+import { gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage } from "../gitOps.js";
 import { gitStatus } from "../gitStatus.js";
 
 export function registerGitIpc(getRoot: () => string | null): void {
@@ -11,8 +11,14 @@ export function registerGitIpc(getRoot: () => string | null): void {
 
   ipcMain.handle("git:changes", () => {
     const root = getRoot();
-    if (!root) return { repo: false, files: [] };
-    return gitScmStatus(root);
+    if (!root) return { repo: false, branch: "", files: [] };
+    return { ...gitScmStatus(root), branch: gitBranch(root) };
+  });
+
+  ipcMain.handle("git:log", (_e, rel: string) => {
+    const root = getRoot();
+    if (!root) return [];
+    return gitFileLog(root, String(rel));
   });
 
   ipcMain.handle("git:diff", (_e, rel: string) => {
