@@ -1,5 +1,5 @@
 import { ipcMain } from "electron";
-import { gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage } from "../gitOps.js";
+import { gitBlameLine, gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage } from "../gitOps.js";
 import { gitStatus } from "../gitStatus.js";
 
 export function registerGitIpc(getRoot: () => string | null): void {
@@ -19,6 +19,12 @@ export function registerGitIpc(getRoot: () => string | null): void {
     const root = getRoot();
     if (!root) return [];
     return gitFileLog(root, String(rel));
+  });
+
+  ipcMain.handle("git:blame", (_e, rel: string, line: number) => {
+    const root = getRoot();
+    if (!root) return { text: "" };
+    return gitBlameLine(root, String(rel), Number(line));
   });
 
   ipcMain.handle("git:diff", (_e, rel: string) => {

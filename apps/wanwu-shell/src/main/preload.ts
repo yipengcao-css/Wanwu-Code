@@ -49,6 +49,7 @@ export type WanwuBridge = {
     changes: () => Promise<{ repo: boolean; branch: string; files: Array<{ path: string; code: string; staged: boolean }> }>;
     diff: (rel: string) => Promise<string>;
     log: (rel: string) => Promise<Array<{ hash: string; subject: string }>>;
+    blame: (rel: string, line: number) => Promise<{ text: string }>;
     stage: (rels: string[], staged: boolean) => Promise<{ ok: boolean; text: string }>;
     commit: (message: string) => Promise<{ ok: boolean; text: string }>;
   };
@@ -278,6 +279,7 @@ const bridge: WanwuBridge = {
     changes: () => ipcRenderer.invoke("git:changes"),
     diff: (rel) => ipcRenderer.invoke("git:diff", rel),
     log: (rel) => ipcRenderer.invoke("git:log", rel),
+    blame: (rel, line) => ipcRenderer.invoke("git:blame", rel, line),
     stage: (rels, staged) => ipcRenderer.invoke("git:stage", rels, staged),
     commit: (message) => ipcRenderer.invoke("git:commit", message),
   },

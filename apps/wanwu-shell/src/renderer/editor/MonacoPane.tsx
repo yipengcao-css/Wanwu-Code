@@ -55,6 +55,7 @@ function Breadcrumb(props: {
   path: string;
   symbol?: string | null;
   symbols?: OutlineSymbol[];
+  blame?: string | null;
   onOpenDir?: (dir: string) => void;
   onJump?: (line: number) => void;
 }) {
@@ -109,6 +110,11 @@ function Breadcrumb(props: {
               ))}
             </ul>
           ) : null}
+        </span>
+      ) : null}
+      {props.blame ? (
+        <span className="crumb-blame" title={props.blame}>
+          {props.blame}
         </span>
       ) : null}
     </nav>
@@ -183,8 +189,30 @@ export function MonacoPane(props: {
   const pathRef = useRef(props.activePath);
   pathRef.current = props.activePath;
   const [cursorLine, setCursorLine] = useState(1);
+  const [blame, setBlame] = useState("");
   const symbols = useMemo(() => outlineSymbols(active?.content ?? ""), [active?.content]);
   const currentSymbol = symbolAtLine(symbols, cursorLine);
+
+  useEffect(() => {
+    const path = active?.path;
+    setBlame("");
+    if (!path) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      void window.wanwu.git
+        .blame(path, cursorLine)
+        .then((r) => {
+          if (!cancelled) setBlame(r.text);
+        })
+        .catch(() => {
+          if (!cancelled) setBlame("");
+        });
+    }, 180);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [active?.path, cursorLine]);
 
   function jumpTo(line: number): void {
     const ed = primaryRef.current;
@@ -361,6 +389,7 @@ export function MonacoPane(props: {
               path={active.path}
               symbol={currentSymbol?.name}
               symbols={symbols}
+              blame={blame}
               onOpenDir={props.onOpenDir}
               onJump={jumpTo}
             />

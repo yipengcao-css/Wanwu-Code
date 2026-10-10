@@ -481,10 +481,22 @@ button {
 
 .breadcrumb {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   padding: 4px 12px;
   font-size: 12px;
   color: var(--ww-muted);
   border-bottom: 1px solid var(--ww-border);
+}
+
+.crumb-blame {
+  margin-left: auto;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .crumb {
