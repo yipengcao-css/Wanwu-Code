@@ -7,7 +7,7 @@ import {
   mentionTokenAt,
   type MentionSuggestion,
 } from "./mentionComplete";
-import { contextPercent, contextWindowFor, estimateTokens } from "./contextMeter";
+import { contextEstimate, contextPercent, contextWindowFor } from "./contextMeter";
 import { MessageBody, ToolChip } from "./MessageBody";
 import { modelsForProvider } from "./modelPresets";
 import {
@@ -163,6 +163,7 @@ export function AgentStudio(props: {
   const [modelChoices, setModelChoices] = useState<string[]>([]);
   const [currentModel, setCurrentModel] = useState("");
   const [modelBusy, setModelBusy] = useState(false);
+  const [libraryText, setLibraryText] = useState("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileSkillsHydrated = useRef(false);
   const activeLocalIdRef = useRef(activeLocalId);
@@ -181,6 +182,30 @@ export function AgentStudio(props: {
   chatsRef.current = chats;
 
   const active = chats.find((c) => c.localId === activeLocalId) ?? chats[0]!;
+
+  useEffect(() => {
+    if (!props.workspaceRoot) {
+      setLibraryText("");
+      return;
+    }
+    let cancelled = false;
+    void window.wanwu.library
+      .list()
+      .then((listed) => {
+        if (cancelled) return;
+        const text = [
+          ...listed.rules.map((rule) => rule.body),
+          ...listed.memories.map((row) => row.text),
+        ].join("\n");
+        setLibraryText(text);
+      })
+      .catch(() => {
+        if (!cancelled) setLibraryText("");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.workspaceRoot]);
 
   function patchActive(updater: (log: LogItem[]) => LogItem[]): void {
     const id = activeLocalIdRef.current;
@@ -1416,12 +1441,30 @@ export function AgentStudio(props: {
           }}
         />
         <div className="composer-row">
-          <span className="context-meter" title="按当前对话估算的上下文占用">
+          <span
+            className="context-meter"
+            title="按当前对话、规则、记忆和编辑器上下文估算。模型返回用量后，取两者中较大的值"
+          >
             {(() => {
               const textBody = active.log
                 .map((item) => (item.kind === "tool" ? `${item.title}\n${item.detail ?? ""}` : item.text))
                 .join("\n");
-              const tokens = Math.max(estimateTokens(textBody), lastUsage?.in ?? 0);
+              const editorCtx = buildEditorContext({
+                activePath: props.activePath,
+                openTabs: props.openTabs,
+                recentFiles: props.recentFiles,
+                selection: includeSelection ? props.selection : null,
+                cursor: props.cursor,
+                diagnostics: diagnosticsForActiveFile(props.diagnosticsSummary, props.activePath),
+              });
+              const skillBodies = fileSkills
+                .filter((skill) => attachedSkillIds.includes(skill.id))
+                .map((skill) => skill.body ?? "")
+                .join("\n");
+              const tokens = contextEstimate(
+                [modePrefix(props.mode), textBody, editorCtx, text, skillBodies, libraryText],
+                lastUsage?.in ?? 0,
+              );
               const pct = contextPercent(tokens, contextWindowFor(props.modelLabel ?? ""));
               return (
                 <>
