@@ -210,6 +210,16 @@ export type WanwuBridge = {
       character: number,
       extra?: Record<string, unknown>,
     ) => Promise<unknown>;
+    format: (path: string) => Promise<{
+      available: boolean;
+      edits: Array<{
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
+        newText: string;
+      }>;
+    }>;
     dispose: () => Promise<boolean>;
     onDiagnostics: (
       cb: (payload: {
@@ -337,6 +347,7 @@ const bridge: WanwuBridge = {
     didClose: (path) => ipcRenderer.invoke("lsp:didClose", path),
     request: (path, method, line, character, extra) =>
       ipcRenderer.invoke("lsp:request", path, method, line, character, extra),
+    format: (path) => ipcRenderer.invoke("lsp:format", path),
     dispose: () => ipcRenderer.invoke("lsp:dispose"),
     onDiagnostics: (cb) => on("lsp:diagnostics", (p) => cb(p as never)),
     onError: (cb) => on("lsp:error", (t) => cb(String(t))),

@@ -63,6 +63,19 @@ export function registerLspIpc(
     return manager.didClose(relPath);
   });
 
+  ipcMain.handle("lsp:format", async (_e, relPath: string) => {
+    const root = getRoot();
+    if (!root || !hasLspMapping(String(relPath))) return { available: false, edits: [] };
+    const m = ensureManager(root, getWin);
+    try {
+      const edits = await m.formatDocument(String(relPath));
+      if (edits == null) return { available: false, edits: [] };
+      return { available: true, edits };
+    } catch {
+      return { available: false, edits: [] };
+    }
+  });
+
   ipcMain.handle("lsp:dispose", async () => {
     disposeLsp();
     return true;
