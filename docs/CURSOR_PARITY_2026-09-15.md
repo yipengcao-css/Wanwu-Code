@@ -52,13 +52,14 @@
 
 | 项 | 落点 |
 |---|---|
-| 更改列表随文件变化刷新；未跟踪文件显示新增内容 | `SourceControl.tsx` / `gitOps.ts` |
-| `Read` 和 `@文件` 遵守忽略规则，点名也读不到 `.env` | `tools.ts` / `mentions.ts` |
+| 更改列表随文件变化刷新；未跟踪文件显示新增内容；显示分支和该文件最近提交 | `SourceControl.tsx` / `gitOps.ts` |
+| `Read`、`Edit`、`Write` 和 `@文件` 遵守忽略规则，点名也读不到、改不了 `.env` | `tools.ts` / `mentions.ts` |
 | 问题列表合并工作区检查器（tsc / cargo / go / python），不必先打开文件 | `workspaceProblems.ts` |
 | 设置里可以改已有规则的正文 | `RulesMemoryPanel.tsx` |
 | 面包屑点文件夹会在文件树展开；当前符号可展开大纲并跳转 | `MonacoPane.tsx` / `outline.ts` |
+| 保存时先向语言服务要格式化 | `stdioLspClient.ts` / `lspEdits.ts` |
 | 文件树显示点开头的配置文件 | `listFilter.ts` |
-| 最近打开的项目 | `recentWorkspaces.ts` / `OrbitBar.tsx` |
+| 最近打开的项目；不存在的文件夹会从列表去掉 | `recentWorkspaces.ts` / `existingDirs.ts` |
 
 ## 仍未做（2026-10-09）
 

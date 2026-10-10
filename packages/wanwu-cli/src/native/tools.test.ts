@@ -42,6 +42,21 @@ describe("native tools sandbox", () => {
     expect(nested.text).not.toMatch(/hidden/);
   });
 
+  it("refuses Edit and Write of ignored files", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
+    writeFileSync(join(root, ".env"), "SECRET=1\n");
+    const edited = toolEdit(root, ".env", [{ old_string: "SECRET=1", new_string: "SECRET=2" }], { apply: true });
+    expect(edited.ok).toBe(false);
+    expect(edited.applied).toBe(false);
+    expect(edited.text).toMatch(/ignored/);
+    expect(edited.text).not.toMatch(/SECRET/);
+    expect(readFileSync(join(root, ".env"), "utf8")).toBe("SECRET=1\n");
+    const written = toolWrite(root, ".env", "SECRET=2\n", { apply: true });
+    expect(written.ok).toBe(false);
+    expect(written.text).not.toMatch(/SECRET/);
+    expect(readFileSync(join(root, ".env"), "utf8")).toBe("SECRET=1\n");
+  });
+
   it("pages Read with offset/limit and line numbers", () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-tool-"));
     writeFileSync(join(root, "n.txt"), "a\nb\nc\nd\n");

@@ -5,6 +5,7 @@ export type WanwuBridge = {
     getRoot: () => Promise<string | null>;
     openDialog: () => Promise<string | null>;
     openPath: (dir: string) => Promise<string>;
+    existing: (dirs: string[]) => Promise<string[]>;
     /** No folder open: create `Desktop/Wanwu-<task>` and use it as the workspace. */
     ensureDesktop: (prompt?: string) => Promise<{ root: string; created: boolean }>;
     onChanged: (cb: (root: string) => void) => () => void;
@@ -45,8 +46,9 @@ export type WanwuBridge = {
   };
   git: {
     status: () => Promise<Array<{ path: string; code: string; raw: string }>>;
-    changes: () => Promise<{ repo: boolean; files: Array<{ path: string; code: string; staged: boolean }> }>;
+    changes: () => Promise<{ repo: boolean; branch: string; files: Array<{ path: string; code: string; staged: boolean }> }>;
     diff: (rel: string) => Promise<string>;
+    log: (rel: string) => Promise<Array<{ hash: string; subject: string }>>;
     stage: (rels: string[], staged: boolean) => Promise<{ ok: boolean; text: string }>;
     commit: (message: string) => Promise<{ ok: boolean; text: string }>;
   };
@@ -208,6 +210,16 @@ export type WanwuBridge = {
       character: number,
       extra?: Record<string, unknown>,
     ) => Promise<unknown>;
+    format: (path: string) => Promise<{
+      available: boolean;
+      edits: Array<{
+        range: {
+          start: { line: number; character: number };
+          end: { line: number; character: number };
+        };
+        newText: string;
+      }>;
+    }>;
     dispose: () => Promise<boolean>;
     onDiagnostics: (
       cb: (payload: {
@@ -240,6 +252,7 @@ const bridge: WanwuBridge = {
     getRoot: () => ipcRenderer.invoke("workspace:getRoot"),
     openDialog: () => ipcRenderer.invoke("workspace:openDialog"),
     openPath: (dir) => ipcRenderer.invoke("workspace:openPath", dir),
+    existing: (dirs) => ipcRenderer.invoke("workspace:existing", dirs),
     ensureDesktop: (prompt) => ipcRenderer.invoke("workspace:ensureDesktop", prompt),
     onChanged: (cb) => on("workspace:changed", (r) => cb(String(r))),
   },
@@ -264,6 +277,7 @@ const bridge: WanwuBridge = {
     status: () => ipcRenderer.invoke("git:status"),
     changes: () => ipcRenderer.invoke("git:changes"),
     diff: (rel) => ipcRenderer.invoke("git:diff", rel),
+    log: (rel) => ipcRenderer.invoke("git:log", rel),
     stage: (rels, staged) => ipcRenderer.invoke("git:stage", rels, staged),
     commit: (message) => ipcRenderer.invoke("git:commit", message),
   },
@@ -333,6 +347,7 @@ const bridge: WanwuBridge = {
     didClose: (path) => ipcRenderer.invoke("lsp:didClose", path),
     request: (path, method, line, character, extra) =>
       ipcRenderer.invoke("lsp:request", path, method, line, character, extra),
+    format: (path) => ipcRenderer.invoke("lsp:format", path),
     dispose: () => ipcRenderer.invoke("lsp:dispose"),
     onDiagnostics: (cb) => on("lsp:diagnostics", (p) => cb(p as never)),
     onError: (cb) => on("lsp:error", (t) => cb(String(t))),

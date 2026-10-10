@@ -4,9 +4,11 @@ type ScmFile = { path: string; code: string; staged: boolean };
 
 export function SourceControl(props: { rootLabel: string; onOpenFile: (path: string) => void }) {
   const [repo, setRepo] = useState(true);
+  const [branch, setBranch] = useState("");
   const [files, setFiles] = useState<ScmFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [diff, setDiff] = useState("");
+  const [history, setHistory] = useState<Array<{ hash: string; subject: string }>>([]);
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -14,9 +16,11 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
   const refresh = useCallback(() => {
     void window.wanwu.git.changes().then((r) => {
       setRepo(r.repo);
+      setBranch(r.branch);
       setFiles(r.files);
     }).catch(() => {
       setRepo(false);
+      setBranch("");
       setFiles([]);
     });
   }, []);
@@ -44,9 +48,11 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
   useEffect(() => {
     if (!selected) {
       setDiff("");
+      setHistory([]);
       return;
     }
     void window.wanwu.git.diff(selected).then(setDiff).catch(() => setDiff(""));
+    void window.wanwu.git.log(selected).then(setHistory).catch(() => setHistory([]));
   }, [selected, files]);
 
   async function stage(file: ScmFile, next: boolean): Promise<void> {
@@ -82,7 +88,7 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
         <button type="button" className="btn" onClick={refresh} disabled={busy}>
           刷新
         </button>
-        <span className="scm-count">{files.length} 个更改</span>
+        <span className="scm-count">{branch ? `${branch} · ` : ""}{files.length} 个更改</span>
       </div>
       {files.length === 0 ? <p className="empty">工作区是干净的。</p> : null}
       <ul className="scm-list">
@@ -109,6 +115,17 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
       </ul>
       {selected ? (
         diff ? <pre className="scm-diff">{diff}</pre> : <p className="empty">没有可显示的文本差异。</p>
+      ) : null}
+      {selected ? (
+        <ul className="scm-log" aria-label="最近提交">
+          {history.length === 0 ? <li className="field-hint">这个文件还没有提交记录。</li> : null}
+          {history.map((entry) => (
+            <li key={entry.hash}>
+              <span className="scm-hash">{entry.hash}</span>
+              {entry.subject}
+            </li>
+          ))}
+        </ul>
       ) : null}
       <label className="field">
         <span className="field-label">提交说明</span>

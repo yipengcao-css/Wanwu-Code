@@ -104,6 +104,30 @@ export function gitStage(cwd: string, rels: string[], staged: boolean): { ok: bo
   return { ok: r.ok, text: r.ok ? (staged ? "已暂存" : "已取消暂存") : r.stderr.slice(0, 400) };
 }
 
+export function gitBranch(cwd: string): string {
+  if (!gitIsRepo(cwd)) return "";
+  const r = runGit(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  return r.ok ? r.stdout.trim() : "";
+}
+
+export type GitLogEntry = { hash: string; subject: string };
+
+export function gitFileLog(cwd: string, rel: string, limit = 5): GitLogEntry[] {
+  const safe = safeRepoPath(rel);
+  if (!safe || !gitIsRepo(cwd)) return [];
+  const n = Math.min(20, Math.max(1, Math.floor(limit)));
+  const r = runGit(cwd, ["log", "-n", String(n), "--pretty=format:%h%x09%s", "--", safe]);
+  if (!r.stdout.trim()) return [];
+  return r.stdout
+    .split(/\r?\n/)
+    .filter(Boolean)
+    .map((line) => {
+      const tab = line.indexOf("\t");
+      if (tab < 0) return { hash: line.slice(0, 12), subject: line };
+      return { hash: line.slice(0, tab), subject: line.slice(tab + 1) };
+    });
+}
+
 export function gitCommit(cwd: string, message: string): { ok: boolean; text: string } {
   const msg = message.trim();
   if (!msg) return { ok: false, text: "请先写提交说明" };
@@ -111,6 +135,8 @@ export function gitCommit(cwd: string, message: string): { ok: boolean; text: st
   if (!existsSync(path.join(cwd, ".git")) && !gitIsRepo(cwd)) {
     return { ok: false, text: "当前文件夹不是 Git 仓库" };
   }
+  const staged = runGit(cwd, ["diff", "--cached", "--name-only"]);
+  if (!staged.stdout.trim()) return { ok: false, text: "没有已暂存的更改。请先勾选要提交的文件。" };
   const r = runGit(cwd, ["commit", "-m", msg]);
   const text = (r.stdout || r.stderr).trim().slice(0, 500);
   return { ok: r.ok, text: text || (r.ok ? "已提交" : "提交失败") };

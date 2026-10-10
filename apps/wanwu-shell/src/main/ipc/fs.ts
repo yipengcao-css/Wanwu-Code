@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import { watch, type FSWatcher } from "node:fs";
 import path from "node:path";
 import { createDesktopProject } from "../desktopWorkspace.js";
+import { existingDirectories } from "../existingDirs.js";
 import { LIST_SKIP, shouldListEntry } from "../listFilter.js";
 import { resolveInsideRoot } from "../pathSandbox.js";
 
@@ -130,6 +131,11 @@ export function registerFsIpc(
   };
 
   ipcMain.handle("workspace:getRoot", () => getRoot());
+
+  ipcMain.handle("workspace:existing", (_e, dirs: unknown) => {
+    const list = Array.isArray(dirs) ? dirs.map((item) => String(item)) : [];
+    return existingDirectories(list);
+  });
 
   ipcMain.handle("workspace:openDialog", async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender) ?? undefined;

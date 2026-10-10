@@ -1,3 +1,4 @@
+import type { LspTextEdit } from "../../shared/lspEdits.js";
 import type { LspDiagnosticsPayload, LspServerDef } from "./types.js";
 import { BUILTIN_LSP_SERVERS, serverForLanguage } from "./registry.js";
 import { loadLspServers } from "./loadLspConfig.js";
@@ -115,6 +116,12 @@ export class LspSessionManager {
     if (!client) return false;
     await client.didClose(relPath);
     return true;
+  }
+
+  async formatDocument(relPath: string): Promise<LspTextEdit[] | null> {
+    const client = await this.ensureForPath(relPath);
+    if (!client) return null;
+    return client.formatDocument(relPath);
   }
 
   /** Route a language-feature request to the server for this path. */

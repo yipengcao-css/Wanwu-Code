@@ -4,6 +4,7 @@ import * as monaco from "monaco-editor";
 import type { DiffHunk } from "../agent/diffHunks";
 import { formatCursorWindow, type CursorFocus } from "./editorContext";
 import { outlineSymbols, symbolAtLine, type OutlineSymbol } from "./outline";
+import { applyLspTextEdits } from "../../shared/lspEdits";
 import { mountHunkReview } from "./hunkReview";
 import { setPrimaryFormatter } from "./editorActions";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
@@ -179,6 +180,8 @@ export function MonacoPane(props: {
   const split = props.tabs.find((t) => t.path === props.splitPath);
   const primaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const secondaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+  const pathRef = useRef(props.activePath);
+  pathRef.current = props.activePath;
   const [cursorLine, setCursorLine] = useState(1);
   const symbols = useMemo(() => outlineSymbols(active?.content ?? ""), [active?.content]);
   const currentSymbol = symbolAtLine(symbols, cursorLine);
@@ -223,8 +226,23 @@ export function MonacoPane(props: {
   const onMount: OnMount = (editor) => {
     primaryRef.current = editor;
     setPrimaryFormatter(async () => {
+      const model = editor.getModel();
+      if (!model) return null;
+      const text = model.getValue();
+      const rel = pathRef.current;
+      try {
+        if (rel) {
+          await window.wanwu.lsp.didChange(rel, text);
+          const formatted = await window.wanwu.lsp.format(rel);
+          if (formatted?.available) {
+            return formatted.edits.length ? applyLspTextEdits(text, formatted.edits) : text;
+          }
+        }
+      } catch {
+        /* language server formatting is optional */
+      }
       await editor.getAction("editor.action.formatDocument")?.run();
-      return editor.getModel()?.getValue() ?? null;
+      return editor.getModel()?.getValue() ?? text;
     });
     editor.onDidDispose(() => {
       if (primaryRef.current === editor) {

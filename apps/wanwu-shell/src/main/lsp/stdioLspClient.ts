@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import path from "node:path";
+import type { LspTextEdit } from "../../shared/lspEdits.js";
 import type { LspDiagnostic, LspDiagnosticsPayload, LspLaunchPlan } from "./types.js";
 import {
   languageIdFor,
@@ -80,6 +81,8 @@ export class StdioLspClient {
           definition: { dynamicRegistration: false },
           references: { dynamicRegistration: false },
           rename: { dynamicRegistration: false },
+          formatting: { dynamicRegistration: false },
+          rangeFormatting: { dynamicRegistration: false },
         },
         workspace: { workspaceFolders: false },
       },
@@ -124,6 +127,25 @@ export class StdioLspClient {
     this.notify("textDocument/didClose", {
       textDocument: { uri },
     });
+  }
+
+  /** Ask the server to format an open document. Null means formatting is unavailable. */
+  async formatDocument(relPath: string): Promise<LspTextEdit[] | null> {
+    if (!this.initialized) await this.start();
+    const abs = absFromRel(this.opts.workspaceRoot, relPath);
+    const uri = pathToUri(abs);
+    if (!this.openDocs.has(uri)) return null;
+    try {
+      const result = await this.request("textDocument/formatting", {
+        textDocument: { uri },
+        options: { tabSize: 2, insertSpaces: true },
+      });
+      if (result == null) return [];
+      if (!Array.isArray(result)) return null;
+      return result as LspTextEdit[];
+    } catch {
+      return null;
+    }
   }
 
   /** Language-feature request (completion/hover/definition/references/rename). */

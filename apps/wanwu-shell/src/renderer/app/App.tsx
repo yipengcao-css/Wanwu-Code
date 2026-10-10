@@ -155,6 +155,24 @@ export function App() {
   }, [root]);
 
   useEffect(() => {
+    if (!recentWorkspaces.length) return;
+    let cancelled = false;
+    void window.wanwu.workspace.existing(recentWorkspaces).then((live) => {
+      if (cancelled) return;
+      if (live.length === recentWorkspaces.length && live.every((dir, i) => dir === recentWorkspaces[i])) return;
+      try {
+        localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(live));
+      } catch {
+        /* storage unavailable */
+      }
+      setRecentWorkspaces(live);
+    }).catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [recentWorkspaces]);
+
+  useEffect(() => {
     void window.wanwu.workspace.getRoot().then((r) => {
       if (r) setRoot(r);
     });
@@ -302,6 +320,20 @@ export function App() {
   }, [root]);
 
   const openRecent = useCallback(async (dir: string) => {
+    const live = await window.wanwu.workspace.existing([dir]);
+    if (!live.includes(dir)) {
+      setRecentWorkspaces((prev) => {
+        const next = prev.filter((item) => item !== dir);
+        try {
+          localStorage.setItem(RECENT_WORKSPACES_KEY, JSON.stringify(next));
+        } catch {
+          /* storage unavailable */
+        }
+        return next;
+      });
+      setStatus("这个文件夹已经不在了");
+      return;
+    }
     const opened = await window.wanwu.workspace.openPath(dir);
     setRoot(opened);
     setTabs([]);
