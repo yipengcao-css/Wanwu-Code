@@ -445,6 +445,12 @@ export function applyEditBlocks(content: string, blocks: EditBlock[]): EditApply
   return { ok: true, after: current, replacements };
 }
 
+function refuseIgnored(workspaceRoot: string, abs: string, title: string): ToolResult | null {
+  const rel = relative(workspaceRoot, abs).replace(/\\/g, "/");
+  if (!isIgnoredPath(workspaceRoot, rel, false)) return null;
+  return { ok: false, title, text: `ignored by .wanwuignore: ${rel}`, applied: false };
+}
+
 /** Targeted edits to an existing file via search/replace blocks. */
 export function toolEdit(
   workspaceRoot: string,
@@ -454,6 +460,8 @@ export function toolEdit(
 ): ToolResult {
   try {
     const abs = assertInsideWorkspace(workspaceRoot, pathArg);
+    const ignored = refuseIgnored(workspaceRoot, abs, "Edit");
+    if (ignored) return ignored;
     if (!existsSync(abs) || isDirectory(abs)) {
       return { ok: false, title: "Edit", text: `file does not exist: ${pathArg} (use Write to create it)`, applied: false };
     }
@@ -494,6 +502,8 @@ export function toolWrite(
 ): ToolResult {
   try {
     const abs = assertInsideWorkspace(workspaceRoot, pathArg);
+    const ignored = refuseIgnored(workspaceRoot, abs, "Write");
+    if (ignored) return ignored;
     const before = existsSync(abs) && !isDirectory(abs) ? readFileSync(abs, "utf8") : "";
     if (opts.apply) {
       mkdirSync(dirname(abs), { recursive: true });
