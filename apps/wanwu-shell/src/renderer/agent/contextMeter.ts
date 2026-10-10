@@ -21,3 +21,10 @@ export function contextPercent(tokens: number, windowSize: number): number {
   if (windowSize <= 0) return 0;
   return Math.max(0, Math.min(100, Math.round((tokens / windowSize) * 100)));
 }
+
+/** Estimate from text we actually have, then keep a reported prompt size if it is larger. */
+export function contextEstimate(parts: Array<string | null | undefined>, reportedIn = 0): number {
+  const text = parts.filter((part): part is string => Boolean(part)).join("\n");
+  const reported = Number.isFinite(reportedIn) ? reportedIn : 0;
+  return Math.max(estimateTokens(text), reported);
+}

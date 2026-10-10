@@ -3,7 +3,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage, safeRepoPath } from "./gitOps.ts";
+import { gitBlameLine, gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage, safeRepoPath } from "./gitOps.ts";
 
 assert.equal(safeRepoPath("../x"), null);
 assert.equal(safeRepoPath("src/a.ts"), "src/a.ts");
@@ -37,6 +37,13 @@ assert.ok(gitBranch(dir).length > 0);
 const history = gitFileLog(dir, "note.txt");
 assert.equal(history[0]?.subject, "add note");
 assert.ok(history[0]?.hash);
+const blamed = gitBlameLine(dir, "note.txt", 1);
+assert.match(blamed.text, /add note/);
+assert.match(blamed.text, new RegExp(history[0]!.hash.slice(0, 7)));
+writeFileSync(join(dir, "note.txt"), "hello\nworld\n");
+assert.match(gitBlameLine(dir, "note.txt", 2).text, /没有提交/);
+assert.equal(gitBlameLine(dir, "note.txt", 0).text, "");
+assert.match(gitBlameLine(dir, "../note.txt", 1).text, /^$/);
 
 const plain = mkdtempSync(join(tmpdir(), "wanwu-scm-none-"));
 assert.equal(gitScmStatus(plain).repo, false);

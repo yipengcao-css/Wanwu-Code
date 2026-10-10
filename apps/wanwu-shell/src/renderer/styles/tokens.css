@@ -290,6 +290,21 @@ button {
   border-right: 1px solid var(--ww-border);
 }
 
+.panel.files-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel.files-panel > .file-tree,
+.panel.files-panel > .search-panel,
+.panel.files-panel > .problem-list,
+.panel.files-panel > .scm-panel,
+.panel.files-panel > .empty {
+  flex: 1;
+  min-height: 0;
+}
+
 .panel:last-child {
   border-right: 0;
   border-left: 1px solid var(--ww-border);
@@ -466,10 +481,22 @@ button {
 
 .breadcrumb {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   padding: 4px 12px;
   font-size: 12px;
   color: var(--ww-muted);
   border-bottom: 1px solid var(--ww-border);
+}
+
+.crumb-blame {
+  margin-left: auto;
+  max-width: 48%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .crumb {
@@ -1451,6 +1478,27 @@ button {
   padding: 8px;
 }
 
+.scm-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scm-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.scm-commit {
+  flex: 0 0 auto;
+  padding-top: 8px;
+}
+
+.problem-list {
+  overflow: auto;
+}
+
 .scm-toolbar,
 .scm-list li {
   display: flex;
@@ -1482,6 +1530,8 @@ button {
   margin: 8px 0;
   padding: 0;
   font-size: 12px;
+  max-height: 120px;
+  overflow: auto;
 }
 
 .scm-log li {
