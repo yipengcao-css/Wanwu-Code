@@ -19,6 +19,12 @@ import { ProblemsPanel, type QuickFix } from "../problems/ProblemsPanel";
 import { mergeDiagnostics } from "../../shared/problems";
 import { applyLspTextEdits } from "../../shared/lspEdits";
 import { collectWorkspaceEdits, type LspWorkspaceEdit } from "../../shared/codeEdits";
+import {
+  setCodeFixApplier,
+  setExternalModelListener,
+  setOpenBufferReader,
+  setRenameNotifier,
+} from "../editor/lspFeatures";
 import { SourceControl } from "../scm/SourceControl";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { applyHunkChoices, diffHunks } from "../agent/diffHunks";
@@ -83,7 +89,10 @@ export function App() {
     original: string;
     modified: string;
     untracked: boolean;
+    hunks: Array<{ index: number; header: string; preview: string }>;
+    hunkNote: string;
   } | null>(null);
+  const [scmTick, setScmTick] = useState(0);
   const gotoSeq = useRef(0);
   const [filesW, setFilesW] = useState(initial.filesW);
   const [agentW, setAgentW] = useState(initial.agentW);
@@ -389,10 +398,28 @@ export function App() {
   );
 
   const compareFile = useCallback(async (rel: string) => {
-    const sides = await window.wanwu.git.sides(rel);
-    setScmDiff({ path: rel, original: sides.original, modified: sides.modified, untracked: sides.untracked });
+    const [sides, hunks] = await Promise.all([window.wanwu.git.sides(rel), window.wanwu.git.hunks(rel)]);
+    setScmDiff({
+      path: rel,
+      original: sides.original,
+      modified: sides.modified,
+      untracked: sides.untracked,
+      hunks: hunks.hunks,
+      hunkNote: hunks.note,
+    });
     setStatus(sides.untracked ? `对比新文件 · ${rel}` : `对比 · ${rel}`);
   }, []);
+
+  const stageHunk = useCallback(async (index: number) => {
+    const path = scmDiff?.path;
+    if (!path) return;
+    const result = await window.wanwu.git.stageHunk(path, index);
+    setStatus(result.text);
+    if (!result.ok) return;
+    const hunks = await window.wanwu.git.hunks(path);
+    setScmDiff((cur) => (cur && cur.path === path ? { ...cur, hunks: hunks.hunks, hunkNote: hunks.note } : cur));
+    setScmTick((n) => n + 1);
+  }, [scmDiff?.path]);
 
   const listFixes = useCallback(
     async (path: string, diag: MarkerDiag) => {
@@ -452,6 +479,32 @@ export function App() {
     },
     [root, tabs],
   );
+
+  const tabsRef = useRef(tabs);
+  tabsRef.current = tabs;
+
+  useEffect(() => {
+    setOpenBufferReader((rel) => tabsRef.current.find((tab) => tab.path === rel)?.content ?? null);
+    setExternalModelListener((rel, content) => {
+      setTabs((prev) => {
+        if (prev.some((tab) => tab.path === rel)) {
+          return prev.map((tab) => (tab.path === rel ? { ...tab, content, dirty: true } : tab));
+        }
+        return [...prev, { path: rel, content, dirty: true }];
+      });
+      void window.wanwu.lsp.didChange(rel, content);
+    });
+    setCodeFixApplier((fix) => {
+      void applyFix(fix);
+    });
+    setRenameNotifier((text) => setStatus(text));
+    return () => {
+      setOpenBufferReader(null);
+      setExternalModelListener(null);
+      setCodeFixApplier(null);
+      setRenameNotifier(null);
+    };
+  }, [applyFix]);
 
   const onChange = useCallback((path: string, value: string) => {
     setTabs((prev) =>
@@ -554,6 +607,7 @@ export function App() {
             ) : sideTab === "scm" ? (
               <SourceControl
                 rootLabel={root}
+                refreshTick={scmTick}
                 onOpenFile={(p) => void openFile(p)}
                 onCompare={(p) => void compareFile(p)}
                 onDiscarded={(p) => setScmDiff((cur) => (cur?.path === p ? null : cur))}
@@ -650,6 +704,10 @@ export function App() {
                 onOpenLocation={openAt}
                 compare={scmDiff}
                 onCloseCompare={() => setScmDiff(null)}
+                onStageHunk={(index) => void stageHunk(index)}
+                onListFixes={listFixes}
+                onApplyFix={applyFix}
+                onStatus={setStatus}
                 onSelect={setActivePath}
                 onChange={onChange}
                 onSelectionChange={setSelection}
@@ -811,6 +869,9 @@ export function App() {
         onClose={() => setPaletteOpen(false)}
         commands={[
           { id: "goto-def", title: "转到定义", hint: "F12", run: () => window.dispatchEvent(new Event("wanwu-go-to-definition")) },
+          { id: "find-refs", title: "查找引用", hint: "Shift+F12", run: () => window.dispatchEvent(new Event("wanwu-find-references")) },
+          { id: "rename-symbol", title: "重命名", hint: "F2", run: () => window.dispatchEvent(new Event("wanwu-rename-symbol")) },
+          { id: "quick-fix", title: "快速修复", hint: "Ctrl+.", run: () => window.dispatchEvent(new Event("wanwu-quick-fix")) },
           { id: "open-folder", title: "打开文件夹", run: () => void openFolder() },
           { id: "save", title: "保存当前文件", hint: "Ctrl+S", run: () => void saveActive() },
           {

@@ -10,6 +10,8 @@ import { setPrimaryFormatter } from "./editorActions";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
 import { registerLspFeatures, setDefinitionOpener, setLspWorkspaceRoot } from "./lspFeatures";
+import { relFromFileUri } from "../../shared/lspUri";
+import type { QuickFix } from "../problems/ProblemsPanel";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
@@ -60,6 +62,9 @@ function Breadcrumb(props: {
   onOpenDir?: (dir: string) => void;
   onJump?: (line: number) => void;
   onPeek?: () => void;
+  onRefs?: () => void;
+  onRename?: () => void;
+  onFix?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const parts = props.path.split("/").filter(Boolean);
@@ -122,6 +127,21 @@ function Breadcrumb(props: {
           {props.blame}
         </span>
       ) : null}
+      {props.onRefs ? (
+        <button type="button" className="crumb" onClick={props.onRefs} title="列出引用这个符号的位置。Shift+F12">
+          查找引用
+        </button>
+      ) : null}
+      {props.onRename ? (
+        <button type="button" className="crumb" onClick={props.onRename} title="重命名这个符号。F2">
+          重命名
+        </button>
+      ) : null}
+      {props.onFix ? (
+        <button type="button" className="crumb" onClick={props.onFix} title="这一行的快速修复。Ctrl+.">
+          修复
+        </button>
+      ) : null}
       {props.onPeek ? (
         <button type="button" className="crumb" onClick={props.onPeek} title="预览定义。F12 会打开定义所在的文件">
           查看定义
@@ -131,7 +151,7 @@ function Breadcrumb(props: {
   );
 }
 
-const EDITOR_OPTIONS = {
+const EDITOR_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions = {
   fontFamily: "JetBrains Mono, Sarasa Mono SC, ui-monospace, monospace",
   fontSize: 13,
   minimap: { enabled: false },
@@ -139,7 +159,8 @@ const EDITOR_OPTIONS = {
   padding: { top: 12 },
   scrollBeyondLastLine: false,
   automaticLayout: true,
-} as const;
+  lightbulb: { enabled: monaco.editor.ShowLightbulbIconMode.OnCode },
+};
 
 function languageFor(path: string): string {
   if (path.endsWith(".ts") || path.endsWith(".tsx")) return "typescript";
@@ -179,8 +200,19 @@ export function MonacoPane(props: {
   workspaceRoot?: string | null;
   /** Open another file when go-to-definition leaves the current one. */
   onOpenLocation?: (path: string, line: number, column: number) => void;
-  compare?: { path: string; original: string; modified: string; untracked?: boolean } | null;
+  compare?: {
+    path: string;
+    original: string;
+    modified: string;
+    untracked?: boolean;
+    hunks?: Array<{ index: number; header: string; preview: string }>;
+    hunkNote?: string;
+  } | null;
   onCloseCompare?: () => void;
+  onStageHunk?: (index: number) => void;
+  onListFixes?: (path: string, diag: MarkerDiag) => Promise<QuickFix[]>;
+  onApplyFix?: (fix: QuickFix) => Promise<void>;
+  onStatus?: (text: string) => void;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
@@ -203,8 +235,22 @@ export function MonacoPane(props: {
   const secondaryRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const pathRef = useRef(props.activePath);
   pathRef.current = props.activePath;
+  const rootRef = useRef(props.workspaceRoot);
+  rootRef.current = props.workspaceRoot;
+  const diagsRef = useRef(props.diagnostics);
+  diagsRef.current = props.diagnostics;
+  const listFixesRef = useRef(props.onListFixes);
+  listFixesRef.current = props.onListFixes;
+  const applyFixRef = useRef(props.onApplyFix);
+  applyFixRef.current = props.onApplyFix;
+  const statusRef = useRef(props.onStatus);
+  statusRef.current = props.onStatus;
   const [cursorLine, setCursorLine] = useState(1);
+  const lineRef = useRef(1);
+  lineRef.current = cursorLine;
   const [blame, setBlame] = useState("");
+  const [refs, setRefs] = useState<Array<{ rel: string; line: number; column: number }> | null>(null);
+  const [lineFixes, setLineFixes] = useState<QuickFix[] | null>(null);
   const symbols = useMemo(() => outlineSymbols(active?.content ?? ""), [active?.content]);
   const currentSymbol = symbolAtLine(symbols, cursorLine);
 
@@ -227,13 +273,97 @@ export function MonacoPane(props: {
       const ed = primaryRef.current;
       if (ed) void ed.getAction("editor.action.revealDefinition")?.run();
     };
+    const onRefs = (): void => {
+      void findReferences();
+    };
+    const onRename = (): void => {
+      const ed = primaryRef.current;
+      if (ed) void ed.getAction("editor.action.rename")?.run();
+    };
+    const onFix = (): void => {
+      void quickFixAtCaret();
+    };
     window.addEventListener("wanwu-peek-definition", onPeek);
     window.addEventListener("wanwu-go-to-definition", onGoto);
+    window.addEventListener("wanwu-find-references", onRefs);
+    window.addEventListener("wanwu-rename-symbol", onRename);
+    window.addEventListener("wanwu-quick-fix", onFix);
     return () => {
       window.removeEventListener("wanwu-peek-definition", onPeek);
       window.removeEventListener("wanwu-go-to-definition", onGoto);
+      window.removeEventListener("wanwu-find-references", onRefs);
+      window.removeEventListener("wanwu-rename-symbol", onRename);
+      window.removeEventListener("wanwu-quick-fix", onFix);
     };
   }, []);
+
+  async function quickFixAtCaret(): Promise<void> {
+    const path = pathRef.current;
+    if (!path) return;
+    const diags = (diagsRef.current[path] ?? []).filter((diag) => diag.startLine + 1 === lineRef.current).slice(0, 4);
+    if (!diags.length) {
+      setLineFixes(null);
+      statusRef.current?.("这一行没有可修复的问题。");
+      return;
+    }
+    const list = listFixesRef.current;
+    const apply = applyFixRef.current;
+    if (!list || !apply) return;
+    try {
+      const found: QuickFix[] = [];
+      const seen = new Set<string>();
+      for (const diag of diags) {
+        const fixes = await list(path, diag);
+        for (const fix of fixes) {
+          if (!fix.title || seen.has(fix.title)) continue;
+          seen.add(fix.title);
+          found.push(fix);
+        }
+      }
+      if (!found.length) {
+        setLineFixes(null);
+        statusRef.current?.("没有可用的快速修复。");
+        return;
+      }
+      if (found.length === 1 && found[0]) {
+        setLineFixes(null);
+        await apply(found[0]);
+        return;
+      }
+      setLineFixes(found);
+    } catch {
+      setLineFixes(null);
+      statusRef.current?.("快速修复没有完成。");
+    }
+  }
+
+  async function findReferences(): Promise<void> {
+    const ed = primaryRef.current;
+    const model = ed?.getModel();
+    const pos = ed?.getPosition();
+    if (!ed || !model || !pos) return;
+    const path = model.uri.path.replace(/^\//, "");
+    const root = rootRef.current ?? "";
+    try {
+      const res = (await window.wanwu.lsp.request(path, "textDocument/references", pos.lineNumber - 1, pos.column - 1, {
+        context: { includeDeclaration: true },
+      })) as Array<{ uri?: string; range?: { start?: { line?: number; character?: number } } }> | null;
+      const hits = (Array.isArray(res) ? res : [])
+        .map((loc) => {
+          const rel = loc.uri && root ? relFromFileUri(loc.uri, root) : null;
+          if (!rel || !loc.range?.start) return null;
+          return {
+            rel,
+            line: (loc.range.start.line ?? 0) + 1,
+            column: (loc.range.start.character ?? 0) + 1,
+          };
+        })
+        .filter((hit): hit is { rel: string; line: number; column: number } => hit !== null);
+      setRefs(hits);
+    } catch {
+      setRefs([]);
+    }
+  }
 
   useEffect(() => {
     const path = active?.path;
@@ -283,6 +413,7 @@ export function MonacoPane(props: {
         endLineNumber: d.endLine + 1,
         endColumn: Math.max(d.endCharacter + 1, d.startCharacter + 1),
         source: d.source ?? "typescript",
+        code: typeof d.code === "number" ? String(d.code) : d.code,
       })),
     );
   }, [active?.path, props.diagnostics, active?.content]);
@@ -295,6 +426,12 @@ export function MonacoPane(props: {
 
   const onMount: OnMount = (editor) => {
     primaryRef.current = editor;
+    editor.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.F12, () => {
+      window.dispatchEvent(new Event("wanwu-find-references"));
+    });
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Period, () => {
+      window.dispatchEvent(new Event("wanwu-quick-fix"));
+    });
     setPrimaryFormatter(async () => {
       const model = editor.getModel();
       if (!model) return null;
@@ -417,6 +554,19 @@ export function MonacoPane(props: {
               关闭对比
             </button>
           </div>
+          {props.compare.hunkNote ? <p className="field-hint scm-hunk-note">{props.compare.hunkNote}</p> : null}
+          {props.compare.hunks?.length ? (
+            <ul className="scm-hunks">
+              {props.compare.hunks.map((hunk) => (
+                <li key={hunk.index}>
+                  <span title={hunk.header}>{hunk.preview}</span>
+                  <button type="button" className="btn" onClick={() => props.onStageHunk?.(hunk.index)}>
+                    暂存这块
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <div className="monaco-host">
             <DiffEditor
               key={props.compare.path}
@@ -483,7 +633,62 @@ export function MonacoPane(props: {
               onOpenDir={props.onOpenDir}
               onJump={jumpTo}
               onPeek={() => window.dispatchEvent(new Event("wanwu-peek-definition"))}
+              onRefs={() => window.dispatchEvent(new Event("wanwu-find-references"))}
+              onRename={() => window.dispatchEvent(new Event("wanwu-rename-symbol"))}
+              onFix={
+                (props.diagnostics[active.path] ?? []).some((diag) => diag.startLine + 1 === cursorLine)
+                  ? () => window.dispatchEvent(new Event("wanwu-quick-fix"))
+                  : undefined
+              }
             />
+          ) : null}
+          {lineFixes ? (
+            <ul className="fix-list" aria-label="快速修复">
+              <li className="ref-list-head">
+                <span>这一行的修复</span>
+                <button type="button" className="btn" onClick={() => setLineFixes(null)}>
+                  关闭
+                </button>
+              </li>
+              {lineFixes.map((fix) => (
+                <li key={fix.title}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setLineFixes(null);
+                      void applyFixRef.current?.(fix);
+                    }}
+                  >
+                    {fix.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {refs ? (
+            <ul className="ref-list" aria-label="引用">
+              <li className="ref-list-head">
+                <span>{refs.length ? `${refs.length} 处引用` : "没有找到引用。"}</span>
+                <button type="button" className="btn" onClick={() => setRefs(null)}>
+                  关闭
+                </button>
+              </li>
+              {refs.map((hit) => (
+                <li key={`${hit.rel}:${hit.line}:${hit.column}`}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      setRefs(null);
+                      props.onOpenLocation?.(hit.rel, hit.line, hit.column);
+                    }}
+                  >
+                    {hit.rel}:{hit.line}
+                  </button>
+                </li>
+              ))}
+            </ul>
           ) : null}
           <div className="monaco-host">
             {active ? (
