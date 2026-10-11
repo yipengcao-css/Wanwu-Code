@@ -124,6 +124,17 @@ export class LspSessionManager {
     return client.formatDocument(relPath);
   }
 
+  async codeAction(
+    relPath: string,
+    text: string,
+    range: { start: { line: number; character: number }; end: { line: number; character: number } },
+    diagnostic: { message: string; severity?: number; source?: string; code?: string | number },
+  ): Promise<Array<{ title: string; edit: unknown }>> {
+    const client = await this.ensureForPath(relPath);
+    if (!client) return [];
+    return client.codeAction(relPath, text, range, diagnostic);
+  }
+
   /** Route a language-feature request to the server for this path. */
   async languageRequest(
     relPath: string,

@@ -76,6 +76,26 @@ export function registerLspIpc(
     }
   });
 
+  ipcMain.handle(
+    "lsp:codeAction",
+    async (
+      _e,
+      relPath: string,
+      text: string,
+      range: { start: { line: number; character: number }; end: { line: number; character: number } },
+      diagnostic: { message: string; severity?: number; source?: string; code?: string | number },
+    ) => {
+      const root = getRoot();
+      if (!root || !hasLspMapping(String(relPath))) return [];
+      const m = ensureManager(root, getWin);
+      try {
+        return await m.codeAction(String(relPath), String(text), range, diagnostic);
+      } catch {
+        return [];
+      }
+    },
+  );
+
   ipcMain.handle("lsp:dispose", async () => {
     disposeLsp();
     return true;

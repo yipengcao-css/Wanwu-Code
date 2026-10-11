@@ -83,6 +83,11 @@ export class StdioLspClient {
           rename: { dynamicRegistration: false },
           formatting: { dynamicRegistration: false },
           rangeFormatting: { dynamicRegistration: false },
+          codeAction: {
+            dynamicRegistration: false,
+            codeActionLiteralSupport: { codeActionKind: { valueSet: ["quickfix"] } },
+            resolveSupport: { properties: ["edit"] },
+          },
         },
         workspace: { workspaceFolders: false },
       },
@@ -146,6 +151,71 @@ export class StdioLspClient {
     } catch {
       return null;
     }
+  }
+
+  private async ensureDocument(relPath: string, text: string): Promise<string> {
+    if (!this.initialized) await this.start();
+    const abs = absFromRel(this.opts.workspaceRoot, relPath);
+    const uri = pathToUri(abs);
+    if (this.openDocs.has(uri)) await this.didChange(relPath, text);
+    else await this.didOpen(relPath, text);
+    return uri;
+  }
+
+  /** Quick fixes for one diagnostic. Resolves an edit when the server defers it. */
+  async codeAction(
+    relPath: string,
+    text: string,
+    range: { start: { line: number; character: number }; end: { line: number; character: number } },
+    diagnostic: {
+      message: string;
+      severity?: number;
+      source?: string;
+      code?: string | number;
+    },
+  ): Promise<Array<{ title: string; edit: unknown }>> {
+    const uri = await this.ensureDocument(relPath, text);
+    let result: unknown;
+    try {
+      result = await this.request("textDocument/codeAction", {
+        textDocument: { uri },
+        range,
+        context: {
+          diagnostics: [
+            {
+              range,
+              message: diagnostic.message,
+              severity: diagnostic.severity ?? 1,
+              source: diagnostic.source,
+              code: diagnostic.code,
+            },
+          ],
+          only: ["quickfix"],
+        },
+      });
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(result)) return [];
+    const out: Array<{ title: string; edit: unknown }> = [];
+    for (const item of result) {
+      if (!item || typeof item !== "object") continue;
+      const obj = item as { title?: string; edit?: unknown; data?: unknown; kind?: string; command?: string };
+      const title = obj.title?.trim();
+      if (!title) continue;
+      let edit = obj.edit ?? null;
+      if (!edit && (obj.kind || obj.data) && typeof obj.command !== "string") {
+        try {
+          const resolved = (await this.request("codeAction/resolve", item)) as { edit?: unknown } | null;
+          edit = resolved?.edit ?? null;
+        } catch {
+          edit = null;
+        }
+      }
+      out.push({ title, edit });
+      if (out.length >= 8) break;
+    }
+    return out;
   }
 
   /** Language-feature request (completion/hover/definition/references/rename). */
