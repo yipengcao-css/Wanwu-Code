@@ -70,7 +70,16 @@
 | 面包屑显示当前行的提交；未提交的行会说明 | `gitOps.ts` / `MonacoPane.tsx` |
 | 上下文占用计入编辑器上下文、规则和记忆，并与模型返回的用量取较大值 | `contextMeter.ts` / `AgentStudio.tsx` |
 
-## 仍未做（2026-10-10）
+## 2026-10-11 已落地
+
+| 项 | 落点 |
+|---|---|
+| 转到定义会打开另一个文件；当前文件可以预览定义 | `lspFeatures.ts` / `MonacoPane.tsx` |
+| 问题列表可以向语言服务要快速修复并应用到编辑器 | `stdioLspClient.ts` / `ProblemsPanel.tsx` |
+| 更改面板可以放弃一个文件的更改 | `gitOps.ts` / `SourceControl.tsx` |
+| 选中的文件可以在编辑器里并排对比 | `gitFileSides` / `MonacoPane.tsx` |
+
+## 仍未做（2026-10-11）
 
 1. Cloud Agents / Bugbot / DAP（明确不做本批）
 2. MCP **prompts**（stdio resources + HTTP/OAuth 已做；Browser 已能点击链接、记录按钮和输入）
