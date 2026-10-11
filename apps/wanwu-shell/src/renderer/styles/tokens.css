@@ -415,6 +415,45 @@ button {
   border-bottom: 1px solid var(--ww-border);
 }
 
+.scm-hunk-note {
+  margin: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--ww-border);
+}
+
+.ref-list,
+.fix-list,
+.scm-hunks {
+  list-style: none;
+  margin: 0;
+  padding: 4px 8px;
+  max-height: 140px;
+  overflow: auto;
+  border-bottom: 1px solid var(--ww-border);
+  background: rgba(10, 15, 26, 0.55);
+}
+
+.ref-list li,
+.fix-list li,
+.scm-hunks li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-family: var(--ww-font-mono);
+}
+
+.ref-list .btn,
+.fix-list .btn,
+.scm-hunks .btn,
+.scm-diff-bar .btn {
+  min-height: 0;
+  padding: 2px 8px;
+  font-size: 12px;
+}
+
 .problem-item {
   display: flex;
   flex-wrap: wrap;
@@ -518,7 +557,9 @@ button {
   position: relative;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+  row-gap: 4px;
   min-width: 0;
   padding: 4px 12px;
   font-size: 12px;
