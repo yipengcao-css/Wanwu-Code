@@ -7,6 +7,7 @@ export function SourceControl(props: {
   onOpenFile: (path: string) => void;
   onCompare: (path: string) => void;
   onDiscarded?: (path: string) => void;
+  refreshTick?: number;
 }) {
   const [repo, setRepo] = useState(true);
   const [branch, setBranch] = useState("");
@@ -18,6 +19,7 @@ export function SourceControl(props: {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmPath, setConfirmPath] = useState<string | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
 
   const refresh = useCallback(() => {
     void window.wanwu.git.changes().then((r) => {
@@ -33,7 +35,7 @@ export function SourceControl(props: {
 
   useEffect(() => {
     refresh();
-  }, [props.rootLabel, refresh]);
+  }, [props.rootLabel, props.refreshTick, refresh]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -86,6 +88,54 @@ export function SourceControl(props: {
     }
   }
 
+  async function stageAll(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await window.wanwu.git.stageAll();
+      setStatus(r.text);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function discardAll(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await window.wanwu.git.discardAll();
+      setStatus(r.text);
+      setConfirmAll(false);
+      if (r.ok) {
+        for (const file of files) props.onDiscarded?.(file.path);
+        setSelected(null);
+      }
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function push(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await window.wanwu.git.push();
+      setStatus(r.text);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pull(): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await window.wanwu.git.pull();
+      setStatus(r.text);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function commit(): Promise<void> {
     setBusy(true);
     try {
@@ -107,6 +157,35 @@ export function SourceControl(props: {
       <div className="scm-toolbar">
         <button type="button" className="btn" onClick={refresh} disabled={busy}>
           刷新
+        </button>
+        <button type="button" className="btn" onClick={() => void stageAll()} disabled={busy || files.length === 0}>
+          全部暂存
+        </button>
+        {confirmAll ? (
+          <>
+            <button type="button" className="btn" onClick={() => void discardAll()} disabled={busy}>
+              确定放弃全部
+            </button>
+            <button type="button" className="btn" onClick={() => setConfirmAll(false)} disabled={busy}>
+              取消
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            className="btn"
+            disabled={busy || files.length === 0}
+            title="放弃全部更改。未跟踪的文件会被删除"
+            onClick={() => setConfirmAll(true)}
+          >
+            全部放弃
+          </button>
+        )}
+        <button type="button" className="btn" onClick={() => void pull()} disabled={busy}>
+          拉取
+        </button>
+        <button type="button" className="btn" onClick={() => void push()} disabled={busy}>
+          推送
         </button>
         <span className="scm-count">{branch ? `${branch} · ` : ""}{files.length} 个更改</span>
       </div>

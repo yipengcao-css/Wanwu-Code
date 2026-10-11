@@ -54,6 +54,12 @@ export type WanwuBridge = {
     commit: (message: string) => Promise<{ ok: boolean; text: string }>;
     discard: (rel: string) => Promise<{ ok: boolean; text: string }>;
     sides: (rel: string) => Promise<{ original: string; modified: string; untracked: boolean }>;
+    stageAll: () => Promise<{ ok: boolean; text: string }>;
+    discardAll: () => Promise<{ ok: boolean; text: string }>;
+    push: () => Promise<{ ok: boolean; text: string }>;
+    pull: () => Promise<{ ok: boolean; text: string }>;
+    hunks: (rel: string) => Promise<{ hunks: Array<{ index: number; header: string; preview: string }>; note: string }>;
+    stageHunk: (rel: string, index: number) => Promise<{ ok: boolean; text: string }>;
   };
   ckpt: {
     list: () => Promise<Array<{ id: string; createdAt: string; files: number }>>;
@@ -295,6 +301,12 @@ const bridge: WanwuBridge = {
     commit: (message) => ipcRenderer.invoke("git:commit", message),
     discard: (rel) => ipcRenderer.invoke("git:discard", rel),
     sides: (rel) => ipcRenderer.invoke("git:sides", rel),
+    stageAll: () => ipcRenderer.invoke("git:stageAll"),
+    discardAll: () => ipcRenderer.invoke("git:discardAll"),
+    push: () => ipcRenderer.invoke("git:push"),
+    pull: () => ipcRenderer.invoke("git:pull"),
+    hunks: (rel) => ipcRenderer.invoke("git:hunks", rel),
+    stageHunk: (rel, index) => ipcRenderer.invoke("git:stageHunk", rel, index),
   },
   ckpt: {
     list: () => ipcRenderer.invoke("ckpt:list"),

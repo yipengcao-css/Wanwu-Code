@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync, unlinkSync } from "node:fs";
+import { existsSync, readFileSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 export type ScmFile = {
@@ -8,14 +9,20 @@ export type ScmFile = {
   staged: boolean;
 };
 
-function runGit(cwd: string, args: string[]): { ok: boolean; stdout: string; stderr: string } {
+function runGit(
+  cwd: string,
+  args: string[],
+  timeout = 8000,
+  env?: NodeJS.ProcessEnv,
+): { ok: boolean; stdout: string; stderr: string } {
   try {
     const stdout = execFileSync("git", args, {
       cwd,
       encoding: "utf8",
-      timeout: 8000,
+      timeout,
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
+      env: env ? { ...process.env, ...env } : undefined,
     });
     return { ok: true, stdout, stderr: "" };
   } catch (err) {
@@ -204,6 +211,128 @@ export function gitDiscard(cwd: string, rel: string): { ok: boolean; text: strin
     }
   }
   return { ok: true, text: "已放弃新增的文件" };
+}
+
+export function gitStageAll(cwd: string): { ok: boolean; text: string } {
+  if (!gitIsRepo(cwd)) return { ok: false, text: "当前文件夹不是 Git 仓库" };
+  if (!gitScmStatus(cwd).files.length) return { ok: false, text: "没有可暂存的更改" };
+  const r = runGit(cwd, ["add", "-A", "--", "."]);
+  return { ok: r.ok, text: r.ok ? "已全部暂存" : r.stderr.slice(0, 400) };
+}
+
+export function gitDiscardAll(cwd: string): { ok: boolean; text: string } {
+  if (!gitIsRepo(cwd)) return { ok: false, text: "当前文件夹不是 Git 仓库" };
+  if (!gitScmStatus(cwd).files.length) return { ok: false, text: "没有可放弃的更改" };
+  runGit(cwd, ["restore", "--source=HEAD", "--staged", "--worktree", "--", "."]);
+  runGit(cwd, ["restore", "--staged", "--", "."]);
+  let skippedDir = false;
+  for (const file of gitScmStatus(cwd).files) {
+    if (file.code !== "?" && file.code !== "A") continue;
+    const safe = safeRepoPath(file.path);
+    if (!safe) continue;
+    const abs = path.join(cwd, ...safe.split("/"));
+    if (!existsSync(abs)) continue;
+    try {
+      if (statSync(abs).isDirectory()) {
+        skippedDir = true;
+        continue;
+      }
+      unlinkSync(abs);
+    } catch {
+      return { ok: false, text: "有文件没有放弃" };
+    }
+  }
+  const remain = gitScmStatus(cwd).files.filter((file) => file.code !== "?");
+  if (remain.length) return { ok: false, text: "还有更改没有放弃" };
+  return { ok: true, text: skippedDir ? "已放弃更改。文件夹请到文件树里处理。" : "已放弃全部更改" };
+}
+
+const networkGitEnv: NodeJS.ProcessEnv = {
+  GIT_TERMINAL_PROMPT: "0",
+  GIT_ASKPASS: "echo",
+  SSH_ASKPASS: "echo",
+};
+
+export function gitPush(cwd: string): { ok: boolean; text: string } {
+  if (!gitIsRepo(cwd)) return { ok: false, text: "当前文件夹不是 Git 仓库" };
+  const r = runGit(cwd, ["push"], 20000, networkGitEnv);
+  const text = (r.stderr || r.stdout).trim().slice(0, 500);
+  return { ok: r.ok, text: text || (r.ok ? "已推送" : "推送失败") };
+}
+
+export function gitPull(cwd: string): { ok: boolean; text: string } {
+  if (!gitIsRepo(cwd)) return { ok: false, text: "当前文件夹不是 Git 仓库" };
+  const r = runGit(cwd, ["pull", "--no-edit"], 20000, networkGitEnv);
+  const text = (r.stderr || r.stdout).trim().slice(0, 500);
+  return { ok: r.ok, text: text || (r.ok ? "已拉取" : "拉取失败") };
+}
+
+export type GitHunk = { index: number; header: string; preview: string };
+
+function splitDiffHunks(diff: string): { preamble: string; bodies: string[] } {
+  const lines = diff.split("\n");
+  const start = lines.findIndex((line) => line.startsWith("@@"));
+  if (start < 0) return { preamble: diff, bodies: [] };
+  const preamble = `${lines.slice(0, start).join("\n")}\n`;
+  const bodies: string[] = [];
+  let current: string[] = [];
+  for (const line of lines.slice(start)) {
+    if (line.startsWith("@@") && current.length) {
+      bodies.push(`${current.join("\n")}\n`);
+      current = [line];
+    } else {
+      current.push(line);
+    }
+  }
+  if (current.length) bodies.push(`${current.join("\n")}\n`);
+  return { preamble, bodies };
+}
+
+function hunkPreview(body: string): { header: string; preview: string } {
+  const rows = body.split("\n");
+  const header = rows[0]?.trim() || "改动";
+  const changed = rows.find((row) => (row.startsWith("+") || row.startsWith("-")) && !row.startsWith("+++") && !row.startsWith("---"));
+  const preview = (changed ?? header).slice(0, 80);
+  return { header, preview };
+}
+
+export function gitUnstagedHunks(cwd: string, rel: string): { hunks: GitHunk[]; note: string } {
+  const safe = safeRepoPath(rel);
+  if (!safe || !gitIsRepo(cwd)) return { hunks: [], note: "" };
+  const status = runGit(cwd, ["status", "--porcelain=v1", "--", safe]);
+  const line = status.stdout.split(/\r?\n/).find((row) => row.trim()) ?? "";
+  if (line.startsWith("??")) return { hunks: [], note: "新文件没有分块，请用勾选暂存整个文件" };
+  const diff = runGit(cwd, ["diff", "--no-color", "-U3", "--", safe]);
+  if (!diff.stdout.trim()) return { hunks: [], note: "没有未暂存的改动" };
+  const parts = splitDiffHunks(diff.stdout);
+  return {
+    hunks: parts.bodies.map((body, index) => ({ index, ...hunkPreview(body) })),
+    note: "",
+  };
+}
+
+export function gitStageHunk(cwd: string, rel: string, index: number): { ok: boolean; text: string } {
+  const safe = safeRepoPath(rel);
+  if (!safe || !gitIsRepo(cwd)) return { ok: false, text: "当前文件夹不是 Git 仓库" };
+  const diff = runGit(cwd, ["diff", "--no-color", "-U3", "--", safe]);
+  const parts = splitDiffHunks(diff.stdout);
+  const body = parts.bodies[index];
+  if (!body) return { ok: false, text: "这块改动已经不在了" };
+  const patch = `${parts.preamble}${body}`;
+  const file = path.join(tmpdir(), `wanwu-hunk-${process.pid}-${index}.patch`);
+  try {
+    writeFileSync(file, patch);
+    const applied = runGit(cwd, ["apply", "--cached", "--whitespace=nowarn", "--", file]);
+    return { ok: applied.ok, text: applied.ok ? "已暂存这块" : (applied.stderr || "暂存这块失败").slice(0, 400) };
+  } catch {
+    return { ok: false, text: "暂存这块失败" };
+  } finally {
+    try {
+      unlinkSync(file);
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export function gitCommit(cwd: string, message: string): { ok: boolean; text: string } {
