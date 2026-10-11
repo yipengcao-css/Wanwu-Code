@@ -381,8 +381,9 @@ export function App() {
 
   const openAt = useCallback(
     (rel: string, line: number, column: number) => {
-      void openFile(rel);
-      setGotoLine({ path: rel, line, column, n: ++gotoSeq.current });
+      void openFile(rel).then(() => {
+        setGotoLine({ path: rel, line, column, n: ++gotoSeq.current });
+      });
     },
     [openFile],
   );

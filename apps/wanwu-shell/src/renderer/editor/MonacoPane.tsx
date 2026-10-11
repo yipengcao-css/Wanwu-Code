@@ -367,20 +367,33 @@ export function MonacoPane(props: {
     emitFocus();
   };
 
-  // Jump to a line requested by global search.
+  // Jump after the target tab's model is actually mounted.
   useEffect(() => {
     const target = props.gotoLine;
     if (!target) return;
-    const ed = target.path === split?.path ? secondaryRef.current ?? primaryRef.current : primaryRef.current;
-    if (!ed || (target.path !== active?.path && target.path !== split?.path)) return;
-    // Wait a tick for the model to be ready after tab switch.
-    const t = setTimeout(() => {
+    let cancelled = false;
+    let tries = 0;
+    let timer = 0;
+    const tick = (): void => {
+      if (cancelled) return;
+      const ed = target.path === split?.path ? secondaryRef.current ?? primaryRef.current : primaryRef.current;
+      const modelPath = ed?.getModel()?.uri.path.replace(/^\/+/, "") ?? "";
+      const tabReady = target.path === active?.path || target.path === split?.path;
+      if (!ed || !tabReady || modelPath !== target.path) {
+        if (tries++ < 30) timer = window.setTimeout(tick, 40);
+        return;
+      }
       ed.revealLineInCenter(target.line);
       ed.setPosition({ lineNumber: target.line, column: target.column ?? 1 });
       ed.focus();
-    }, 60);
-    return () => clearTimeout(t);
-  }, [props.gotoLine, active?.path]);
+      setCursorLine(target.line);
+    };
+    timer = window.setTimeout(tick, 30);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [props.gotoLine, active?.path, split?.path]);
 
   if (props.tabs.length === 0 && !props.compare) {
     return (
