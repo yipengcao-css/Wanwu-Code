@@ -809,7 +809,7 @@ export function App() {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         commands={[
-          { id: "peek-def", title: "查看定义", hint: "F12", run: () => window.dispatchEvent(new Event("wanwu-peek-definition")) },
+          { id: "goto-def", title: "转到定义", hint: "F12", run: () => window.dispatchEvent(new Event("wanwu-go-to-definition")) },
           { id: "open-folder", title: "打开文件夹", run: () => void openFolder() },
           { id: "save", title: "保存当前文件", hint: "Ctrl+S", run: () => void saveActive() },
           {

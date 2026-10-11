@@ -223,8 +223,16 @@ export function MonacoPane(props: {
       const ed = primaryRef.current;
       if (ed) void ed.getAction("editor.action.peekDefinition")?.run();
     };
+    const onGoto = (): void => {
+      const ed = primaryRef.current;
+      if (ed) void ed.getAction("editor.action.revealDefinition")?.run();
+    };
     window.addEventListener("wanwu-peek-definition", onPeek);
-    return () => window.removeEventListener("wanwu-peek-definition", onPeek);
+    window.addEventListener("wanwu-go-to-definition", onGoto);
+    return () => {
+      window.removeEventListener("wanwu-peek-definition", onPeek);
+      window.removeEventListener("wanwu-go-to-definition", onGoto);
+    };
   }, []);
 
   useEffect(() => {
@@ -409,6 +417,7 @@ export function MonacoPane(props: {
               options={{
                 readOnly: true,
                 renderSideBySide: true,
+                useInlineViewWhenSpaceIsLimited: false,
                 minimap: { enabled: false },
                 automaticLayout: true,
                 scrollBeyondLastLine: false,

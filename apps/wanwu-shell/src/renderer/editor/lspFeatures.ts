@@ -1,5 +1,28 @@
 import * as monaco from "monaco-editor";
-import { relFromFileUri } from "../../shared/lspUri";
+import { relFromEditorResource, relFromFileUri } from "../../shared/lspUri";
+
+/**
+ * Monaco's bundled TypeScript worker only sees open models, so it treats an
+ * import as the definition. Turn that provider off before the language mode
+ * starts; the language server below is the one that knows the project.
+ */
+const workerModes = {
+  completionItems: true,
+  hovers: true,
+  documentSymbols: true,
+  definitions: false,
+  references: true,
+  documentHighlights: true,
+  rename: true,
+  diagnostics: true,
+  documentRangeFormattingEdits: true,
+  signatureHelp: true,
+  onTypeFormattingEdits: true,
+  codeActions: true,
+  inlayHints: true,
+};
+monaco.languages.typescript?.typescriptDefaults.setModeConfiguration(workerModes);
+monaco.languages.typescript?.javascriptDefaults.setModeConfiguration(workerModes);
 
 /**
  * Wire LSP language features (completion/hover/definition/references/rename)
@@ -89,6 +112,32 @@ type LspLocation = {
 
 function toMonacoLocation(loc: LspLocation): monaco.languages.Location {
   return { uri: editorUriFor(loc.uri), range: toMonacoRange(loc.range) };
+}
+
+function languageForPath(rel: string): string {
+  if (rel.endsWith(".tsx") || rel.endsWith(".ts")) return "typescript";
+  if (rel.endsWith(".jsx") || rel.endsWith(".js") || rel.endsWith(".mjs")) return "javascript";
+  if (rel.endsWith(".json")) return "json";
+  if (rel.endsWith(".css")) return "css";
+  if (rel.endsWith(".html")) return "html";
+  if (rel.endsWith(".py")) return "python";
+  if (rel.endsWith(".rs")) return "rust";
+  return "plaintext";
+}
+
+/** Peek cannot read the disk. Put the target file into a model first. */
+async function ensureEditorModel(uri: monaco.Uri): Promise<void> {
+  if (monaco.editor.getModel(uri)) return;
+  const rel = uri.path.replace(/^\/+/, "");
+  if (!rel || rel.split("/").includes("..")) return;
+  let text = "";
+  try {
+    text = await window.wanwu.fs.read(rel);
+  } catch {
+    return;
+  }
+  if (monaco.editor.getModel(uri)) return;
+  monaco.editor.createModel(text, languageForPath(rel), uri);
 }
 
 async function lspRequest(
@@ -188,6 +237,9 @@ export function registerLspFeatures(): void {
         const plain = loc as LspLocation;
         if (plain.uri) locations.push(toMonacoLocation(plain));
       }
+      for (const loc of locations) {
+        if (loc.uri.toString() !== model.uri.toString()) await ensureEditorModel(loc.uri);
+      }
       return locations.length ? locations : null;
     },
   });
@@ -226,11 +278,8 @@ export function registerLspFeatures(): void {
       if (!openLocation) return false;
       const sourceUri = source.getModel()?.uri.toString();
       if (sourceUri && sourceUri === resource.toString()) return false;
-      const rel =
-        resource.scheme === "file" && workspaceRoot
-          ? relFromFileUri(resource.toString(), workspaceRoot)
-          : resource.path.replace(/^\/+/, "");
-      if (!rel || rel.split("/").includes("..")) return false;
+      const rel = relFromEditorResource(resource.toString(), resource.path, workspaceRoot);
+      if (!rel) return false;
       const at = selectionLine(selectionOrPosition);
       openLocation(rel, at.line, at.column);
       return true;

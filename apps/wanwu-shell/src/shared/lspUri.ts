@@ -18,3 +18,15 @@ export function relFromFileUri(uri: string, workspaceRoot: string): string | nul
   if (!rel || rel.split("/").includes("..")) return null;
   return rel;
 }
+
+/**
+ * Editor models are `Uri.parse(rel)`, which Monaco stores as `file:///` + rel.
+ * A real `file://` URI under the workspace wins; otherwise use the model path.
+ */
+export function relFromEditorResource(uri: string, path: string, workspaceRoot: string): string | null {
+  const fromFile = relFromFileUri(uri, workspaceRoot);
+  if (fromFile) return fromFile;
+  const rel = path.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!rel || rel.split("/").includes("..")) return null;
+  return rel;
+}
