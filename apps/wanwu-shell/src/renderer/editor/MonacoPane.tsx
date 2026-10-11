@@ -255,6 +255,11 @@ export function MonacoPane(props: {
   const currentSymbol = symbolAtLine(symbols, cursorLine);
 
   useEffect(() => {
+    setRefs(null);
+    setLineFixes(null);
+  }, [props.activePath]);
+
+  useEffect(() => {
     setLspWorkspaceRoot(props.workspaceRoot ?? "");
     setDefinitionOpener(
       props.onOpenLocation
