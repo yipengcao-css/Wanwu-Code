@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, unlinkSync } from "node:fs";
 import path from "node:path";
 
 export type ScmFile = {
@@ -146,6 +146,64 @@ export function gitBlameLine(cwd: string, rel: string, line: number): { text: st
   const short = full.slice(0, 7);
   const parts = [short, author, summary].filter(Boolean);
   return { text: parts.join(" · ") };
+}
+
+export function gitFileSides(
+  cwd: string,
+  rel: string,
+): { original: string; modified: string; untracked: boolean } {
+  const safe = safeRepoPath(rel);
+  if (!safe || !gitIsRepo(cwd)) return { original: "", modified: "", untracked: false };
+  const status = runGit(cwd, ["status", "--porcelain=v1", "--", safe]);
+  const line = status.stdout.split(/\r?\n/).find((row) => row.trim()) ?? "";
+  const untracked = line.startsWith("??");
+  let original = "";
+  if (!untracked) {
+    const shown = runGit(cwd, ["show", `HEAD:${safe}`]);
+    if (shown.ok) original = shown.stdout;
+  }
+  let modified = "";
+  const abs = path.join(cwd, ...safe.split("/"));
+  if (existsSync(abs)) {
+    try {
+      const text = readFileSync(abs, "utf8");
+      modified = text.includes("\0") ? "" : text;
+    } catch {
+      modified = "";
+    }
+  }
+  return { original, modified, untracked };
+}
+
+export function gitDiscard(cwd: string, rel: string): { ok: boolean; text: string } {
+  const safe = safeRepoPath(rel);
+  if (!safe || !gitIsRepo(cwd)) return { ok: false, text: "当前文件夹不是 Git 仓库" };
+  const status = runGit(cwd, ["status", "--porcelain=v1", "--", safe]);
+  const line = status.stdout.split(/\r?\n/).find((row) => row.trim()) ?? "";
+  if (!line) return { ok: false, text: "这个文件没有可放弃的更改" };
+  const abs = path.join(cwd, ...safe.split("/"));
+  if (line.startsWith("??")) {
+    if (!existsSync(abs)) return { ok: true, text: "已放弃" };
+    try {
+      if (statSync(abs).isDirectory()) return { ok: false, text: "这是文件夹，请到文件树里处理" };
+      unlinkSync(abs);
+    } catch {
+      return { ok: false, text: "放弃失败" };
+    }
+    return { ok: true, text: "已删除未跟踪的文件" };
+  }
+  const restored = runGit(cwd, ["restore", "--source=HEAD", "--staged", "--worktree", "--", safe]);
+  if (restored.ok) return { ok: true, text: "已放弃更改" };
+  const unstage = runGit(cwd, ["restore", "--staged", "--", safe]);
+  if (!unstage.ok) return { ok: false, text: (restored.stderr || "放弃失败").slice(0, 400) };
+  if (existsSync(abs)) {
+    try {
+      if (!statSync(abs).isDirectory()) unlinkSync(abs);
+    } catch {
+      return { ok: false, text: "已取消暂存，但文件还在" };
+    }
+  }
+  return { ok: true, text: "已放弃新增的文件" };
 }
 
 export function gitCommit(cwd: string, message: string): { ok: boolean; text: string } {

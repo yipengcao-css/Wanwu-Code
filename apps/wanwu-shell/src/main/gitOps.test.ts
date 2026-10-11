@@ -1,9 +1,20 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { gitBlameLine, gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage, safeRepoPath } from "./gitOps.ts";
+import {
+  gitBlameLine,
+  gitBranch,
+  gitCommit,
+  gitDiff,
+  gitDiscard,
+  gitFileLog,
+  gitFileSides,
+  gitScmStatus,
+  gitStage,
+  safeRepoPath,
+} from "./gitOps.ts";
 
 assert.equal(safeRepoPath("../x"), null);
 assert.equal(safeRepoPath("src/a.ts"), "src/a.ts");
@@ -44,6 +55,20 @@ writeFileSync(join(dir, "note.txt"), "hello\nworld\n");
 assert.match(gitBlameLine(dir, "note.txt", 2).text, /没有提交/);
 assert.equal(gitBlameLine(dir, "note.txt", 0).text, "");
 assert.match(gitBlameLine(dir, "../note.txt", 1).text, /^$/);
+
+writeFileSync(join(dir, "note.txt"), "changed\n");
+const sides = gitFileSides(dir, "note.txt");
+assert.match(sides.original, /hello/);
+assert.match(sides.modified, /changed/);
+assert.equal(sides.untracked, false);
+const discarded = gitDiscard(dir, "note.txt");
+assert.equal(discarded.ok, true, discarded.text);
+assert.match(readFileSync(join(dir, "note.txt"), "utf8"), /^hello/);
+
+writeFileSync(join(dir, "extra.txt"), "temp\n");
+assert.equal(gitDiscard(dir, "extra.txt").ok, true);
+assert.equal(existsSync(join(dir, "extra.txt")), false);
+assert.match(gitDiscard(dir, "note.txt").text, /没有可放弃/);
 
 const plain = mkdtempSync(join(tmpdir(), "wanwu-scm-none-"));
 assert.equal(gitScmStatus(plain).repo, false);

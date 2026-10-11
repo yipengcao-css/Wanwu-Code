@@ -2,7 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 
 type ScmFile = { path: string; code: string; staged: boolean };
 
-export function SourceControl(props: { rootLabel: string; onOpenFile: (path: string) => void }) {
+export function SourceControl(props: {
+  rootLabel: string;
+  onOpenFile: (path: string) => void;
+  onCompare: (path: string) => void;
+  onDiscarded?: (path: string) => void;
+}) {
   const [repo, setRepo] = useState(true);
   const [branch, setBranch] = useState("");
   const [files, setFiles] = useState<ScmFile[]>([]);
@@ -12,6 +17,7 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirmPath, setConfirmPath] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     void window.wanwu.git.changes().then((r) => {
@@ -66,6 +72,20 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
     }
   }
 
+  async function discard(path: string): Promise<void> {
+    setBusy(true);
+    try {
+      const r = await window.wanwu.git.discard(path);
+      setStatus(r.text);
+      setConfirmPath(null);
+      if (r.ok) props.onDiscarded?.(path);
+      if (selected === path) setSelected(null);
+      refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function commit(): Promise<void> {
     setBusy(true);
     try {
@@ -108,10 +128,33 @@ export function SourceControl(props: { rootLabel: string; onOpenFile: (path: str
                 <span className={`scm-badge scm-${f.code}`}>{f.code}</span>
                 {f.path}
               </button>
-              <button type="button" className="btn" onClick={() => props.onOpenFile(f.path)}>
-                打开
+            <button type="button" className="btn" onClick={() => props.onCompare(f.path)}>
+              对比
+            </button>
+            <button type="button" className="btn" onClick={() => props.onOpenFile(f.path)}>
+              打开
+            </button>
+            {confirmPath === f.path ? (
+              <>
+                <button type="button" className="btn" disabled={busy} onClick={() => void discard(f.path)}>
+                  确定放弃
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => setConfirmPath(null)}>
+                  取消
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn"
+                disabled={busy}
+                onClick={() => setConfirmPath(f.path)}
+                title={f.code === "?" ? "这个文件还没跟踪，放弃会删掉它" : "放弃这个文件的更改"}
+              >
+                放弃
               </button>
-            </li>
+            )}
+          </li>
           ))}
         </ul>
         {selected ? (

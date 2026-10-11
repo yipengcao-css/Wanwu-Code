@@ -1,5 +1,15 @@
 import { ipcMain } from "electron";
-import { gitBlameLine, gitBranch, gitCommit, gitDiff, gitFileLog, gitScmStatus, gitStage } from "../gitOps.js";
+import {
+  gitBlameLine,
+  gitBranch,
+  gitCommit,
+  gitDiff,
+  gitDiscard,
+  gitFileLog,
+  gitFileSides,
+  gitScmStatus,
+  gitStage,
+} from "../gitOps.js";
 import { gitStatus } from "../gitStatus.js";
 
 export function registerGitIpc(getRoot: () => string | null): void {
@@ -43,5 +53,17 @@ export function registerGitIpc(getRoot: () => string | null): void {
     const root = getRoot();
     if (!root) return { ok: false, text: "未打开工作区" };
     return gitCommit(root, String(message));
+  });
+
+  ipcMain.handle("git:discard", (_e, rel: string) => {
+    const root = getRoot();
+    if (!root) return { ok: false, text: "未打开工作区" };
+    return gitDiscard(root, String(rel));
+  });
+
+  ipcMain.handle("git:sides", (_e, rel: string) => {
+    const root = getRoot();
+    if (!root) return { original: "", modified: "", untracked: false };
+    return gitFileSides(root, String(rel));
   });
 }
