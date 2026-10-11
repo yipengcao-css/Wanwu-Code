@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import Editor, { loader, type OnMount } from "@monaco-editor/react";
+import { DiffEditor, Editor, loader, type OnMount } from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
 import type { DiffHunk } from "../agent/diffHunks";
 import { formatCursorWindow, type CursorFocus } from "./editorContext";
@@ -9,7 +9,7 @@ import { mountHunkReview } from "./hunkReview";
 import { setPrimaryFormatter } from "./editorActions";
 import { attachTabNextJump, registerInlineCompletion } from "./inlineComplete";
 import { attachInlineEdit } from "./inlineEdit";
-import { registerLspFeatures } from "./lspFeatures";
+import { registerLspFeatures, setDefinitionOpener, setLspWorkspaceRoot } from "./lspFeatures";
 import editorWorker from "monaco-editor/esm/vs/editor/editor.worker?worker";
 import jsonWorker from "monaco-editor/esm/vs/language/json/json.worker?worker";
 import cssWorker from "monaco-editor/esm/vs/language/css/css.worker?worker";
@@ -49,6 +49,7 @@ export type MarkerDiag = {
   endLine: number;
   endCharacter: number;
   source?: string;
+  code?: string | number;
 };
 
 function Breadcrumb(props: {
@@ -58,6 +59,7 @@ function Breadcrumb(props: {
   blame?: string | null;
   onOpenDir?: (dir: string) => void;
   onJump?: (line: number) => void;
+  onPeek?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const parts = props.path.split("/").filter(Boolean);
@@ -120,6 +122,11 @@ function Breadcrumb(props: {
           {props.blame}
         </span>
       ) : null}
+      {props.onPeek ? (
+        <button type="button" className="crumb" onClick={props.onPeek} title="预览定义。F12 会打开定义所在的文件">
+          查看定义
+        </button>
+      ) : null}
     </nav>
   );
 }
@@ -168,7 +175,12 @@ export function MonacoPane(props: {
   activePath: string | null;
   diagnostics: Record<string, MarkerDiag[]>;
   /** Jump target from global search (n bumps to re-trigger). */
-  gotoLine?: { path: string; line: number; n: number } | null;
+  gotoLine?: { path: string; line: number; column?: number; n: number } | null;
+  workspaceRoot?: string | null;
+  /** Open another file when go-to-definition leaves the current one. */
+  onOpenLocation?: (path: string, line: number, column: number) => void;
+  compare?: { path: string; original: string; modified: string; untracked?: boolean } | null;
+  onCloseCompare?: () => void;
   onSelect: (path: string) => void;
   onChange: (path: string, value: string) => void;
   onClose: (path: string) => void;
@@ -195,6 +207,25 @@ export function MonacoPane(props: {
   const [blame, setBlame] = useState("");
   const symbols = useMemo(() => outlineSymbols(active?.content ?? ""), [active?.content]);
   const currentSymbol = symbolAtLine(symbols, cursorLine);
+
+  useEffect(() => {
+    setLspWorkspaceRoot(props.workspaceRoot ?? "");
+    setDefinitionOpener(
+      props.onOpenLocation
+        ? (rel, line, column) => props.onOpenLocation?.(rel, line, column)
+        : null,
+    );
+    return () => setDefinitionOpener(null);
+  }, [props.workspaceRoot, props.onOpenLocation]);
+
+  useEffect(() => {
+    const onPeek = (): void => {
+      const ed = primaryRef.current;
+      if (ed) void ed.getAction("editor.action.peekDefinition")?.run();
+    };
+    window.addEventListener("wanwu-peek-definition", onPeek);
+    return () => window.removeEventListener("wanwu-peek-definition", onPeek);
+  }, []);
 
   useEffect(() => {
     const path = active?.path;
@@ -337,13 +368,13 @@ export function MonacoPane(props: {
     // Wait a tick for the model to be ready after tab switch.
     const t = setTimeout(() => {
       ed.revealLineInCenter(target.line);
-      ed.setPosition({ lineNumber: target.line, column: 1 });
+      ed.setPosition({ lineNumber: target.line, column: target.column ?? 1 });
       ed.focus();
     }, 60);
     return () => clearTimeout(t);
   }, [props.gotoLine, active?.path]);
 
-  if (props.tabs.length === 0) {
+  if (props.tabs.length === 0 && !props.compare) {
     return (
       <div className="empty">
         <strong>Wanwu Lattice Editor</strong>
@@ -354,6 +385,40 @@ export function MonacoPane(props: {
 
   return (
     <>
+      {props.compare ? (
+        <div className="scm-diff-view">
+          <div className="scm-diff-bar">
+            <span>
+              对比 {props.compare.path}
+              {props.compare.untracked ? " · 新文件，左侧是空的" : ""}
+            </span>
+            <button type="button" className="btn" onClick={() => props.onCloseCompare?.()}>
+              关闭对比
+            </button>
+          </div>
+          <div className="monaco-host">
+            <DiffEditor
+              key={props.compare.path}
+              original={props.compare.original}
+              modified={props.compare.modified}
+              language={languageFor(props.compare.path)}
+              theme="vs-dark"
+              height="100%"
+              originalModelPath={`${props.compare.path}#head`}
+              modifiedModelPath={`${props.compare.path}#work`}
+              options={{
+                readOnly: true,
+                renderSideBySide: true,
+                minimap: { enabled: false },
+                automaticLayout: true,
+                scrollBeyondLastLine: false,
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+      {props.tabs.length > 0 && !props.compare ? (
+      <>
       <div className="tabs">
         {props.tabs.map((t) => {
           const name = t.path.split("/").pop() ?? t.path;
@@ -395,6 +460,7 @@ export function MonacoPane(props: {
               blame={blame}
               onOpenDir={props.onOpenDir}
               onJump={jumpTo}
+              onPeek={() => window.dispatchEvent(new Event("wanwu-peek-definition"))}
             />
           ) : null}
           <div className="monaco-host">
@@ -434,6 +500,8 @@ export function MonacoPane(props: {
           </div>
         ) : null}
       </div>
+      </>
+      ) : null}
     </>
   );
 }

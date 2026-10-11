@@ -1,4 +1,5 @@
 import * as monaco from "monaco-editor";
+import { relFromFileUri } from "../../shared/lspUri";
 
 /**
  * Wire LSP language features (completion/hover/definition/references/rename)
@@ -25,6 +26,31 @@ const LSP_LANGUAGES = [
 ];
 
 let registered = false;
+let workspaceRoot = "";
+let openLocation: ((rel: string, line: number, column: number) => void) | null = null;
+
+/** Workspace root used to turn LSP file URIs into editor paths. */
+export function setLspWorkspaceRoot(root: string): void {
+  workspaceRoot = root;
+}
+
+/** Called when go-to-definition targets a file that is not the current model. */
+export function setDefinitionOpener(fn: ((rel: string, line: number, column: number) => void) | null): void {
+  openLocation = fn;
+}
+
+function editorUriFor(lspUri: string): monaco.Uri {
+  const rel = workspaceRoot ? relFromFileUri(lspUri, workspaceRoot) : null;
+  return monaco.Uri.parse(rel || lspUri);
+}
+
+function selectionLine(selectionOrPosition: monaco.IRange | monaco.IPosition | undefined): { line: number; column: number } {
+  if (!selectionOrPosition) return { line: 1, column: 1 };
+  if ("startLineNumber" in selectionOrPosition) {
+    return { line: selectionOrPosition.startLineNumber, column: selectionOrPosition.startColumn };
+  }
+  return { line: selectionOrPosition.lineNumber, column: selectionOrPosition.column };
+}
 
 function toLspPosition(pos: monaco.Position): { line: number; character: number } {
   return { line: pos.lineNumber - 1, character: pos.column - 1 };
@@ -62,7 +88,7 @@ type LspLocation = {
 };
 
 function toMonacoLocation(loc: LspLocation): monaco.languages.Location {
-  return { uri: monaco.Uri.parse(loc.uri), range: toMonacoRange(loc.range) };
+  return { uri: editorUriFor(loc.uri), range: toMonacoRange(loc.range) };
 }
 
 async function lspRequest(
@@ -152,16 +178,16 @@ export function registerLspFeatures(): void {
         | null;
       if (!res) return null;
       const arr = Array.isArray(res) ? res : [res];
-      const locations = arr
-        .map((loc) => {
-          if (!loc) return undefined;
-          if ("targetUri" in loc && loc.targetUri && loc.targetRange) {
-            return { uri: monaco.Uri.parse(loc.targetUri), range: toMonacoRange(loc.targetRange) };
-          }
-          const plain = loc as LspLocation;
-          return plain.uri ? toMonacoLocation(plain) : undefined;
-        })
-        .filter((x): x is monaco.languages.Location => x !== undefined);
+      const locations: monaco.languages.Location[] = [];
+      for (const loc of arr) {
+        if (!loc) continue;
+        if ("targetUri" in loc && loc.targetUri && loc.targetRange) {
+          locations.push({ uri: editorUriFor(loc.targetUri), range: toMonacoRange(loc.targetRange) });
+          continue;
+        }
+        const plain = loc as LspLocation;
+        if (plain.uri) locations.push(toMonacoLocation(plain));
+      }
       return locations.length ? locations : null;
     },
   });
@@ -192,6 +218,22 @@ export function registerLspFeatures(): void {
         }
       }
       return { edits };
+    },
+  });
+
+  monaco.editor.registerEditorOpener({
+    openCodeEditor(source, resource, selectionOrPosition) {
+      if (!openLocation) return false;
+      const sourceUri = source.getModel()?.uri.toString();
+      if (sourceUri && sourceUri === resource.toString()) return false;
+      const rel =
+        resource.scheme === "file" && workspaceRoot
+          ? relFromFileUri(resource.toString(), workspaceRoot)
+          : resource.path.replace(/^\/+/, "");
+      if (!rel || rel.split("/").includes("..")) return false;
+      const at = selectionLine(selectionOrPosition);
+      openLocation(rel, at.line, at.column);
+      return true;
     },
   });
 }

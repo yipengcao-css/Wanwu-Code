@@ -15,8 +15,10 @@ import {
 } from "../workspace/recentWorkspaces";
 import type { EditorSelection, EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
-import { ProblemsPanel } from "../problems/ProblemsPanel";
+import { ProblemsPanel, type QuickFix } from "../problems/ProblemsPanel";
 import { mergeDiagnostics } from "../../shared/problems";
+import { applyLspTextEdits } from "../../shared/lspEdits";
+import { collectWorkspaceEdits, type LspWorkspaceEdit } from "../../shared/codeEdits";
 import { SourceControl } from "../scm/SourceControl";
 import { TerminalPane } from "../terminal/TerminalPane";
 import { applyHunkChoices, diffHunks } from "../agent/diffHunks";
@@ -75,7 +77,13 @@ export function App() {
   const [sideTab, setSideTab] = useState<"files" | "search" | "scm" | "problems">("files");
   const [revealDir, setRevealDir] = useState<string | null>(null);
   const [splitPath, setSplitPath] = useState<string | null>(null);
-  const [gotoLine, setGotoLine] = useState<{ path: string; line: number; n: number } | null>(null);
+  const [gotoLine, setGotoLine] = useState<{ path: string; line: number; column?: number; n: number } | null>(null);
+  const [scmDiff, setScmDiff] = useState<{
+    path: string;
+    original: string;
+    modified: string;
+    untracked: boolean;
+  } | null>(null);
   const gotoSeq = useRef(0);
   const [filesW, setFilesW] = useState(initial.filesW);
   const [agentW, setAgentW] = useState(initial.agentW);
@@ -366,9 +374,83 @@ export function App() {
       return [...prev, { path: rel, content, dirty: false }];
     });
     setActivePath(rel);
+    setScmDiff(null);
     // Main side filters to languages with a configured server (hasLspMapping).
     void window.wanwu.lsp.didOpen(rel, content);
   }, []);
+
+  const openAt = useCallback(
+    (rel: string, line: number, column: number) => {
+      void openFile(rel);
+      setGotoLine({ path: rel, line, column, n: ++gotoSeq.current });
+    },
+    [openFile],
+  );
+
+  const compareFile = useCallback(async (rel: string) => {
+    const sides = await window.wanwu.git.sides(rel);
+    setScmDiff({ path: rel, original: sides.original, modified: sides.modified, untracked: sides.untracked });
+    setStatus(sides.untracked ? `对比新文件 · ${rel}` : `对比 · ${rel}`);
+  }, []);
+
+  const listFixes = useCallback(
+    async (path: string, diag: MarkerDiag) => {
+      const text = tabs.find((t) => t.path === path)?.content ?? (await window.wanwu.fs.read(path));
+      const range = {
+        start: { line: diag.startLine, character: diag.startCharacter },
+        end: { line: diag.endLine, character: diag.endCharacter },
+      };
+      const severity = diag.severity === "warning" ? 2 : diag.severity === "info" ? 3 : diag.severity === "hint" ? 4 : 1;
+      const actions = await window.wanwu.lsp.codeAction(path, text, range, {
+        message: diag.message,
+        severity,
+        source: diag.source,
+        code: diag.code,
+      });
+      return actions.map((action) => ({
+        title: action.title,
+        edit: (action.edit ?? null) as LspWorkspaceEdit | null,
+      }));
+    },
+    [tabs],
+  );
+
+  const applyFix = useCallback(
+    async (fix: QuickFix) => {
+      if (!root || !fix.edit) {
+        setStatus("这个修复不能自动应用");
+        return;
+      }
+      const files = collectWorkspaceEdits(fix.edit, root);
+      if (!files.length) {
+        setStatus("这个修复没有可应用的编辑");
+        return;
+      }
+      for (const file of files) {
+        let current = tabs.find((t) => t.path === file.rel)?.content;
+        if (current === undefined) {
+          try {
+            current = await window.wanwu.fs.read(file.rel);
+          } catch {
+            current = "";
+          }
+        }
+        const next = applyLspTextEdits(current, file.edits);
+        setTabs((prev) => {
+          if (prev.some((t) => t.path === file.rel)) {
+            return prev.map((t) => (t.path === file.rel ? { ...t, content: next, dirty: true } : t));
+          }
+          return [...prev, { path: file.rel, content: next, dirty: true }];
+        });
+        void window.wanwu.lsp.didChange(file.rel, next);
+      }
+      const first = files[0]?.rel;
+      if (first) setActivePath(first);
+      setScmDiff(null);
+      setStatus(`已应用修复 · ${fix.title}。记得保存。`);
+    },
+    [root, tabs],
+  );
 
   const onChange = useCallback((path: string, value: string) => {
     setTabs((prev) =>
@@ -396,7 +478,7 @@ export function App() {
     setStatus(`已保存 · ${activeTab.path}`);
   }, [activeTab]);
 
-  const showEditor = tabs.length > 0 || Boolean(review);
+  const showEditor = tabs.length > 0 || Boolean(review) || Boolean(scmDiff);
 
   const style = {
     ["--ww-files-w" as string]: `${filesW}px`,
@@ -469,7 +551,12 @@ export function App() {
                 }}
               />
             ) : sideTab === "scm" ? (
-              <SourceControl rootLabel={root} onOpenFile={(p) => void openFile(p)} />
+              <SourceControl
+                rootLabel={root}
+                onOpenFile={(p) => void openFile(p)}
+                onCompare={(p) => void compareFile(p)}
+                onDiscarded={(p) => setScmDiff((cur) => (cur?.path === p ? null : cur))}
+              />
             ) : (
               <ProblemsPanel
                 diagnostics={mergedDiagnostics}
@@ -479,6 +566,8 @@ export function App() {
                   void openFile(p);
                   setGotoLine({ path: p, line, n: ++gotoSeq.current });
                 }}
+                onListFixes={listFixes}
+                onApplyFix={(fix) => applyFix(fix)}
               />
             )
           ) : (
@@ -549,13 +638,17 @@ export function App() {
               onRejectAll={edits.length > 1 ? () => setEdits([]) : undefined}
             />
           ) : null}
-          {tabs.length > 0 ? (
+          {tabs.length > 0 || scmDiff ? (
             <Suspense fallback={<div className="empty">加载编辑器…</div>}>
               <MonacoPane
                 tabs={tabs}
                 activePath={activePath}
                 diagnostics={mergedDiagnostics}
                 gotoLine={gotoLine}
+                workspaceRoot={root}
+                onOpenLocation={openAt}
+                compare={scmDiff}
+                onCloseCompare={() => setScmDiff(null)}
                 onSelect={setActivePath}
                 onChange={onChange}
                 onSelectionChange={setSelection}
@@ -716,6 +809,7 @@ export function App() {
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}
         commands={[
+          { id: "peek-def", title: "查看定义", hint: "F12", run: () => window.dispatchEvent(new Event("wanwu-peek-definition")) },
           { id: "open-folder", title: "打开文件夹", run: () => void openFolder() },
           { id: "save", title: "保存当前文件", hint: "Ctrl+S", run: () => void saveActive() },
           {

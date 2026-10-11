@@ -52,6 +52,8 @@ export type WanwuBridge = {
     blame: (rel: string, line: number) => Promise<{ text: string }>;
     stage: (rels: string[], staged: boolean) => Promise<{ ok: boolean; text: string }>;
     commit: (message: string) => Promise<{ ok: boolean; text: string }>;
+    discard: (rel: string) => Promise<{ ok: boolean; text: string }>;
+    sides: (rel: string) => Promise<{ original: string; modified: string; untracked: boolean }>;
   };
   ckpt: {
     list: () => Promise<Array<{ id: string; createdAt: string; files: number }>>;
@@ -211,6 +213,15 @@ export type WanwuBridge = {
       character: number,
       extra?: Record<string, unknown>,
     ) => Promise<unknown>;
+    codeAction: (
+      path: string,
+      text: string,
+      range: {
+        start: { line: number; character: number };
+        end: { line: number; character: number };
+      },
+      diagnostic: { message: string; severity?: number; source?: string; code?: string | number },
+    ) => Promise<Array<{ title: string; edit: unknown }>>;
     format: (path: string) => Promise<{
       available: boolean;
       edits: Array<{
@@ -282,6 +293,8 @@ const bridge: WanwuBridge = {
     blame: (rel, line) => ipcRenderer.invoke("git:blame", rel, line),
     stage: (rels, staged) => ipcRenderer.invoke("git:stage", rels, staged),
     commit: (message) => ipcRenderer.invoke("git:commit", message),
+    discard: (rel) => ipcRenderer.invoke("git:discard", rel),
+    sides: (rel) => ipcRenderer.invoke("git:sides", rel),
   },
   ckpt: {
     list: () => ipcRenderer.invoke("ckpt:list"),
@@ -349,6 +362,8 @@ const bridge: WanwuBridge = {
     didClose: (path) => ipcRenderer.invoke("lsp:didClose", path),
     request: (path, method, line, character, extra) =>
       ipcRenderer.invoke("lsp:request", path, method, line, character, extra),
+    codeAction: (path, text, range, diagnostic) =>
+      ipcRenderer.invoke("lsp:codeAction", path, text, range, diagnostic),
     format: (path) => ipcRenderer.invoke("lsp:format", path),
     dispose: () => ipcRenderer.invoke("lsp:dispose"),
     onDiagnostics: (cb) => on("lsp:diagnostics", (p) => cb(p as never)),
