@@ -280,10 +280,6 @@ export function App() {
   useEffect(() => {
     const offDiag = window.wanwu.lsp.onDiagnostics((payload) => {
       setDiagnostics((prev) => ({ ...prev, [payload.path]: payload.diagnostics }));
-      const errs = payload.diagnostics.filter((d) => d.severity === "error").length;
-      if (errs > 0) {
-        setStatus(`LSP · ${payload.path} · ${errs} error(s)`);
-      }
     });
     const offErr = window.wanwu.lsp.onError((text) => {
       setStatus(text.slice(0, 120));
