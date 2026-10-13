@@ -43,9 +43,9 @@ if [[ "$TARGETS" == "all" || "$TARGETS" == "linux" ]]; then
 fi
 
 if [[ "$TARGETS" == "all" || "$TARGETS" == "win" ]]; then
-  echo "==> windows zip (portable distribution; NSIS needs stable wine)"
+  echo "==> windows one-click installer (NSIS) + portable zip"
   bash "$ROOT/scripts/stage-shell-acp.sh" win
-  pnpm exec electron-builder --win zip --x64 --config electron-builder.yml
+  pnpm exec electron-builder --win nsis zip --x64 --config electron-builder.yml
 fi
 
 if [[ "$TARGETS" == "all" || "$TARGETS" == "mac" ]]; then
@@ -67,6 +67,7 @@ normalize() {
 normalize "release/Wanwu Code-${VER}-linux-x86_64.AppImage" "release/Wanwu-Code-${VER}-linux-x64.AppImage"
 normalize "release/Wanwu Code-${VER}-linux-amd64.deb" "release/Wanwu-Code-${VER}-linux-amd64.deb"
 normalize "release/Wanwu Code-${VER}-win-x64.zip" "release/Wanwu-Code-${VER}-win-x64.zip"
+normalize "release/Wanwu Code-Setup-${VER}-win-x64.exe" "release/Wanwu-Code-Setup-${VER}-win-x64.exe"
 normalize "release/Wanwu Code-${VER}-mac-x64.zip" "release/Wanwu-Code-${VER}-mac-x64.zip"
 normalize "release/Wanwu Code-${VER}-mac-arm64.zip" "release/Wanwu-Code-${VER}-mac-arm64.zip"
 
@@ -77,6 +78,7 @@ if [[ "$TARGETS" == "all" || "$TARGETS" == "linux" ]]; then
   test -f "release/Wanwu-Code-${VER}-linux-x64.AppImage"
 fi
 if [[ "$TARGETS" == "all" || "$TARGETS" == "win" ]]; then
+  test -f "release/Wanwu-Code-Setup-${VER}-win-x64.exe"
   test -f "release/Wanwu-Code-${VER}-win-x64.zip"
 fi
 if [[ "$TARGETS" == "all" || "$TARGETS" == "mac" ]]; then
