@@ -27,6 +27,7 @@
 - **Docker cloud runner**：容器内用 `npm i -g pnpm` 安装，避开 Node slim 自带 corepack 的 `Cannot find matching keyid`；worktree/commit 跳过 LFS hook（slim 镜像无 `git-lfs` 时 hook 会 exit 2）
 
 ### Added
+- **使用手册**：新增 `docs/USER_GUIDE.md`，从安装、模型设置、界面和五种模式，到 Agent、编辑器、侧栏、终端、规则记忆、权限、扩展、命令行、快捷键、常见问题和已知限制
 - **Windows 一键安装包**：`pnpm shell:dist` 在 Windows 目标下同时产出 `Wanwu-Code-Setup-<ver>-win-x64.exe`（NSIS 单击安装，按用户安装，不要管理员权限，创建桌面和开始菜单快捷方式）和原来的 zip 便携包。安装包暂未签名，首次运行 SmartScreen 可能提示未知发布者
 - **对话里的路径可点开**：回复和工具结果里的 `src/a.ts:12` 会打开对应文件并跳到那一行
 - **代码块应用到编辑器**：回复里的代码块可以插入到光标或选区，也可以替换当前文件

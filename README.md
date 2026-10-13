@@ -71,6 +71,7 @@ pnpm shell:dist
 ```
 
 安装说明：[`docs/INSTALL.md`](docs/INSTALL.md)  
+使用手册：[`docs/USER_GUIDE.md`](docs/USER_GUIDE.md)  
 **公司演示安装包**：[`demo-dist/v1.0.0-beta/`](demo-dist/v1.0.0-beta/)（Git LFS，需 `git lfs pull`）
 
 ### 安装预发布产物（v1.0 beta）
@@ -96,6 +97,7 @@ node dist-bin/wanwu.mjs doctor
 - [竞品分析](docs/COMPETITIVE_ANALYSIS.md)
 - [路线图](docs/ROADMAP.md)
 - [Epic 2 Backlog](docs/EPIC2_BACKLOG.md)
+- [使用手册](docs/USER_GUIDE.md)
 - [安装 CLI](docs/INSTALL.md)
 - [Cloud 编排](docs/CLOUD.md)
 - [多模型 Providers](docs/PROVIDERS.md)
