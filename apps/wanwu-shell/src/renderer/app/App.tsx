@@ -195,7 +195,9 @@ export function App() {
     });
     void window.wanwu.settings.get().then((s) => {
       setHasApiKey(s.hasApiKey);
-      setModelLabel(`${s.activeProvider}/${s.model}`);
+      setModelLabel(
+        s.model?.trim() ? `${s.activeProvider}/${s.model}` : "未配置模型",
+      );
     });
   }, []);
 
@@ -833,8 +835,11 @@ export function App() {
         onClose={() => setSettingsOpen(false)}
         onSaved={(s) => {
           setHasApiKey(s.hasApiKey);
-          setModelLabel(`${s.activeProvider}/${s.model}`);
-          setStatus(`已更新模型 · ${s.activeProvider}/${s.model}`);
+          const label = s.model?.trim()
+            ? `${s.activeProvider}/${s.model}`
+            : "未配置模型";
+          setModelLabel(label);
+          setStatus(s.model?.trim() ? `已更新模型 · ${label}` : "已保存设置");
         }}
       />
 

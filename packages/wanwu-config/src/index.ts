@@ -28,18 +28,19 @@ export interface WanwuConfig {
   providers: Partial<Record<ProviderId, ProviderConfig>>;
 }
 
+/** Fresh install: no product-chosen provider/model — users configure BYOK in Shell or config.toml. */
 export const DEFAULT_CONFIG: WanwuConfig = {
-  activeProvider: "openai",
-  model: "gpt-5",
+  activeProvider: "custom",
+  model: "",
   permissionMode: "ask",
   sandbox: "workspace",
   acpBackend: "wanwu-native",
   defaultMode: "agent",
   providers: {
-    xai: { apiKeyEnv: "XAI_API_KEY", defaultModel: "grok-4" },
-    openai: { apiKeyEnv: "OPENAI_API_KEY", defaultModel: "gpt-5" },
-    anthropic: { apiKeyEnv: "ANTHROPIC_API_KEY", defaultModel: "claude-sonnet-4" },
-    ollama: { baseUrl: "http://127.0.0.1:11434", defaultModel: "llama3.2" },
+    xai: { apiKeyEnv: "XAI_API_KEY" },
+    openai: { apiKeyEnv: "OPENAI_API_KEY" },
+    anthropic: { apiKeyEnv: "ANTHROPIC_API_KEY" },
+    ollama: {},
     custom: { apiKeyEnv: "WANWU_API_KEY", baseUrl: "" },
   },
 };
@@ -67,10 +68,10 @@ export function mergeConfig(
 }
 
 export function resolveActiveModel(config: WanwuConfig): string {
-  if (config.model) {
-    return config.model;
-  }
-  return config.providers[config.activeProvider]?.defaultModel ?? "unknown";
+  const explicit = config.model?.trim();
+  if (explicit) return explicit;
+  const fallback = config.providers[config.activeProvider]?.defaultModel?.trim();
+  return fallback ?? "";
 }
 
 export function listConfiguredProviders(config: WanwuConfig): ProviderId[] {
