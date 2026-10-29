@@ -7,7 +7,7 @@ import { SearchPanel } from "../files/SearchPanel";
 import type { EditorTab, MarkerDiag } from "../editor/MonacoPane";
 import { AgentStudio } from "../agent/AgentStudio";
 import { TerminalPane } from "../terminal/TerminalPane";
-import { ConfirmModal } from "../agent/ConfirmModal";
+import { PermissionModal } from "../agent/PermissionModal";
 import { SettingsDrawer } from "../settings/SettingsDrawer";
 import { CommandPalette } from "../palette/CommandPalette";
 import { WelcomeGate } from "../onboarding/WelcomeGate";
@@ -299,6 +299,29 @@ export function App() {
             selectionHint={activeTab?.content.slice(0, 500)}
             diagnosticsSummary={formatDiagnosticsSummary(diagnostics)}
             onStatus={setStatus}
+            onCheckpointRestored={(payload) => {
+              const paths = [...new Set([...payload.restored, ...payload.deleted])];
+              void (async () => {
+                for (const rel of paths) {
+                  try {
+                    const content = await window.wanwu.fs.read(rel);
+                    setTabs((prev) => {
+                      const hit = prev.find((t) => t.path === rel);
+                      if (hit) {
+                        return prev.map((t) =>
+                          t.path === rel ? { ...t, content, dirty: false } : t,
+                        );
+                      }
+                      return prev;
+                    });
+                  } catch {
+                    setTabs((prev) => prev.filter((t) => t.path !== rel));
+                    if (activePath === rel) setActivePath(null);
+                  }
+                }
+                setStatus(`检查点已恢复 · ${paths.length} 路径已刷新`);
+              })();
+            }}
           />
         </aside>
       </div>
@@ -331,18 +354,14 @@ export function App() {
       />
 
       {perm ? (
-        <ConfirmModal
-          title={`权限 · ${perm.toolName}`}
-          body={`${perm.summary}\nrisk=${perm.risk ?? "?"}`}
-          acceptLabel="允许一次"
-          rejectLabel="拒绝"
-          onAccept={() => {
-            void window.wanwu.acp.respondPermission(perm.id, "allow_once");
+        <PermissionModal
+          toolName={perm.toolName}
+          summary={perm.summary}
+          risk={perm.risk}
+          onChoice={(choice) => {
+            void window.wanwu.acp.respondPermission(perm.id, choice);
             setPerm(null);
-          }}
-          onReject={() => {
-            void window.wanwu.acp.respondPermission(perm.id, "deny");
-            setPerm(null);
+            setStatus(`权限 · ${choice} · ${perm.toolName}`);
           }}
         />
       ) : null}

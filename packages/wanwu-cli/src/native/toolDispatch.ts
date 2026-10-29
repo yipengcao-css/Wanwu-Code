@@ -17,8 +17,9 @@ import {
   type EditBlock,
   type ToolResult,
 } from "./tools.js";
-import { toolTodo, type TodoItem } from "./todo.js";
+import { readTodos, toolTodo, type TodoItem } from "./todo.js";
 import { recordFileBackup } from "./checkpoints.js";
+import { sessionUpdate } from "./jsonRpcStdio.js";
 
 /** accept-edits / accept-all persist immediately; ask mode proposes for client review. */
 function shouldApplyEdits(ctx: AgentContext): boolean {
@@ -247,7 +248,14 @@ export async function dispatchTool(
       }
       case "Todo": {
         const items = Array.isArray(args.items) ? (args.items as TodoItem[]) : [];
-        return toolTodo(ctx.workspaceRoot, ctx.sessionId, items);
+        const result = toolTodo(ctx.workspaceRoot, ctx.sessionId, items);
+        if (result.ok) {
+          sessionUpdate(ctx.sessionId, {
+            sessionUpdate: "todo_list",
+            items: readTodos(ctx.workspaceRoot, ctx.sessionId),
+          });
+        }
+        return result;
       }
       case "WebFetch": {
         const url = String(args.url ?? "");

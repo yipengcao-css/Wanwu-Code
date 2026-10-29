@@ -230,6 +230,30 @@ export function startNativeAcpStdioServer(): void {
       return;
     }
 
+    if (method === "checkpoint/restore" || method === "session/checkpoint/restore") {
+      const params = (msg.params ?? {}) as { checkpointId?: string };
+      const { latestCheckpoint, listCheckpoints, restoreCheckpoint } = await import(
+        "./checkpoints.js"
+      );
+      const targetId = params.checkpointId?.trim();
+      const meta = targetId
+        ? listCheckpoints(workspaceRoot).find((c) => c.id === targetId)
+        : latestCheckpoint(workspaceRoot);
+      if (!meta) {
+        sendError(id, -32000, targetId ? `checkpoint not found: ${targetId}` : "no checkpoints to restore");
+        return;
+      }
+      const result = restoreCheckpoint(workspaceRoot, meta.id);
+      sendResult(id, {
+        ok: result.missing.length === 0,
+        checkpointId: meta.id,
+        restored: result.restored,
+        deleted: result.deleted,
+        missing: result.missing,
+      });
+      return;
+    }
+
     sendError(id, -32601, `Method not found: ${method}`);
   }
 
