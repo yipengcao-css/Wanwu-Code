@@ -17,7 +17,7 @@
 
 ### P0 — 已完成
 
-1. **工作流状态 ACP → Shell**：`session/update` → `workflow_state`；Agent Studio **WorkflowRail** + 空会话快捷入口。
+1. **工作流状态 ACP → Shell**：`session/update` → `workflow_state`；Agent Studio **WorkflowRail**（顶栏 Mode 切换即可，无重复快捷按钮）。
 2. **本地 harness**：`scripts/smoke-local-harness.sh` + `scripts/acp-workflow-native.mts`。
 
 ### P1 — 已完成（2026-10-29 跟进）
@@ -47,5 +47,5 @@ pnpm lint && pnpm typecheck && pnpm test
 ./scripts/smoke-acp.sh
 ```
 
-Shell 手动：Agent Studio 空会话 →「运行 Verify」→ WorkflowRail。  
-扩展手动：Activity Bar → Wanwu Agent → 发 Verify 模式消息 → 顶栏 workflow 与 token 只读更新。
+Shell 手动：空会话仅两行提示 + WorkflowRail（有 ACP 回合后更新）；用顶栏 Mode 切换，无重复按钮条。  
+扩展手动：Activity Bar → Wanwu Agent → Verify 模式 → workflow 条与 token 只读更新。
