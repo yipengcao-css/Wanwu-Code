@@ -1,5 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { WanwuMode } from "../layout/OrbitBar";
+import {
+  activeMentionPartial,
+  applyMentionInsert,
+  mergeMentionSuggestions,
+} from "./mentionComplete";
+import { TodoPanel, type TodoItemView } from "./TodoPanel";
 
 type LogItem =
   | { kind: "user" | "assistant" | "error" | "status"; text: string }
@@ -20,7 +26,7 @@ function emptyWelcome(): LogItem[] {
   return [
     {
       kind: "status",
-      text: "Agent Studio · wanwu-native ACP。选择 Mode 后描述任务。",
+      text: "Agent Studio · wanwu-native ACP。输入 @ 引用文件/目录；选择 Mode 后描述任务。",
     },
   ];
 }
@@ -33,7 +39,9 @@ export function AgentStudio(props: {
   selectionHint?: string;
   /** Flattened LSP diagnostics for @diagnostics mention resolution. */
   diagnosticsSummary?: string;
+  terminalTail?: string;
   onStatus: (s: string) => void;
+  onCheckpointRestored?: (payload: { restored: string[]; deleted: string[] }) => void;
 }) {
   const [chats, setChats] = useState<ChatSession[]>([
     { localId: newLocalId(), title: "会话 1", log: emptyWelcome() },
@@ -41,9 +49,16 @@ export function AgentStudio(props: {
   const [activeLocalId, setActiveLocalId] = useState(chats[0]!.localId);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [todos, setTodos] = useState<TodoItemView[]>([]);
+  const [lastCheckpointId, setLastCheckpointId] = useState<string | null>(null);
+  const [mentionHits, setMentionHits] = useState<string[]>([]);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const [caret, setCaret] = useState(0);
+  const [restoreBusy, setRestoreBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const activeLocalIdRef = useRef(activeLocalId);
   activeLocalIdRef.current = activeLocalId;
+  const mentionReq = useRef(0);
 
   const active = chats.find((c) => c.localId === activeLocalId) ?? chats[0]!;
 
@@ -54,9 +69,46 @@ export function AgentStudio(props: {
     );
   }
 
+  const refreshMentions = useCallback(
+    async (partial: string | null) => {
+      if (!partial || !props.enabled) {
+        setMentionHits([]);
+        return;
+      }
+      const id = ++mentionReq.current;
+      try {
+        const { paths, specials } = await window.wanwu.fs.mentionCandidates(partial);
+        if (id !== mentionReq.current) return;
+        setMentionHits(mergeMentionSuggestions(paths, specials, partial));
+        setMentionIndex(0);
+      } catch {
+        if (id === mentionReq.current) setMentionHits([]);
+      }
+    },
+    [props.enabled],
+  );
+
   useEffect(() => {
     return window.wanwu.shell.onFocusAgent(() => inputRef.current?.focus());
   }, []);
+
+  useEffect(() => {
+    const partial = activeMentionPartial(text, caret);
+    void refreshMentions(partial);
+  }, [text, caret, refreshMentions]);
+
+  useEffect(() => {
+    const offs = [
+      window.wanwu.acp.onTodo((items) => setTodos(items)),
+      window.wanwu.acp.onCheckpointRestored((payload) => {
+        props.onCheckpointRestored?.({
+          restored: payload.restored ?? [],
+          deleted: payload.deleted ?? [],
+        });
+      }),
+    ];
+    return () => offs.forEach((off) => off());
+  }, [props.onCheckpointRestored]);
 
   const prevRootRef = useRef<string | null>(null);
   useEffect(() => {
@@ -78,6 +130,8 @@ export function AgentStudio(props: {
       ]);
       setActiveLocalId(id);
       setBusy(false);
+      setTodos([]);
+      setLastCheckpointId(null);
     }
     prevRootRef.current = next;
   }, [props.workspaceRoot]);
@@ -87,12 +141,15 @@ export function AgentStudio(props: {
       window.wanwu.acp.onMessage((t) =>
         patchActive((prev) => [...prev, { kind: "assistant", text: t }]),
       ),
-      window.wanwu.acp.onTool((tool) =>
+      window.wanwu.acp.onTool((tool) => {
+        if (tool.title === "Todo" && tool.status === "completed" && tool.detail) {
+          /* todo_list event is authoritative; tool chip is fallback only */
+        }
         patchActive((prev) => [
           ...prev,
           { kind: "tool", title: tool.title, status: tool.status, detail: tool.detail },
-        ]),
-      ),
+        ]);
+      }),
       window.wanwu.acp.onError((t) =>
         patchActive((prev) => [...prev, { kind: "error", text: t }]),
       ),
@@ -120,6 +177,19 @@ export function AgentStudio(props: {
     ];
     return () => offs.forEach((off) => off());
   }, []);
+
+  function insertMention(token: string): void {
+    const el = inputRef.current;
+    const pos = el?.selectionStart ?? caret;
+    const next = applyMentionInsert(text, pos, token);
+    setText(next.text);
+    setCaret(next.caret);
+    setMentionHits([]);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(next.caret, next.caret);
+    });
+  }
 
   async function switchChat(localId: string): Promise<void> {
     if (busy || localId === activeLocalId) return;
@@ -159,6 +229,7 @@ export function AgentStudio(props: {
         },
       ]);
       setActiveLocalId(localId);
+      setTodos([]);
       props.onStatus(`新会话 · ${title}`);
     } catch (err) {
       props.onStatus(err instanceof Error ? err.message : String(err));
@@ -167,20 +238,54 @@ export function AgentStudio(props: {
     }
   }
 
+  async function restoreCheckpoint(): Promise<void> {
+    if (!props.enabled || restoreBusy) return;
+    setRestoreBusy(true);
+    try {
+      await window.wanwu.acp.ensure();
+      const result = await window.wanwu.acp.restoreCheckpoint(lastCheckpointId ?? undefined);
+      if (result.ok) {
+        patchActive((prev) => [
+          ...prev,
+          {
+            kind: "status",
+            text: `已恢复检查点 ${result.checkpointId ?? "?"} · 还原 ${result.restored?.length ?? 0} 个文件`,
+          },
+        ]);
+        props.onStatus(`检查点已恢复 · ${result.checkpointId ?? "?"}`);
+      } else {
+        const msg =
+          result.missing?.length
+            ? `恢复不完整：缺少 ${result.missing.join(", ")}`
+            : "没有可恢复的检查点";
+        patchActive((prev) => [...prev, { kind: "error", text: msg }]);
+        props.onStatus(msg);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      patchActive((prev) => [...prev, { kind: "error", text: message }]);
+      props.onStatus(message);
+    } finally {
+      setRestoreBusy(false);
+    }
+  }
+
   async function send(): Promise<void> {
     const prompt = text.trim();
     if (!prompt || !props.enabled || busy) return;
     setBusy(true);
     setText("");
+    setMentionHits([]);
     const titleFromPrompt = prompt.slice(0, 24);
     setChats((prev) =>
       prev.map((c) =>
         c.localId === activeLocalIdRef.current
           ? {
               ...c,
-              title: c.title.startsWith("会话") && c.log.filter((l) => l.kind === "user").length === 0
-                ? titleFromPrompt
-                : c.title,
+              title:
+                c.title.startsWith("会话") && c.log.filter((l) => l.kind === "user").length === 0
+                  ? titleFromPrompt
+                  : c.title,
               log: [...c.log, { kind: "user", text: prompt }],
             }
           : c,
@@ -210,9 +315,11 @@ export function AgentStudio(props: {
             props.selectionHint ? `Preview:\n\`\`\`\n${props.selectionHint}\n\`\`\`\n` : ""
           }[/EDITOR_CONTEXT]\n`
         : "";
-      await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
+      const out = await window.wanwu.acp.prompt(`${prefix}${ctx}${prompt}`, {
         diagnostics: props.diagnosticsSummary,
+        terminal: props.terminalTail,
       });
+      if (out?.checkpointId) setLastCheckpointId(out.checkpointId);
       props.onStatus("回合完成");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -245,12 +352,22 @@ export function AgentStudio(props: {
         <button
           type="button"
           className="btn"
+          disabled={!props.enabled || busy || restoreBusy}
+          title={lastCheckpointId ? `回滚 ${lastCheckpointId}` : "回滚最近一次 Agent 检查点"}
+          onClick={() => void restoreCheckpoint()}
+        >
+          {restoreBusy ? "恢复中…" : "恢复到上一轮"}
+        </button>
+        <button
+          type="button"
+          className="btn"
           disabled={!props.enabled || busy}
           onClick={() => void createChat()}
         >
           新建会话
         </button>
       </div>
+      <TodoPanel items={todos} />
       <div className="agent-log">
         {active.log.map((item, i) => {
           if (item.kind === "tool") {
@@ -278,13 +395,59 @@ export function AgentStudio(props: {
         })}
       </div>
       <div className="composer">
+        {mentionHits.length ? (
+          <ul className="mention-menu" role="listbox" aria-label="@ 引用补全">
+            {mentionHits.map((hit, idx) => (
+              <li key={hit}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={idx === mentionIndex}
+                  className={idx === mentionIndex ? "active" : undefined}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    insertMention(hit);
+                  }}
+                >
+                  {hit}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <textarea
           ref={inputRef}
           value={text}
           disabled={!props.enabled || busy}
-          placeholder={props.enabled ? "描述你的意图…" : "请先打开工作区"}
-          onChange={(e) => setText(e.target.value)}
+          placeholder={props.enabled ? "描述你的意图… 输入 @ 引用文件/目录/git" : "请先打开工作区"}
+          onChange={(e) => {
+            setText(e.target.value);
+            setCaret(e.target.selectionStart ?? 0);
+          }}
+          onClick={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
+          onKeyUp={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
           onKeyDown={(e) => {
+            if (mentionHits.length) {
+              if (e.key === "ArrowDown") {
+                e.preventDefault();
+                setMentionIndex((i) => (i + 1) % mentionHits.length);
+                return;
+              }
+              if (e.key === "ArrowUp") {
+                e.preventDefault();
+                setMentionIndex((i) => (i - 1 + mentionHits.length) % mentionHits.length);
+                return;
+              }
+              if (e.key === "Tab" || (e.key === "Enter" && !e.metaKey && !e.ctrlKey)) {
+                e.preventDefault();
+                insertMention(mentionHits[mentionIndex] ?? mentionHits[0]!);
+                return;
+              }
+              if (e.key === "Escape") {
+                setMentionHits([]);
+                return;
+              }
+            }
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();
               void send();
@@ -293,7 +456,7 @@ export function AgentStudio(props: {
         />
         <div className="composer-row">
           <span style={{ color: "var(--ww-muted)", fontSize: 12 }}>
-            Mode={props.mode} · Ctrl/Cmd+Enter 发送
+            Mode={props.mode} · @ 引用 · Ctrl/Cmd+Enter 发送
           </span>
           <button
             type="button"

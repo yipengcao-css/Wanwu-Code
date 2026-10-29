@@ -70,6 +70,7 @@ async function ensureClient(
       broadcast(win, "acp:permission", req),
     );
     client.on("edit", (edit: AcpEditProposal) => broadcast(win, "acp:edit", edit));
+    client.on("todo", (items) => broadcast(win, "acp:todo", items));
     await client.initialize();
     sessionId = await client.newSession(root);
     broadcast(win, "acp:session", { sessionId, cwd: root });
@@ -115,6 +116,23 @@ export function registerAcpIpc(getRoot: () => string | null, getWin: () => Brows
     if (!client) throw new Error("ACP not ready");
     client.respond(id, { optionId });
     return true;
+  });
+
+  ipcMain.handle("acp:restoreCheckpoint", async (_e, checkpointId?: string) => {
+    const root = getRoot();
+    if (!root) throw new Error("no workspace open");
+    await ensureClient(root, getWin);
+    if (!client) throw new Error("ACP not ready");
+    const result = await client.restoreCheckpoint(checkpointId);
+    const win = getWin();
+    if (result.ok) {
+      broadcast(win, "acp:checkpointRestored", {
+        restored: result.restored ?? [],
+        deleted: result.deleted ?? [],
+        checkpointId: result.checkpointId,
+      });
+    }
+    return result;
   });
 
   ipcMain.handle("acp:dispose", () => {

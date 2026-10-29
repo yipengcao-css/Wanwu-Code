@@ -39,6 +39,30 @@ async function listDir(root: string, rel = "."): Promise<DirEntry[]> {
   return out;
 }
 
+const MENTION_MAX = 400;
+
+async function collectMentionPaths(root: string, partial: string, cap: number): Promise<string[]> {
+  const files: string[] = [];
+  await walkForSearch(root, root, files, MENTION_MAX);
+  const p = partial.replace(/\\/g, "/").toLowerCase();
+  const hits = files.filter((f) => f.toLowerCase().includes(p) || f.toLowerCase().startsWith(p));
+  hits.sort((a, b) => {
+    const aPref = a.toLowerCase().startsWith(p) ? 0 : 1;
+    const bPref = b.toLowerCase().startsWith(p) ? 0 : 1;
+    if (aPref !== bPref) return aPref - bPref;
+    return a.localeCompare(b);
+  });
+  return hits.slice(0, cap);
+}
+
+export const SPECIAL_MENTIONS = [
+  "@git:status",
+  "@git:diff",
+  "@git:log",
+  "@web:",
+  "@terminal",
+  "@diagnostics",
+] as const;
 const SEARCH_MAX_RESULTS = 200;
 const SEARCH_MAX_FILE_BYTES = 512 * 1024;
 
@@ -183,6 +207,17 @@ export function registerFsIpc(
     if (!root) throw new Error("no workspace open");
     if (!query.trim()) return [];
     return searchInWorkspace(root, query.trim());
+  });
+
+  ipcMain.handle("fs:mentionCandidates", async (_e, partial: string) => {
+    const root = getRoot();
+    if (!root) return { paths: [] as string[], specials: [] as string[] };
+    const needle = String(partial ?? "").replace(/^@/, "");
+    const paths = needle ? await collectMentionPaths(root, needle, 24) : [];
+    const specials = SPECIAL_MENTIONS.filter((s) =>
+      s.toLowerCase().startsWith(`@${needle.toLowerCase()}`),
+    );
+    return { paths, specials: [...specials] };
   });
 
   // Watch workspace for external changes (formatter, git checkout, agent edits).

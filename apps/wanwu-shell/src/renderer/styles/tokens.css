@@ -551,6 +551,80 @@ button {
   background: rgba(42, 212, 160, 0.1);
 }
 
+.todo-panel {
+  border-bottom: 1px solid var(--ww-border);
+  padding: 8px 10px;
+  background: rgba(12, 18, 30, 0.55);
+  font-size: 12px;
+}
+
+.todo-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--ww-muted);
+  margin-bottom: 6px;
+}
+
+.todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.todo-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.todo-item.status-in_progress {
+  color: var(--ww-accent);
+}
+
+.todo-item.status-completed {
+  color: var(--ww-muted);
+  text-decoration: line-through;
+}
+
+.mention-menu {
+  list-style: none;
+  margin: 0 0 6px;
+  padding: 4px;
+  border: 1px solid var(--ww-border);
+  border-radius: 10px;
+  background: var(--ww-bg);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.mention-menu button {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--ww-text);
+  font-family: var(--ww-font-mono);
+  font-size: 11px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mention-menu button.active,
+.mention-menu button:hover {
+  background: rgba(42, 212, 160, 0.12);
+}
+
+.permission-actions {
+  flex-wrap: wrap;
+}
+
 .empty {
   padding: var(--ww-space-3);
   color: var(--ww-muted);

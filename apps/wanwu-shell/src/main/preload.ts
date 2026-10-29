@@ -12,6 +12,9 @@ export type WanwuBridge = {
     read: (rel: string) => Promise<string>;
     write: (rel: string, content: string) => Promise<boolean>;
     search: (query: string) => Promise<Array<{ path: string; line: number; text: string }>>;
+    mentionCandidates: (
+      partial: string,
+    ) => Promise<{ paths: string[]; specials: string[] }>;
     onChanged: (cb: (rel: string) => void) => () => void;
   };
   ai: {
@@ -37,8 +40,16 @@ export type WanwuBridge = {
     prompt: (
       text: string,
       context?: { diagnostics?: string; terminal?: string },
-    ) => Promise<unknown>;
+    ) => Promise<{ checkpointId?: string; stopReason?: string }>;
     respondPermission: (id: number, optionId: string) => Promise<boolean>;
+    restoreCheckpoint: (checkpointId?: string) => Promise<{
+      ok: boolean;
+      checkpointId?: string;
+      restored?: string[];
+      deleted?: string[];
+      missing?: string[];
+      error?: string;
+    }>;
     dispose: () => Promise<boolean>;
     onMessage: (cb: (text: string) => void) => () => void;
     onTool: (cb: (tool: { title: string; status: string; detail?: string }) => void) => () => void;
@@ -49,6 +60,12 @@ export type WanwuBridge = {
     ) => () => void;
     onEdit: (
       cb: (edit: { path: string; before: string; after: string }) => void,
+    ) => () => void;
+    onTodo: (
+      cb: (items: Array<{ content: string; status: "pending" | "in_progress" | "completed" }>) => void,
+    ) => () => void;
+    onCheckpointRestored: (
+      cb: (payload: { restored: string[]; deleted: string[]; checkpointId?: string }) => void,
     ) => () => void;
   };
   term: {
@@ -136,6 +153,7 @@ const bridge: WanwuBridge = {
     read: (rel) => ipcRenderer.invoke("fs:read", rel),
     write: (rel, content) => ipcRenderer.invoke("fs:write", rel, content),
     search: (query) => ipcRenderer.invoke("fs:search", query),
+    mentionCandidates: (partial) => ipcRenderer.invoke("fs:mentionCandidates", partial),
     onChanged: (cb) => on("fs:changed", (rel) => cb(String(rel))),
   },
   ai: {
@@ -148,6 +166,7 @@ const bridge: WanwuBridge = {
     setSession: (sessionId) => ipcRenderer.invoke("acp:setSession", sessionId),
     prompt: (text, context) => ipcRenderer.invoke("acp:prompt", text, context),
     respondPermission: (id, optionId) => ipcRenderer.invoke("acp:respondPermission", id, optionId),
+    restoreCheckpoint: (checkpointId) => ipcRenderer.invoke("acp:restoreCheckpoint", checkpointId),
     dispose: () => ipcRenderer.invoke("acp:dispose"),
     onMessage: (cb) => on("acp:message", (t) => cb(String(t))),
     onTool: (cb) => on("acp:tool", (t) => cb(t as never)),
@@ -155,6 +174,8 @@ const bridge: WanwuBridge = {
     onSession: (cb) => on("acp:session", (t) => cb(t as never)),
     onPermission: (cb) => on("acp:permission", (t) => cb(t as never)),
     onEdit: (cb) => on("acp:edit", (t) => cb(t as never)),
+    onTodo: (cb) => on("acp:todo", (t) => cb(t as never)),
+    onCheckpointRestored: (cb) => on("acp:checkpointRestored", (t) => cb(t as never)),
   },
   term: {
     start: (id, cols, rows) => ipcRenderer.invoke("term:start", id, cols, rows),
