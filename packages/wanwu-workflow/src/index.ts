@@ -57,3 +57,14 @@ export class WorkflowMachine {
 
 /** Verify must not share Act's polluted context — marker for orchestrators. */
 export const VERIFY_ISOLATION = "separate-subagent-or-fresh-session" as const;
+
+export {
+  syncWorkflowAfterVerify,
+  syncWorkflowFromMode,
+  workflowPhase,
+  workflowPhaseIndex,
+  workflowPhaseLabel,
+  workflowStateLabel,
+  type AgentUiMode,
+  type WorkflowPhase,
+} from "./modeSync.js";
