@@ -110,6 +110,9 @@ importers:
       '@wanwu/acp-client':
         specifier: workspace:*
         version: link:../../packages/wanwu-acp-client
+      '@wanwu/workflow':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-workflow
     devDependencies:
       '@types/node':
         specifier: ^22.15.21
