@@ -14,6 +14,20 @@ export interface AcpPermissionRequest {
   risk?: string;
 }
 
+export interface AcpTodoItem {
+  content: string;
+  status: "pending" | "in_progress" | "completed";
+}
+
+export interface AcpCheckpointRestoreResult {
+  ok: boolean;
+  checkpointId?: string;
+  restored?: string[];
+  deleted?: string[];
+  missing?: string[];
+  error?: string;
+}
+
 export interface AcpEditProposal {
   path: string;
   before: string;
@@ -107,6 +121,10 @@ export class AcpClient extends EventEmitter {
       if (edit) {
         this.emit("edit", edit);
       }
+      const todos = extractTodoList(msg.params);
+      if (todos) {
+        this.emit("todo", todos);
+      }
       const text = extractText(msg.params);
       if (text) {
         this.emit("message", text);
@@ -162,14 +180,21 @@ export class AcpClient extends EventEmitter {
     sessionId: string,
     text: string,
     context?: { diagnostics?: string; terminal?: string },
-  ): Promise<unknown> {
-    return this.request("session/prompt", {
+  ): Promise<{ checkpointId?: string; stopReason?: string }> {
+    return (await this.request("session/prompt", {
       sessionId,
       prompt: text,
       text,
       ...(context?.diagnostics ? { diagnostics: context.diagnostics } : {}),
       ...(context?.terminal ? { terminal: context.terminal } : {}),
-    });
+    })) as { checkpointId?: string; stopReason?: string };
+  }
+
+  /** Restore the latest checkpoint, or a specific id when provided. */
+  async restoreCheckpoint(checkpointId?: string): Promise<AcpCheckpointRestoreResult> {
+    return (await this.request("checkpoint/restore", {
+      ...(checkpointId ? { checkpointId } : {}),
+    })) as AcpCheckpointRestoreResult;
   }
 
   dispose(): void {
@@ -204,6 +229,25 @@ function extractTool(params: unknown): { title: string; status: string; detail?:
     status,
     detail: typeof detail === "string" ? detail.slice(0, 200) : undefined,
   };
+}
+
+function extractTodoList(params: unknown): AcpTodoItem[] | undefined {
+  if (!params || typeof params !== "object") return undefined;
+  const p = params as Record<string, unknown>;
+  const update = p.update as Record<string, unknown> | undefined;
+  if (update?.sessionUpdate !== "todo_list") return undefined;
+  const items = update.items;
+  if (!Array.isArray(items)) return undefined;
+  const out: AcpTodoItem[] = [];
+  for (const it of items) {
+    if (!it || typeof it !== "object") continue;
+    const o = it as Record<string, unknown>;
+    if (typeof o.content !== "string" || !o.content.trim()) continue;
+    const status =
+      o.status === "in_progress" || o.status === "completed" ? o.status : "pending";
+    out.push({ content: o.content.trim(), status });
+  }
+  return out;
 }
 
 function extractEdit(params: unknown): AcpEditProposal | undefined {

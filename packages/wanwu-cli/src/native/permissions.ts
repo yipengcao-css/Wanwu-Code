@@ -7,6 +7,13 @@ import { send } from "./jsonRpcStdio.js";
 
 type PermissionOptionId = "allow-once" | "allow-session" | "deny";
 
+/** Map ACP client responses to a known choice (unknown ids fail closed → deny). */
+export function normalizePermissionOptionId(optionId: string): PermissionOptionId {
+  return optionId === "allow-once" || optionId === "allow-session" || optionId === "deny"
+    ? optionId
+    : "deny";
+}
+
 type PendingPermission = {
   resolve: (optionId: PermissionOptionId) => void;
   reject: (err: Error) => void;
@@ -25,10 +32,7 @@ export function resolvePermissionRequest(
   if (!p) return false;
   pending.delete(id);
   clearTimeout(p.timer);
-  const normalized: PermissionOptionId =
-    optionId === "allow-once" || optionId === "allow-session" || optionId === "deny"
-      ? optionId
-      : "deny";
+  const normalized = normalizePermissionOptionId(optionId);
   p.resolve(normalized);
   return true;
 }

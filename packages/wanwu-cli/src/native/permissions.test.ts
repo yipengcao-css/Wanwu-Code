@@ -5,8 +5,20 @@ import { join } from "node:path";
 import {
   clearSessionPermissions,
   gateToolCall,
+  normalizePermissionOptionId,
   noteSessionAllow,
 } from "./permissions.js";
+
+describe("permission option ids", () => {
+  it("accepts hyphenated allow-once and allow-session", () => {
+    expect(normalizePermissionOptionId("allow-once")).toBe("allow-once");
+    expect(normalizePermissionOptionId("allow-session")).toBe("allow-session");
+  });
+
+  it("rejects legacy underscore ids (fail closed)", () => {
+    expect(normalizePermissionOptionId("allow_once")).toBe("deny");
+  });
+});
 
 describe("session allow cache (allow-session)", () => {
   it("cached exact input skips the prompt in ask mode", async () => {
