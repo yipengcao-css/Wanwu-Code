@@ -169,6 +169,7 @@ export type WanwuBridge = {
     onEdit: (
       cb: (edit: { path: string; before: string; after: string }) => void,
     ) => () => void;
+    onWorkflow: (cb: (state: string) => void) => () => void;
   };
   term: {
     start: (id: string, cols?: number, rows?: number) => Promise<boolean>;
@@ -351,6 +352,7 @@ const bridge: WanwuBridge = {
     onSession: (cb) => on("acp:session", (t) => cb(t as never)),
     onPermission: (cb) => on("acp:permission", (t) => cb(t as never)),
     onEdit: (cb) => on("acp:edit", (t) => cb(t as never)),
+    onWorkflow: (cb) => on("acp:workflow", (s) => cb(String(s))),
   },
   term: {
     start: (id, cols, rows) => ipcRenderer.invoke("term:start", id, cols, rows),

@@ -20,6 +20,8 @@ import {
   type LogItem,
   type TodoRow,
 } from "./sessionLog";
+import { WorkflowRail } from "./WorkflowRail";
+import type { WorkflowState } from "@wanwu/workflow";
 
 type StudioSkill = {
   id: string;
@@ -77,7 +79,11 @@ function emptyWelcome(): LogItem[] {
   return [
     {
       kind: "status",
-      text: "Agent Studio · wanwu-native ACP。选择 Mode 后描述任务。",
+      text: "Agent Studio · wanwu-native ACP。选 Mode 后描述任务，或用下方快捷入口。",
+    },
+    {
+      kind: "status",
+      text: "快捷键：Ctrl/Cmd+I 聚焦输入 · @ 引用文件/终端/诊断 · Plan 完成后可「按此计划执行」· Verify 走隔离门禁。",
     },
   ];
 }
@@ -164,6 +170,7 @@ export function AgentStudio(props: {
   const [currentModel, setCurrentModel] = useState("");
   const [modelBusy, setModelBusy] = useState(false);
   const [libraryText, setLibraryText] = useState("");
+  const [workflowState, setWorkflowState] = useState<WorkflowState | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileSkillsHydrated = useRef(false);
   const activeLocalIdRef = useRef(activeLocalId);
@@ -318,6 +325,10 @@ export function AgentStudio(props: {
     () => (token && mentionOpen ? completeMentions(token.partial, files) : []),
     [token, files, mentionOpen],
   );
+  const showQuickStart = useMemo(() => {
+    const userTurns = active.log.filter((item) => item.kind === "user").length;
+    return userTurns === 0 && !busy && props.enabled;
+  }, [active.log, busy, props.enabled]);
 
   function insertMention(sug: MentionSuggestion): void {
     if (!token) return;
@@ -454,6 +465,9 @@ export function AgentStudio(props: {
           }),
         );
       }),
+      window.wanwu.acp.onWorkflow((state) => {
+        setWorkflowState(state as WorkflowState);
+      }),
     ];
     return () => offs.forEach((off) => off());
   }, []);
@@ -465,6 +479,7 @@ export function AgentStudio(props: {
     setActiveLocalId(localId);
     setTodos([]);
     setDebugWaiting(false);
+    setWorkflowState(null);
     try {
       if (target.acpSessionId && !target.hydrated) {
         const loaded = await window.wanwu.acp.loadSession(target.acpSessionId);
@@ -575,6 +590,7 @@ export function AgentStudio(props: {
       ]);
       setActiveLocalId(localId);
       setDebugWaiting(false);
+      setWorkflowState(null);
       props.onStatus(`新会话 · ${title}`);
     } catch (err) {
       props.onStatus(err instanceof Error ? err.message : String(err));
@@ -1034,6 +1050,63 @@ export function AgentStudio(props: {
         </button>
       </div>
       <div className="agent-log">
+        <WorkflowRail state={workflowState} />
+        {showQuickStart ? (
+          <div className="studio-quick" aria-label="快捷开始">
+            <p className="studio-quick-lead">Cursor 式循环：探索 → 计划 → 执行 → 验证</p>
+            <div className="studio-quick-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  props.onMode?.("ask");
+                  setText("先阅读仓库，说明与当前任务相关的入口文件与风险点。");
+                  inputRef.current?.focus();
+                }}
+              >
+                探索（Ask）
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  props.onMode?.("plan");
+                  setText("为当前任务写一份分步计划，只读、不要改文件。");
+                  inputRef.current?.focus();
+                }}
+              >
+                写计划（Plan）
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  props.onMode?.("agent");
+                  setText("按最小 diff 实施：");
+                  inputRef.current?.focus();
+                }}
+              >
+                改代码（Agent）
+              </button>
+              <button
+                type="button"
+                className="btn"
+                disabled={!props.workspaceRoot}
+                onClick={() => {
+                  props.onMode?.("verify");
+                  void sendRef.current({
+                    prompt: "运行 Verify 门禁（typecheck / test / lint）",
+                    images: [],
+                    mode: "verify",
+                    userLabel: "Verify",
+                  });
+                }}
+              >
+                运行 Verify
+              </button>
+            </div>
+          </div>
+        ) : null}
         {todos.length ? (
           <div className="todo-panel" aria-label="任务清单">
             <div className="todo-head">

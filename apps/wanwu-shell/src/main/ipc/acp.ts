@@ -85,6 +85,7 @@ async function bootClient(root: string, getWin: () => BrowserWindow | null): Pro
         broadcast(getWin(), "acp:permission", req),
       );
       next.on("edit", (edit: AcpEditProposal) => broadcast(getWin(), "acp:edit", edit));
+      next.on("workflow", (state: string) => broadcast(getWin(), "acp:workflow", state));
       try {
         await next.initialize();
       } catch (err) {
