@@ -74,7 +74,7 @@ export function buildEditorContext(opts: {
   const cursor =
     opts.cursor && (!opts.activePath || opts.cursor.path === opts.activePath) ? opts.cursor : null;
   if (cursor) {
-    lines.push(`Cursor: ${cursor.path}:${cursor.line}:${cursor.column}`);
+    lines.push(`Caret: ${cursor.path}:${cursor.line}:${cursor.column}`);
   }
   const selection = opts.selection?.text.trim() ? opts.selection : null;
   if (selection) {

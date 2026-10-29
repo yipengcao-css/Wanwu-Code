@@ -66,3 +66,10 @@ export function extractTool(
     ...(subagentId ? { subagentId } : {}),
   };
 }
+
+export function extractWorkflowState(params: unknown): string | undefined {
+  const update = updateOf(params);
+  if (update?.sessionUpdate !== "workflow_state") return undefined;
+  const state = update.workflowState;
+  return typeof state === "string" ? state : undefined;
+}

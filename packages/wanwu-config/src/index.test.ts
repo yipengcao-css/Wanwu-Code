@@ -7,6 +7,11 @@ import {
 } from "./index.js";
 
 describe("wanwu-config", () => {
+  it("ships without a pre-selected product model", () => {
+    expect(DEFAULT_CONFIG.model).toBe("");
+    expect(resolveActiveModel(DEFAULT_CONFIG)).toBe("");
+  });
+
   it("keeps multi-model providers in the default config", () => {
     const providers = listConfiguredProviders(DEFAULT_CONFIG);
     expect(providers).toEqual(["anthropic", "custom", "ollama", "openai", "xai"]);

@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import * as readline from "node:readline";
-import { extractText, extractThought, extractTool, formatPermissionSummary } from "./extract.js";
+import { extractText, extractThought, extractTool, extractWorkflowState, formatPermissionSummary } from "./extract.js";
 
 interface Pending {
   resolve: (value: unknown) => void;
@@ -117,6 +117,10 @@ export class AcpClient extends EventEmitter {
       const text = extractText(msg.params);
       if (text) {
         this.emit("message", text);
+      }
+      const workflowState = extractWorkflowState(msg.params);
+      if (workflowState) {
+        this.emit("workflow", workflowState);
       }
     }
   }

@@ -30,3 +30,7 @@ export function resolveEditAbsPath(workspaceRoot: string, relOrAbs: string): str
 export function diffReviewTitle(filePath: string): string {
   return `${path.basename(filePath)} (Wanwu)`;
 }
+
+export function isNoOpDiff(edit: { before: string; after: string }): boolean {
+  return edit.before === edit.after;
+}

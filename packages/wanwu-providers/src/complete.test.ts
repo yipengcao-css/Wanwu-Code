@@ -144,7 +144,10 @@ describe("@wanwu/providers", () => {
   });
 
   it("maps 401 to auth ProviderError with hint", async () => {
-    const config = mergeConfig(DEFAULT_CONFIG, { activeProvider: "openai" });
+    const config = mergeConfig(DEFAULT_CONFIG, {
+      activeProvider: "openai",
+      model: "gpt-test",
+    });
     await expect(
       completeChat({
         config,
@@ -158,11 +161,21 @@ describe("@wanwu/providers", () => {
     } satisfies Partial<ProviderError>);
   });
 
-  it("hasProviderCredentials false without key", () => {
+  it("hasProviderCredentials false without key or model", () => {
     expect(hasProviderCredentials(DEFAULT_CONFIG, { env: {} })).toBe(false);
     expect(
       hasProviderCredentials(DEFAULT_CONFIG, { env: { OPENAI_API_KEY: "sk" } }),
+    ).toBe(false);
+    expect(
+      hasProviderCredentials(
+        mergeConfig(DEFAULT_CONFIG, { activeProvider: "openai", model: "m" }),
+        { env: { OPENAI_API_KEY: "sk" } },
+      ),
     ).toBe(true);
+  });
+
+  it("resolveProvider rejects missing model", () => {
+    expect(() => resolveProvider(DEFAULT_CONFIG, { env: {} })).toThrow(ProviderError);
   });
 
   it("anthropic sends tools and parses tool_use", async () => {

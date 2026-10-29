@@ -38,6 +38,9 @@ importers:
       '@wanwu/providers':
         specifier: workspace:*
         version: link:../../packages/wanwu-providers
+      '@wanwu/workflow':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-workflow
       '@xterm/addon-fit':
         specifier: ^0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
@@ -107,6 +110,9 @@ importers:
       '@wanwu/acp-client':
         specifier: workspace:*
         version: link:../../packages/wanwu-acp-client
+      '@wanwu/workflow':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-workflow
     devDependencies:
       '@types/node':
         specifier: ^22.15.21

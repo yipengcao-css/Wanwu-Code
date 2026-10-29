@@ -65,7 +65,7 @@ export function parseEditorContext(prompt: string): EditorContext {
     }
   }
 
-  const cursorHead = body.match(/Cursor:\s*(.+):(\d+):(\d+)\s*$/m);
+  const cursorHead = body.match(/(?:Caret|Cursor):\s*(.+):(\d+):(\d+)\s*$/m);
   let cursor: EditorCursor | undefined;
   if (cursorHead) {
     cursor = {
@@ -158,7 +158,7 @@ export function buildSystem(
     const where = editor.cursor.path
       ? `${editor.cursor.path}:${editor.cursor.line}:${editor.cursor.column}`
       : `${editor.cursor.line}:${editor.cursor.column}`;
-    editorLines.push(`Cursor: ${where}`);
+    editorLines.push(`Caret: ${where}`);
     if (!editor.selection?.text && editor.cursor.text) {
       editorLines.push("Code around the cursor:");
       editorLines.push(editor.cursor.text.slice(0, 3500));
@@ -185,7 +185,7 @@ export function buildSystem(
             : "Agent mode: you may Edit/Write/Bash when needed (permissions still apply). User can undo this turn via checkpoint.";
 
   return [
-    "You are Wanwu, a local coding agent (Cursor-style). Use tools for workspace facts; do not guess file contents.",
+    "You are Wanwu, a local coding agent for Wanwu-Code. Use tools for workspace facts; do not guess file contents.",
     [
       "Exploration: ListDir for a folder, then Read/Glob/Grep. A codebase index snippet may already be in this prompt; still call SearchCodebase when you need a deeper lookup.",
       "Read large files with offset/limit. Issue independent Reads/Greps together when useful.",

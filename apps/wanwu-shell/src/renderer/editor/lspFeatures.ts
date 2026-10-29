@@ -1,4 +1,5 @@
 import * as monaco from "monaco-editor";
+import { collectWorkspaceEdits, type LspWorkspaceEdit } from "../../shared/codeEdits";
 import { relFromEditorResource, relFromFileUri } from "../../shared/lspUri";
 
 /**
@@ -18,7 +19,7 @@ const workerModes = {
   documentRangeFormattingEdits: true,
   signatureHelp: true,
   onTypeFormattingEdits: true,
-  codeActions: true,
+  codeActions: false,
   inlayHints: true,
 };
 monaco.languages.typescript?.typescriptDefaults.setModeConfiguration(workerModes);
@@ -51,6 +52,29 @@ const LSP_LANGUAGES = [
 let registered = false;
 let workspaceRoot = "";
 let openLocation: ((rel: string, line: number, column: number) => void) | null = null;
+let readOpenBuffer: ((rel: string) => string | null) | null = null;
+let onExternalModel: ((rel: string, content: string) => void) | null = null;
+let applyCodeFix: ((fix: { title: string; edit: LspWorkspaceEdit | null }) => void) | null = null;
+let onRenamed: ((text: string) => void) | null = null;
+
+/** Dirty tab text, so a rename does not start from the last saved copy. */
+export function setOpenBufferReader(fn: ((rel: string) => string | null) | null): void {
+  readOpenBuffer = fn;
+}
+
+/** Models created for another file report their text after a rename or fix. */
+export function setExternalModelListener(fn: ((rel: string, content: string) => void) | null): void {
+  onExternalModel = fn;
+}
+
+/** Lightbulb and Ctrl+. apply a language-server fix through the editor tabs. */
+export function setCodeFixApplier(fn: ((fix: { title: string; edit: LspWorkspaceEdit | null }) => void) | null): void {
+  applyCodeFix = fn;
+}
+
+export function setRenameNotifier(fn: ((text: string) => void) | null): void {
+  onRenamed = fn;
+}
 
 /** Workspace root used to turn LSP file URIs into editor paths. */
 export function setLspWorkspaceRoot(root: string): void {
@@ -125,19 +149,42 @@ function languageForPath(rel: string): string {
   return "plaintext";
 }
 
-/** Peek cannot read the disk. Put the target file into a model first. */
+/** Peek and rename cannot read the disk. Put the target file into a model first. */
 async function ensureEditorModel(uri: monaco.Uri): Promise<void> {
   if (monaco.editor.getModel(uri)) return;
   const rel = uri.path.replace(/^\/+/, "");
   if (!rel || rel.split("/").includes("..")) return;
-  let text = "";
-  try {
-    text = await window.wanwu.fs.read(rel);
-  } catch {
-    return;
+  let text = readOpenBuffer?.(rel) ?? null;
+  if (text == null) {
+    try {
+      text = await window.wanwu.fs.read(rel);
+    } catch {
+      return;
+    }
   }
   if (monaco.editor.getModel(uri)) return;
-  monaco.editor.createModel(text, languageForPath(rel), uri);
+  const model = monaco.editor.createModel(text, languageForPath(rel), uri);
+  model.onDidChangeContent(() => {
+    onExternalModel?.(rel, model.getValue());
+  });
+}
+
+async function monacoEditsForWorkspace(edit: LspWorkspaceEdit | null): Promise<monaco.languages.IWorkspaceTextEdit[]> {
+  const files = collectWorkspaceEdits(edit, workspaceRoot);
+  const edits: monaco.languages.IWorkspaceTextEdit[] = [];
+  for (const file of files) {
+    const uri = monaco.Uri.parse(file.rel);
+    await ensureEditorModel(uri);
+    if (!monaco.editor.getModel(uri)) continue;
+    for (const change of file.edits) {
+      edits.push({
+        resource: uri,
+        versionId: undefined,
+        textEdit: { range: toMonacoRange(change.range), text: change.newText },
+      });
+    }
+  }
+  return edits;
 }
 
 async function lspRequest(
@@ -250,26 +297,69 @@ export function registerLspFeatures(): void {
         context: { includeDeclaration: true },
       })) as LspLocation[] | null;
       if (!Array.isArray(res)) return null;
-      return res.map(toMonacoLocation);
+      const locations = res.map(toMonacoLocation);
+      for (const loc of locations) {
+        if (loc.uri.toString() !== model.uri.toString()) await ensureEditorModel(loc.uri);
+      }
+      return locations;
     },
   });
 
   monaco.languages.registerRenameProvider(LSP_LANGUAGES, {
     provideRenameEdits: async (model, position, newName) => {
-      const res = (await lspRequest(model, position, "textDocument/rename", { newName })) as {
-        changes?: Record<string, Array<{ range: LspLocation["range"]; newText: string }>>;
-      } | null;
-      const edits: monaco.languages.IWorkspaceTextEdit[] = [];
-      for (const [uri, textEdits] of Object.entries(res?.changes ?? {})) {
-        for (const e of textEdits) {
-          edits.push({
-            resource: monaco.Uri.parse(uri),
-            versionId: undefined,
-            textEdit: { range: toMonacoRange(e.range), text: e.newText },
+      const res = (await lspRequest(model, position, "textDocument/rename", { newName })) as LspWorkspaceEdit | null;
+      const edits = await monacoEditsForWorkspace(res);
+      if (!edits.length) return null;
+      onRenamed?.("已重命名。记得保存。");
+      return { edits };
+    },
+  });
+
+  monaco.editor.registerCommand("wanwu.applyLspFix", (_accessor, fix: { title: string; edit: LspWorkspaceEdit | null }) => {
+    applyCodeFix?.(fix);
+  });
+
+  monaco.languages.registerCodeActionProvider(LSP_LANGUAGES, {
+    provideCodeActions: async (model, _range, context) => {
+      const markers = (context.markers ?? []).slice(0, 4);
+      if (!markers.length) return { actions: [], dispose() {} };
+      const path = model.uri.path.replace(/^\//, "");
+      const text = model.getValue();
+      const actions: monaco.languages.CodeAction[] = [];
+      const seen = new Set<string>();
+      for (const marker of markers) {
+        const range = {
+          start: { line: marker.startLineNumber - 1, character: marker.startColumn - 1 },
+          end: { line: marker.endLineNumber - 1, character: marker.endColumn - 1 },
+        };
+        const code = typeof marker.code === "string" || typeof marker.code === "number" ? marker.code : undefined;
+        let fixes: Array<{ title: string; edit: unknown }> = [];
+        try {
+          fixes = await window.wanwu.lsp.codeAction(path, text, range, {
+            message: marker.message,
+            severity: marker.severity === monaco.MarkerSeverity.Warning ? 2 : marker.severity === monaco.MarkerSeverity.Info ? 3 : marker.severity === monaco.MarkerSeverity.Hint ? 4 : 1,
+            source: marker.source,
+            code,
+          });
+        } catch {
+          fixes = [];
+        }
+        for (const fix of fixes) {
+          if (!fix.title || seen.has(fix.title)) continue;
+          seen.add(fix.title);
+          actions.push({
+            title: fix.title,
+            kind: "quickfix",
+            isPreferred: actions.length === 0,
+            command: {
+              id: "wanwu.applyLspFix",
+              title: fix.title,
+              arguments: [{ title: fix.title, edit: fix.edit }],
+            },
           });
         }
       }
-      return { edits };
+      return { actions, dispose() {} };
     },
   });
 
