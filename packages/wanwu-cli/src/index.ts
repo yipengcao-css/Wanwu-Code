@@ -7,15 +7,18 @@ function usage(): never {
 Usage:
   wanwu                     Start interactive TUI (default when no command)
   wanwu tui                 Start interactive TUI
-  wanwu doctor              Check config, providers, grok ACP bridge, memory
+  wanwu doctor              Check config, providers, ACP backend, memory
   wanwu inspect             Print merged config + memory/skills/hooks/mcp (JSON)
-  wanwu acp                 Start ACP server (bridges to Grok Build by default)
+  wanwu acp                 Start ACP server (default wanwu-native; grok if configured)
   wanwu exec -p|--prompt    Headless one-shot prompt
   wanwu plan -p|--prompt    Write a Plan artifact under .wanwu/plans/
   wanwu verify              Run isolated typecheck/test/lint gate
   wanwu memory-writeback -p|--prompt <note> [--yes]
   wanwu check-perm -p|--prompt <bash>   Deny-first permission probe
-  wanwu hooks <event>       Run hooks (PreToolUse|PostToolUse|Stop)
+  wanwu hooks <event>       Run hooks (PreToolUse|PostToolUse|Stop|…)
+  wanwu commit-msg          Generate a conventional commit message from git diff
+  wanwu checkpoints         List turn checkpoints
+  wanwu undo [id]           Restore the latest (or given) checkpoint
   wanwu cloud ...           Headless cloud runner (local/docker, review-first)
   wanwu parallel ...        Parallel worktree isolation demo
   wanwu plugin ...          Plugin marketplace (skills / MCP)
@@ -30,6 +33,7 @@ Env:
   WANWU_MODEL               Override model id
   OPENAI_BASE_URL           OpenAI-compatible API base (e.g. https://api.deepseek.com)
   WANWU_FORCE_DETERMINISTIC=1  Disable LLM; use native heuristic loop
+  WANWU_STREAM=0               Disable incremental LLM streaming (default on after stream PR)
 `);
   process.exit(0);
 }

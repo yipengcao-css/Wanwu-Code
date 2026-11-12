@@ -9,7 +9,7 @@ CLI 命令名：**`wanwu`**
 
 > **自研 Electron 壳（Wanwu Lattice）** + Monaco 编辑内核 + wanwu-native Agent Runtime（ACP/MCP/LSP）+ Plan/Memory/Verify + 多 Agent / 云端异步。
 
-当前能力：TUI / headless / ACP；OpenAI-compat + Anthropic tools；MCP stdio 工具面；Shell TS/JS LSP 诊断；mac 签名门控；权限 RPC + hooks 门禁。
+当前能力：TUI / headless / ACP；多模型 tools + 流式；MCP stdio 工具面；Edit/Write/Todo/Web/索引/检查点；Shell Monaco（Tab / Ctrl+K / 多语言 LSP / 搜索 / 多终端）；mac 签名门控；权限 RPC + hooks 门禁。
 
 ## 已锁定决策
 
