@@ -79,7 +79,7 @@ pnpm shell:dist
 | 平台 | 产物 |
 |---|---|
 | Linux | `Wanwu-Code-<ver>-linux-x64.AppImage`（另有 `.deb`） |
-| Windows | `Wanwu-Code-<ver>-win-x64.zip`（解压后运行 `Wanwu Code.exe`） |
+| Windows | `Wanwu-Code-Setup-<ver>-win-x64.exe`（双击一键安装）；另有 `Wanwu-Code-<ver>-win-x64.zip` 便携包（解压后运行 `Wanwu Code.exe`） |
 | macOS | `Wanwu-Code-<ver>-mac-x64.zip` / `…-mac-arm64.zip`（有密钥时签名+公证，否则未签名） |
 
 安装包内嵌 **wanwu-cli ACP**（`resources/wanwu-cli/wanwu[.exe]` + `wanwu.mjs`），Agent 启动不再依赖本机 `pnpm`/`tsx` 或 monorepo 源码树。覆盖后端可用环境变量 `WANWU_ACP_COMMAND`。
@@ -100,7 +100,19 @@ xattr -cr "Wanwu Code.app"
 
 ### Windows 备注
 
-当前默认产出 **zip 便携包**（本机 Linux 交叉构建 NSIS 依赖完整 wine 环境；Authenticode 签名后置）。需要 `.exe` 安装器时请在 Windows 主机运行 `electron-builder --win nsis`。
+`Wanwu-Code-Setup-<ver>-win-x64.exe` 是 NSIS 一键安装包：双击后不问路径，装到当前用户的 `%LOCALAPPDATA%\Programs`，不需要管理员权限，装完在桌面和开始菜单放快捷方式并直接启动。卸载走「设置 → 应用」，用户数据（`~/.wanwu`）不会被删。安装包内嵌 wanwu-cli，目标电脑不需要装 Node、pnpm 或 Git。
+
+安装包**没有 Authenticode 签名**。第一次运行时 SmartScreen 可能提示「未知发布者」，点「更多信息 → 仍要运行」即可。拿到签名证书后设 `CSC_LINK` / `CSC_KEY_PASSWORD` 再打包。
+
+在 Linux 上打 Windows 安装包需要 wine（NSIS 要运行 32 位安装存根生成卸载程序）：
+
+```bash
+sudo dpkg --add-architecture i386 && sudo apt-get update
+sudo apt-get install -y wine64 wine32:i386
+WANWU_SHELL_TARGETS=win pnpm shell:dist   # 产物在 apps/wanwu-shell/release/
+```
+
+在 Windows 主机上直接 `pnpm shell:dist`（`WANWU_SHELL_TARGETS=win`）即可，不需要 wine。
 
 开发态：
 

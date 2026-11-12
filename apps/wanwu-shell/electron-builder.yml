@@ -30,8 +30,20 @@ linux:
   maintainer: Wanwu <wanwu@example.com>
 win:
   target:
+    - nsis
     - zip
   artifactName: ${productName}-${version}-win-${arch}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  runAfterFinish: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Wanwu Code
+  deleteAppDataOnUninstall: false
+  language: "2052"
+  artifactName: ${productName}-Setup-${version}-win-${arch}.${ext}
 mac:
   target:
     - zip
