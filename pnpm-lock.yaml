@@ -38,6 +38,12 @@ importers:
       '@wanwu/providers':
         specifier: workspace:*
         version: link:../../packages/wanwu-providers
+      '@wanwu/skills':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-skills
+      '@wanwu/workflow':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-workflow
       '@xterm/addon-fit':
         specifier: ^0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
@@ -107,6 +113,9 @@ importers:
       '@wanwu/acp-client':
         specifier: workspace:*
         version: link:../../packages/wanwu-acp-client
+      '@wanwu/workflow':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-workflow
     devDependencies:
       '@types/node':
         specifier: ^22.15.21
@@ -144,6 +153,9 @@ importers:
       '@wanwu/providers':
         specifier: workspace:*
         version: link:../wanwu-providers
+      '@wanwu/skills':
+        specifier: workspace:*
+        version: link:../wanwu-skills
       '@wanwu/workflow':
         specifier: workspace:*
         version: link:../wanwu-workflow
@@ -191,6 +203,15 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.11)
+
+  packages/wanwu-skills:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.20.1
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.11)

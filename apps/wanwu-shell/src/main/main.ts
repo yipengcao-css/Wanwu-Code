@@ -23,6 +23,7 @@ import { registerProblemsIpc } from "./ipc/problems.js";
 import { registerCkptIpc } from "./ipc/ckpt.js";
 import { registerMediaIpc } from "./ipc/media.js";
 import { registerSkillsIpc } from "./ipc/skills.js";
+import { ensureUserSkillPackInstalled } from "./skillPackInstall.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -118,6 +119,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  ensureUserSkillPackInstalled();
   registerFsIpc(
     () => workspaceRoot,
     (r) => {

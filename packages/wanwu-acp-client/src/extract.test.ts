@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractText, extractThought, extractTool, formatPermissionSummary } from "./extract.js";
+import { extractText, extractThought, extractTool, extractWorkflowState, formatPermissionSummary } from "./extract.js";
 
 describe("acp extract", () => {
   it("does not treat tool dumps as chat text", () => {
@@ -74,6 +74,19 @@ describe("acp extract", () => {
       },
     });
     expect(kept?.detail?.length).toBe(500);
+  });
+
+  it("reads workflow_state updates", () => {
+    expect(
+      extractWorkflowState({
+        update: { sessionUpdate: "workflow_state", workflowState: "acting" },
+      }),
+    ).toBe("acting");
+    expect(
+      extractWorkflowState({
+        update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text: "x" } },
+      }),
+    ).toBeUndefined();
   });
 
   it("formats bash JSON into a readable command", () => {

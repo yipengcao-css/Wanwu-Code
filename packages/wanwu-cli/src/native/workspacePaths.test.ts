@@ -18,6 +18,22 @@ describe("workspacePaths", () => {
     expect(() => assertInsideWorkspace(root, "../outside")).toThrow(PathSandboxError);
   });
 
+  it("allows paths under WANWU_SKILLS_ROOT", () => {
+    const root = mkdtempSync(join(tmpdir(), "wanwu-ws-"));
+    const pack = mkdtempSync(join(tmpdir(), "wanwu-pack-"));
+    mkdirSync(join(pack, "_shared", "scripts"), { recursive: true });
+    writeFileSync(join(pack, "_shared", "scripts", "q.py"), "print(1)", "utf8");
+    const prev = process.env.WANWU_SKILLS_ROOT;
+    process.env.WANWU_SKILLS_ROOT = pack;
+    try {
+      const abs = assertInsideWorkspace(root, join(pack, "_shared", "scripts", "q.py"));
+      expect(abs).toContain("q.py");
+    } finally {
+      if (prev === undefined) delete process.env.WANWU_SKILLS_ROOT;
+      else process.env.WANWU_SKILLS_ROOT = prev;
+    }
+  });
+
   it("rejects symlink escape", () => {
     const root = mkdtempSync(join(tmpdir(), "wanwu-ws-"));
     const outside = mkdtempSync(join(tmpdir(), "wanwu-out-"));

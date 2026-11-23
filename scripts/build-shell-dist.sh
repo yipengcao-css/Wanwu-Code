@@ -18,6 +18,11 @@ if [[ ! -f build/icon.png ]]; then
   exit 1
 fi
 
+if [[ ! -f "$ROOT/apps/wanwu-shell/resources/skill-packs/azure-ops/AKS/SKILL.md" ]]; then
+  echo "==> stage azure-ops skill pack (set WANWU_AZURE_PACK_ZIP to override)"
+  node "$ROOT/scripts/stage-azure-ops-pack.mjs" || echo "WARN: skill pack staging skipped"
+fi
+
 echo "==> build CLI (mjs + native matrix for ACP bundling)"
 (cd "$ROOT" && pnpm build:cli:native)
 

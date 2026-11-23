@@ -99,7 +99,7 @@ export function registerAiIpc(getRoot: () => string | null): void {
               {
                 role: "system",
                 content:
-                  "You write a single shell command for the user's terminal (Cursor-style Ctrl+K). Output ONLY the command — no explanation, no markdown fences, no trailing newline commentary. If you cannot produce a safe command, output an empty string.",
+                  "You write a single shell command for the user's terminal (inline terminal assist, like Ctrl+K). Output ONLY the command — no explanation, no markdown fences, no trailing newline commentary. If you cannot produce a safe command, output an empty string.",
               },
               {
                 role: "user",

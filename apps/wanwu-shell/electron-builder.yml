@@ -16,6 +16,8 @@ extraResources:
   # Staged by scripts/stage-shell-acp.sh before each platform build
   - from: resources/wanwu-cli
     to: wanwu-cli
+  - from: resources/skill-packs/azure-ops
+    to: skill-packs/azure-ops
 extraMetadata:
   main: dist/electron/main.js
 asar: true

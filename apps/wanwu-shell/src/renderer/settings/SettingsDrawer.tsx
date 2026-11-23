@@ -23,7 +23,7 @@ export function SettingsDrawer(props: {
   onClose: () => void;
   onSaved?: (s: Snapshot) => void;
 }) {
-  const [provider, setProvider] = useState("openai");
+  const [provider, setProvider] = useState("");
   const [model, setModel] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
   const [permissionMode, setPermissionMode] = useState("ask");
@@ -36,8 +36,9 @@ export function SettingsDrawer(props: {
   useEffect(() => {
     if (!props.open) return;
     void window.wanwu.settings.get().then((s) => {
-      setProvider(s.activeProvider);
-      setModel(s.model);
+      const configured = Boolean(s.model?.trim());
+      setProvider(configured ? s.activeProvider : "");
+      setModel(s.model ?? "");
       setBaseUrl(s.baseUrl);
       setPermissionMode(s.permissionMode || "ask");
       setHasKey(s.hasApiKey);
@@ -62,6 +63,18 @@ export function SettingsDrawer(props: {
     setBusy(true);
     setStatus(null);
     try {
+      if (!provider.trim()) {
+        setStatus("请选择 Provider，并填写模型 ID。");
+        return;
+      }
+      if (!model.trim()) {
+        setStatus("请填写模型 ID（例如你在服务商控制台看到的 model 名称）。");
+        return;
+      }
+      if (provider === "custom" && !baseUrl.trim()) {
+        setStatus("自定义 Provider 需要填写 Base URL。");
+        return;
+      }
       const s = await window.wanwu.settings.save({
         activeProvider: provider,
         model,
@@ -94,7 +107,7 @@ export function SettingsDrawer(props: {
         <header className="drawer-head">
           <div>
             <h2 id="settings-title">模型与密钥</h2>
-            <p className="drawer-sub">BYOK · 密钥写入本机 `~/.wanwu/credentials.env`，不进仓库</p>
+            <p className="drawer-sub">BYOK · 首次使用请自行选择 Provider、模型与密钥；密钥写入本机 `~/.wanwu/credentials.env`</p>
           </div>
           <button type="button" className="btn" onClick={props.onClose} aria-label="关闭设置">
             关闭
@@ -108,9 +121,16 @@ export function SettingsDrawer(props: {
             void save();
           }}
         >
+          {!model.trim() && !hasKey ? (
+            <p className="field-hint">
+              尚未配置模型：请选择 Provider，填写模型 ID 与 API Key 后点「保存设置」。
+            </p>
+          ) : null}
+
           <label className="field">
             <span className="field-label">Provider</span>
             <select value={provider} onChange={(e) => setProvider(e.target.value)}>
+              <option value="">未配置 — 请选择</option>
               {PROVIDERS.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.label}
@@ -124,7 +144,7 @@ export function SettingsDrawer(props: {
             <input
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              placeholder="例如 deepseek-chat"
+              placeholder="填写服务商提供的 model 名称"
               autoComplete="off"
             />
           </label>
@@ -134,7 +154,7 @@ export function SettingsDrawer(props: {
             <input
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://api.deepseek.com"
+              placeholder="OpenAI 兼容 API 根地址（按需填写）"
               autoComplete="off"
             />
           </label>
@@ -154,7 +174,7 @@ export function SettingsDrawer(props: {
               type="password"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder={hasKey ? "••••••••（输入新密钥以替换）" : "sk-…"}
+              placeholder={hasKey ? "••••••••（输入新密钥以替换）" : "粘贴 API Key"}
               autoComplete="off"
             />
           </label>

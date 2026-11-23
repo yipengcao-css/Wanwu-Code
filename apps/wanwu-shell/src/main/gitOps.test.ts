@@ -9,10 +9,16 @@ import {
   gitCommit,
   gitDiff,
   gitDiscard,
+  gitDiscardAll,
   gitFileLog,
   gitFileSides,
+  gitPull,
+  gitPush,
   gitScmStatus,
   gitStage,
+  gitStageAll,
+  gitStageHunk,
+  gitUnstagedHunks,
   safeRepoPath,
 } from "./gitOps.ts";
 
@@ -69,6 +75,35 @@ writeFileSync(join(dir, "extra.txt"), "temp\n");
 assert.equal(gitDiscard(dir, "extra.txt").ok, true);
 assert.equal(existsSync(join(dir, "extra.txt")), false);
 assert.match(gitDiscard(dir, "note.txt").text, /没有可放弃/);
+
+writeFileSync(join(dir, "note.txt"), "hello\n");
+const body = ["top", ...Array.from({ length: 12 }, () => "keep"), "bottom", ""].join("\n");
+writeFileSync(join(dir, "wide.txt"), body);
+assert.equal(gitStage(dir, ["wide.txt"], true).ok, true);
+assert.equal(gitCommit(dir, "add wide").ok, true);
+const changed = body.replace("top", "TOP").replace("bottom", "BOTTOM");
+writeFileSync(join(dir, "wide.txt"), changed);
+const hunks = gitUnstagedHunks(dir, "wide.txt");
+assert.equal(hunks.hunks.length, 2, hunks.note);
+assert.equal(gitStageHunk(dir, "wide.txt", 0).ok, true);
+const cached = execFileSync("git", ["diff", "--cached", "--", "wide.txt"], { cwd: dir, encoding: "utf8" });
+const unstaged = execFileSync("git", ["diff", "--", "wide.txt"], { cwd: dir, encoding: "utf8" });
+assert.match(cached, /TOP/);
+assert.match(unstaged, /BOTTOM/);
+assert.equal(gitUnstagedHunks(dir, "wide.txt").hunks.length, 1);
+assert.match(gitUnstagedHunks(dir, "missing-file.txt").note, /没有未暂存/);
+
+writeFileSync(join(dir, "one.txt"), "1\n");
+writeFileSync(join(dir, "two.txt"), "2\n");
+assert.equal(gitStageAll(dir).ok, true);
+const all = gitScmStatus(dir);
+assert.ok(all.files.filter((f) => f.path === "one.txt" || f.path === "two.txt").every((f) => f.staged));
+assert.equal(gitDiscardAll(dir).ok, true, gitDiscardAll(dir).text);
+assert.equal(existsSync(join(dir, "one.txt")), false);
+assert.equal(existsSync(join(dir, "two.txt")), false);
+assert.match(gitDiscardAll(dir).text, /没有可放弃/);
+assert.equal(gitPush(dir).ok, false);
+assert.equal(gitPull(dir).ok, false);
 
 const plain = mkdtempSync(join(tmpdir(), "wanwu-scm-none-"));
 assert.equal(gitScmStatus(plain).repo, false);

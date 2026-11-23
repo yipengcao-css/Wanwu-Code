@@ -27,11 +27,20 @@ export function resolveProvider(
   const model =
     env.WANWU_MODEL?.trim() ||
     (opts?.providerId && opts.providerId !== config.activeProvider
-      ? pc.defaultModel
+      ? pc.defaultModel?.trim()
       : undefined) ||
-    config.model ||
-    pc.defaultModel ||
-    "unknown";
+    config.model?.trim() ||
+    pc.defaultModel?.trim() ||
+    "";
+
+  if (!model) {
+    throw new ProviderError({
+      code: "config",
+      provider: id,
+      message: "model is not configured",
+      hint: "在 Shell「模型与密钥」或 ~/.wanwu/config.toml 中设置 model",
+    });
+  }
 
   const envBase =
     env.WANWU_PROVIDER_BASE_URL?.trim() ||

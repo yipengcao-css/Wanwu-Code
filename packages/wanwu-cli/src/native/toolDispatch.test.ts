@@ -103,7 +103,7 @@ describe("dispatchTool P0/P1 safety", () => {
           sessionId: "s1",
           permissionMode: "accept-edits",
           mode: "agent",
-          config: DEFAULT_CONFIG,
+          config: { ...DEFAULT_CONFIG, activeProvider: "openai", model: "gpt-test" },
           fetchImpl,
         },
         "agent",

@@ -20,11 +20,13 @@ import {
   type LogItem,
   type TodoRow,
 } from "./sessionLog";
+import { WorkflowRail } from "./WorkflowRail";
+import type { WorkflowState } from "@wanwu/workflow";
 
 type StudioSkill = {
   id: string;
   name: string;
-  source: "workspace" | "agents" | "user";
+  source: "workspace" | "agents" | "user" | "pack";
   summary: string;
 };
 
@@ -46,6 +48,7 @@ function skillsStorageKey(root: string): string {
 function sourceLabel(source: StudioSkill["source"] | "file"): string {
   if (source === "agents") return "仓库";
   if (source === "user") return "用户";
+  if (source === "pack") return "技能包";
   if (source === "file") return "文件";
   return "工作区";
 }
@@ -77,7 +80,11 @@ function emptyWelcome(): LogItem[] {
   return [
     {
       kind: "status",
-      text: "Agent Studio · wanwu-native ACP。选择 Mode 后描述任务。",
+      text: "Agent Studio · wanwu-native ACP。在顶栏选择 Mode，在下方输入任务描述并发送。",
+    },
+    {
+      kind: "status",
+      text: "快捷键：Ctrl/Cmd+I 聚焦输入 · @ 引用文件/终端/诊断 · Plan 完成后可「按此计划执行」。",
     },
   ];
 }
@@ -164,6 +171,7 @@ export function AgentStudio(props: {
   const [currentModel, setCurrentModel] = useState("");
   const [modelBusy, setModelBusy] = useState(false);
   const [libraryText, setLibraryText] = useState("");
+  const [workflowState, setWorkflowState] = useState<WorkflowState | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileSkillsHydrated = useRef(false);
   const activeLocalIdRef = useRef(activeLocalId);
@@ -454,6 +462,9 @@ export function AgentStudio(props: {
           }),
         );
       }),
+      window.wanwu.acp.onWorkflow((state) => {
+        setWorkflowState(state as WorkflowState);
+      }),
     ];
     return () => offs.forEach((off) => off());
   }, []);
@@ -465,6 +476,7 @@ export function AgentStudio(props: {
     setActiveLocalId(localId);
     setTodos([]);
     setDebugWaiting(false);
+    setWorkflowState(null);
     try {
       if (target.acpSessionId && !target.hydrated) {
         const loaded = await window.wanwu.acp.loadSession(target.acpSessionId);
@@ -575,6 +587,7 @@ export function AgentStudio(props: {
       ]);
       setActiveLocalId(localId);
       setDebugWaiting(false);
+      setWorkflowState(null);
       props.onStatus(`新会话 · ${title}`);
     } catch (err) {
       props.onStatus(err instanceof Error ? err.message : String(err));
@@ -1034,6 +1047,7 @@ export function AgentStudio(props: {
         </button>
       </div>
       <div className="agent-log">
+        <WorkflowRail state={workflowState} />
         {todos.length ? (
           <div className="todo-panel" aria-label="任务清单">
             <div className="todo-head">

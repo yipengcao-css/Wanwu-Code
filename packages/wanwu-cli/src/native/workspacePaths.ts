@@ -1,5 +1,7 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
+import { homedir } from "node:os";
 import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+import { listSkillSandboxRoots } from "@wanwu/skills";
 
 export class PathSandboxError extends Error {
   constructor(message: string) {
@@ -15,23 +17,48 @@ function escapeCheck(root: string, candidate: string, userPath: string): void {
   }
 }
 
+function tryInsideRoot(root: string, candidate: string, userPath: string): string | undefined {
+  try {
+    escapeCheck(root, candidate, userPath);
+    if (normalizedIncludesSsh(candidate)) {
+      throw new PathSandboxError(`refuses .ssh path: ${userPath}`);
+    }
+    if (existsSync(candidate)) {
+      const real = safeRealpath(candidate);
+      escapeCheck(safeRealpath(root), real, userPath);
+    }
+    return candidate;
+  } catch (err) {
+    if (err instanceof PathSandboxError) return undefined;
+    throw err;
+  }
+}
+
+function normalizedIncludesSsh(normalized: string): boolean {
+  return normalized.includes(`${sep}.ssh${sep}`) || normalized.endsWith(`${sep}.ssh`);
+}
+
 export function assertInsideWorkspace(workspaceRoot: string, userPath: string): string {
   const root = resolve(workspaceRoot);
   const rootReal = safeRealpath(root);
   const candidate = isAbsolute(userPath) ? resolve(userPath) : resolve(root, userPath);
   const normalized = normalize(candidate);
 
-  // Lexical check first (fast path, also covers non-existent targets).
-  escapeCheck(root, normalized, userPath);
+  const inWorkspace = tryInsideRoot(root, normalized, userPath);
+  if (inWorkspace) return inWorkspace;
 
-  // Realpath check to defeat symlink escapes when the path exists.
+  const home = homedir();
+  for (const extra of listSkillSandboxRoots(process.env, home)) {
+    const hit = tryInsideRoot(extra, normalized, userPath);
+    if (hit) return hit;
+  }
+
+  escapeCheck(root, normalized, userPath);
   if (existsSync(normalized)) {
     const real = safeRealpath(normalized);
     escapeCheck(rootReal, real, userPath);
   }
-
-  // Block obvious home/ssh escapes even if somehow resolved oddly
-  if (normalized.includes(`${sep}.ssh${sep}`) || normalized.endsWith(`${sep}.ssh`)) {
+  if (normalizedIncludesSsh(normalized)) {
     throw new PathSandboxError(`refuses .ssh path: ${userPath}`);
   }
   return normalized;

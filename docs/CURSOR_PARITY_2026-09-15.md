@@ -78,6 +78,10 @@
 | 问题列表可以向语言服务要快速修复并应用到编辑器 | `stdioLspClient.ts` / `ProblemsPanel.tsx` |
 | 更改面板可以放弃一个文件的更改 | `gitOps.ts` / `SourceControl.tsx` |
 | 选中的文件可以在编辑器里并排对比 | `gitFileSides` / `MonacoPane.tsx` |
+| 查找引用列出位置；重命名会写进对应的编辑器标签 | `lspFeatures.ts` / `MonacoPane.tsx` |
+| 光标所在行可以列出快速修复；没有编辑时会说明 | `MonacoPane.tsx` / `ProblemsPanel.tsx` |
+| 更改可以全部暂存、全部放弃，也可以拉取和推送 | `gitOps.ts` / `SourceControl.tsx` |
+| 并排对比里可以暂存一块未暂存的改动 | `gitOps.ts` / `MonacoPane.tsx` |
 
 ## 仍未做（2026-10-11）
 

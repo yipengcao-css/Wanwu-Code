@@ -27,7 +27,7 @@ const block = buildEditorContext({
 });
 assert.match(block, /Recent files: src\/b\.ts, src\/c\.ts/);
 assert.doesNotMatch(block, /Recent files:.*src\/a\.ts/);
-assert.match(block, /Cursor: src\/a\.ts:40:2/);
+assert.match(block, /Caret: src\/a\.ts:40:2/);
 assert.match(block, /Around cursor \(src\/a\.ts:16-64\)/);
 assert.match(block, /40\|line 40/);
 assert.match(block, /Diagnostics:\nsrc\/a\.ts:40:2 error boom/);
@@ -47,5 +47,5 @@ const stale = buildEditorContext({
 });
 assert.match(stale, /Active file: src\/b\.ts/);
 assert.doesNotMatch(stale, /old file/);
-assert.doesNotMatch(stale, /Cursor:/);
+assert.doesNotMatch(stale, /Caret:/);
 console.log("editorContext tests passed");

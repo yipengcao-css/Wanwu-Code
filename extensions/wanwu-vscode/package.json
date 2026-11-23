@@ -100,11 +100,12 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx src/acp/process.test.ts && tsx src/ui/diffPaths.test.ts && tsx src/acp/client.integration.test.ts",
+    "test": "tsx src/acp/process.test.ts && tsx src/ui/diffPaths.test.ts && tsx src/ui/diffQueue.test.ts && tsx src/acp/client.integration.test.ts",
     "package": "pnpm run build && vsce package --no-dependencies"
   },
   "dependencies": {
-    "@wanwu/acp-client": "workspace:*"
+    "@wanwu/acp-client": "workspace:*",
+    "@wanwu/workflow": "workspace:*"
   },
   "devDependencies": {
     "@types/vscode": "^1.90.0",

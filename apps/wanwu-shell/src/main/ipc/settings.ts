@@ -9,6 +9,7 @@ import {
   type ProviderId,
   userConfigPath,
 } from "@wanwu/config";
+import { skillPackEnv } from "@wanwu/skills";
 
 export type SettingsSnapshot = {
   activeProvider: ProviderId;
@@ -77,5 +78,5 @@ export function registerSettingsIpc(getRoot: () => string | null): void {
 
 /** Env overlay for ACP child (credentials.env + process.env). */
 export function acpCredentialEnv(): Record<string, string> {
-  return { ...loadUserCredentials() };
+  return { ...loadUserCredentials(), ...skillPackEnv() };
 }

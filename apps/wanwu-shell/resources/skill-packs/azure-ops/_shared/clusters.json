@@ -1,0 +1,78 @@
+[
+    {
+        "KUSTO_CLUSTER_URL": "https://acrmc2.chinaeast2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "acrprodmc"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://akscn.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "AKSProd"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://armmcadx.chinaeast2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "armmc"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://asradxclusmc.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "ASRKustoDB"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://azcore.chinanorth3.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "Fc"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://aznwchinamc.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "aznwmds"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://azurecm.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "azurecm"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://mabprodmcadx.chinaeast2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "MABKustoProd"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://rmskustomc.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "RMSKustoDB"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://azcrpmc.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "crp_allmc"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://azuredcmmc.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "AzureDcmDb"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://argmcn2nrpone.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "AzureResourceGraph"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://azurecdnmc.chinanorth3.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "azurecdnmcmds"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://argmcn2arm1pone.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "AzureResourceGraph"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://mcakshuba.chinaeast2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "AKSprod"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://msodsmooncake.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "MSODS"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://estscnn2.chinanorth2.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "EstsAnalytics"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://azdeployermc.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "AzDeployerKustoMC"
+    },
+    {
+        "KUSTO_CLUSTER_URL": "https://mckusto.chinanorth3.kusto.chinacloudapi.cn",
+        "KUSTO_DEFAULT_DATABASE": "kusto"
+    }
+]

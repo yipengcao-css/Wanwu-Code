@@ -18,6 +18,9 @@ import { resolvePermissionRequest } from "./permissions.js";
 import { deleteSession, listSessionSummaries, loadSession, renameSession, saveSession } from "./sessionStore.js";
 import { runHooks } from "../hooks.js";
 import { normalizePromptText, resolvePromptAttachments } from "./promptAttachments.js";
+import { bumpWorkflowAfterVerify, bumpWorkflowForMode } from "./workflowSession.js";
+import type { AgentUiMode } from "@wanwu/workflow";
+import { WorkflowMachine } from "@wanwu/workflow";
 
 type SessionState = {
   id: string;
@@ -25,6 +28,7 @@ type SessionState = {
   history: ChatMessage[];
   /** AbortController for the in-flight prompt, if any. */
   abort?: AbortController;
+  workflow: WorkflowMachine;
 };
 
 export function startNativeAcpStdioServer(): void {
@@ -88,7 +92,7 @@ export function startNativeAcpStdioServer(): void {
 
     if (method === "session/new" || method === "newSession") {
       const sessionId = `wanwu-${Date.now().toString(36)}-${(++sessionCounter).toString(36)}`;
-      sessions.set(sessionId, { id: sessionId, history: [] });
+      sessions.set(sessionId, { id: sessionId, history: [], workflow: new WorkflowMachine() });
       runHooks(workspaceRoot, "SessionStart", { sessionId, sessionSource: "new" });
       sendResult(id, { sessionId });
       return;
@@ -136,7 +140,7 @@ export function startNativeAcpStdioServer(): void {
         sendError(id, -32000, "session not found");
         return;
       }
-      sessions.set(targetId, { id: targetId, history: stored.history });
+      sessions.set(targetId, { id: targetId, history: stored.history, workflow: new WorkflowMachine() });
       runHooks(workspaceRoot, "SessionStart", { sessionId: targetId, sessionSource: "load" });
       sendResult(id, { sessionId: targetId, history: stored.history });
       return;
@@ -174,6 +178,8 @@ export function startNativeAcpStdioServer(): void {
       const text = normalizePromptText(params);
       const attachments = resolvePromptAttachments(workspaceRoot, params);
       const mode = detectMode(text, config.defaultMode);
+      const executePlan = /按已批准的计划实施|按此计划执行/i.test(stripModeTags(text));
+      bumpWorkflowForMode(session.workflow, sessionId, mode as AgentUiMode, { executePlan });
       runHooks(workspaceRoot, "UserPromptSubmit", { sessionId, prompt: text, mode });
       const ctx = {
         workspaceRoot,
@@ -211,6 +217,7 @@ export function startNativeAcpStdioServer(): void {
             },
           });
           const result = await runVerifyWithReview(workspaceRoot, { quiet: true });
+          bumpWorkflowAfterVerify(session.workflow, sessionId, result.code === 0);
           sessionUpdate(sessionId, {
             sessionUpdate: "agent_message_chunk",
             content: {

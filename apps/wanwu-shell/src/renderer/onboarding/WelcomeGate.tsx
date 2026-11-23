@@ -15,7 +15,7 @@ export function WelcomeGate(props: {
           <span className="step-idx">1</span>
           <div>
             <strong>配置模型密钥</strong>
-            <p>{props.hasApiKey ? "已检测到本机密钥" : "BYOK：DeepSeek / OpenAI / Anthropic / Ollama"}</p>
+            <p>{props.hasApiKey ? "已检测到本机密钥" : "BYOK：在「模型与密钥」中自行选择 Provider、模型与 API Key"}</p>
           </div>
           <button type="button" className="btn" onClick={props.onOpenSettings}>
             打开设置

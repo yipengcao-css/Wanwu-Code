@@ -8,20 +8,33 @@ export function chatWebviewHtml(opts: { title: string; compact?: boolean }): str
   <title>${opts.title}</title>
   <style>
     body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); margin: 0; padding: ${compact ? "8px" : "12px"}; }
-    #log { height: ${compact ? "calc(100vh - 200px)" : "calc(100vh - 180px)"}; overflow: auto; white-space: pre-wrap; border: 1px solid var(--vscode-panel-border); padding: 8px; }
+    #log { height: ${compact ? "calc(100vh - 260px)" : "calc(100vh - 240px)"}; overflow: auto; white-space: pre-wrap; border: 1px solid var(--vscode-panel-border); padding: 8px; }
     .row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
     select, button, textarea { font: inherit; }
     textarea { width: 100%; min-height: ${compact ? "48px" : "64px"}; }
     .user { color: var(--vscode-textLink-foreground); }
     .assistant { color: var(--vscode-foreground); }
+    .thought { opacity: 0.75; font-size: 12px; font-style: italic; }
     .error { color: var(--vscode-errorForeground); }
     .tool { color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family); font-size: 12px; }
     .status { opacity: 0.7; font-size: 12px; }
     h3 { margin: 0 0 8px; font-size: ${compact ? "13px" : "16px"}; }
+    .workflow-rail { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 8px 0; padding: 6px 8px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; font-size: 11px; }
+    .workflow-rail ol { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+    .workflow-rail li { display: flex; align-items: center; gap: 4px; opacity: 0.55; }
+    .workflow-rail li.done { opacity: 0.85; color: var(--vscode-textLink-foreground); }
+    .workflow-rail li.current { opacity: 1; font-weight: 600; }
+    .workflow-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .workflow-detail { margin-left: auto; opacity: 0.7; }
+    #usage { font-size: 11px; opacity: 0.75; }
   </style>
 </head>
 <body>
   <h3>${opts.title}</h3>
+  <nav class="workflow-rail" aria-label="工作流进度" id="workflow" hidden>
+    <ol id="workflow-steps"></ol>
+    <span class="workflow-detail" id="workflow-detail"></span>
+  </nav>
   <div class="row">
     <label>Mode
       <select id="mode">
@@ -35,6 +48,7 @@ export function chatWebviewHtml(opts: { title: string; compact?: boolean }): str
     <button id="cancel">停止</button>
     <button id="resume">恢复会话</button>
     <span id="status" class="status">idle</span>
+    <span id="usage"></span>
   </div>
   <div id="log"></div>
   <textarea id="input" placeholder="描述你的任务…"></textarea>
@@ -47,12 +61,33 @@ export function chatWebviewHtml(opts: { title: string; compact?: boolean }): str
     const input = document.getElementById('input');
     const mode = document.getElementById('mode');
     const status = document.getElementById('status');
+    const usageEl = document.getElementById('usage');
+    const workflowNav = document.getElementById('workflow');
+    const workflowSteps = document.getElementById('workflow-steps');
+    const workflowDetail = document.getElementById('workflow-detail');
     function append(cls, text) {
       const div = document.createElement('div');
       div.className = cls;
       div.textContent = text;
       log.appendChild(div);
       log.scrollTop = log.scrollHeight;
+    }
+    function renderWorkflow(msg) {
+      if (!msg.steps || !workflowSteps) return;
+      workflowNav.hidden = false;
+      workflowSteps.textContent = '';
+      for (const step of msg.steps) {
+        const li = document.createElement('li');
+        if (step.done) li.className = 'done';
+        if (step.current) li.className = (li.className ? li.className + ' ' : '') + 'current';
+        const dot = document.createElement('span');
+        dot.className = 'workflow-dot';
+        dot.setAttribute('aria-hidden', 'true');
+        li.appendChild(dot);
+        li.appendChild(document.createTextNode(step.label));
+        workflowSteps.appendChild(li);
+      }
+      if (workflowDetail) workflowDetail.textContent = msg.detail || msg.state || '';
     }
     document.getElementById('send').onclick = () => {
       const text = input.value.trim();
@@ -67,9 +102,14 @@ export function chatWebviewHtml(opts: { title: string; compact?: boolean }): str
     window.addEventListener('message', (event) => {
       const msg = event.data;
       if (msg.type === 'assistant') append('assistant', 'Wanwu: ' + msg.text);
+      if (msg.type === 'thought') append('thought', '💭 ' + msg.text);
       if (msg.type === 'tool') append('tool', '⚙ ' + msg.text);
       if (msg.type === 'error') append('error', 'Error: ' + msg.text);
       if (msg.type === 'status') status.textContent = msg.text;
+      if (msg.type === 'usage' && msg.usage) {
+        usageEl.textContent = 'Σ in ' + (msg.usage.inputTokens || 0) + ' / out ' + (msg.usage.outputTokens || 0);
+      }
+      if (msg.type === 'workflow') renderWorkflow(msg);
       if (msg.type === 'user') append('user', 'You: ' + msg.text);
       if (msg.type === 'clear') log.textContent = '';
     });

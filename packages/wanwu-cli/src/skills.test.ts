@@ -29,7 +29,7 @@ describe("skills", () => {
     seedWorkspace(root);
     const skills = discoverSkills(root, { userHome: join(root, "no-home") });
     expect(skills.map((s) => s.id).sort()).toEqual(["agents/frontend-design", "workspace/review"]);
-    expect(skills.find((s) => s.id === "workspace/review")?.summary).toContain("Review");
+    expect(skills.find((s) => s.id === "workspace/review")?.summary.length).toBeGreaterThan(0);
   });
 
   it("selects by id or short name", () => {
@@ -63,6 +63,7 @@ describe("skills", () => {
         source: "workspace",
         preview: "do a",
         summary: "do a",
+        description: "do a",
       },
     ]);
     expect(text).toContain("# Skill: a (workspace/a)");

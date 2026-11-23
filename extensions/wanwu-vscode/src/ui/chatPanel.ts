@@ -3,7 +3,8 @@ import type { WanwuMode } from "../modes";
 import { AcpClient, type AcpEditProposal, type AcpPermissionRequest } from "../acp/client";
 import { startAcpProcess } from "../acp/process";
 import { askToolPermission } from "./permissionModal";
-import { reviewSingleFileDiff } from "./diffReview";
+import { DiffReviewQueue } from "./diffQueue";
+import { formatUsageLine, workflowWebviewPayload } from "./workflowUi";
 import { findExtensionWorkspaceRoot } from "../workspaceRoot";
 import { SessionManager } from "./sessionManager";
 import { chatWebviewHtml } from "./chatHtml";
@@ -16,6 +17,7 @@ export class WanwuChatPanel {
   private sessionId: string | undefined;
   private mode: WanwuMode = "agent";
   private disposed = false;
+  private readonly diffQueue = new DiffReviewQueue();
   readonly localId: string;
 
   private constructor(
@@ -114,6 +116,12 @@ export class WanwuChatPanel {
         text: `${tool.status} ${tool.title}${tool.detail ? `: ${tool.detail}` : ""}`,
       });
     });
+    client.on("workflow", (state: string) => {
+      void this.webview.postMessage({ type: "workflow", ...workflowWebviewPayload(state) });
+    });
+    client.on("thought", (text: string) => {
+      void this.webview.postMessage({ type: "thought", text });
+    });
     client.on("permission", (req: AcpPermissionRequest) => {
       void (async () => {
         const decision = await askToolPermission(req.toolName, `${req.summary} (risk=${req.risk ?? "?"})`);
@@ -125,24 +133,21 @@ export class WanwuChatPanel {
       })();
     });
     client.on("edit", (edit: AcpEditProposal) => {
-      void (async () => {
-        void this.webview.postMessage({
-          type: "tool",
-          text: `pending Edit: ${edit.path}`,
-        });
-        const decision = await reviewSingleFileDiff(edit, findExtensionWorkspaceRoot());
-        if (decision === "accept") {
+      const root = findExtensionWorkspaceRoot();
+      this.diffQueue.enqueue(edit, root, {
+        onStatus: (text) => {
+          void this.webview.postMessage({ type: "status", text });
+        },
+        onResolved: (resolved, decision) => {
           void this.webview.postMessage({
             type: "status",
-            text: `accepted edit → ${edit.path}`,
+            text:
+              decision === "accept"
+                ? `accepted edit → ${resolved.path}`
+                : `rejected edit → ${resolved.path}`,
           });
-        } else {
-          void this.webview.postMessage({
-            type: "status",
-            text: `rejected edit → ${edit.path}`,
-          });
-        }
-      })();
+        },
+      });
     });
     client.on("error", (err: Error) => {
       void this.webview.postMessage({ type: "error", text: err.message });
@@ -193,7 +198,19 @@ export class WanwuChatPanel {
       await this.webview.postMessage({ type: "status", text: "connecting…" });
       const client = await this.ensureClient();
       await this.webview.postMessage({ type: "status", text: `session=${this.sessionId}` });
-      await client.prompt(this.sessionId ?? "unknown", `${prefix}${context}${text}`);
+      const result = (await client.prompt(this.sessionId ?? "unknown", `${prefix}${context}${text}`)) as {
+        usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
+        checkpointId?: string;
+      };
+      const usageLine = formatUsageLine(result?.usage);
+      const ckpt = result?.checkpointId ? ` · ckpt ${result.checkpointId}` : "";
+      await this.webview.postMessage({
+        type: "status",
+        text: `回合完成${usageLine ? ` · ${usageLine}` : ""}${ckpt}`,
+      });
+      if (usageLine) {
+        await this.webview.postMessage({ type: "usage", usage: result?.usage });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await this.webview.postMessage({ type: "error", text: message });

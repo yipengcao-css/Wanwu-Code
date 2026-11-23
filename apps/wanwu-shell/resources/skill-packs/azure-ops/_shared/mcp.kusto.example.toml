@@ -1,0 +1,7 @@
+[mcp.servers.kusto-mcp]
+command = "npx"
+args = ["-y", "kusto-mcp"]
+env = { KUSTO_AUTH_METHOD = "azure-cli" }
+
+# Install once: npm i -g kusto-mcp  (or rely on npx above)
+# Copy to ~/.wanwu/mcp.toml and adjust cluster URLs per skill (_shared/clusters.json).

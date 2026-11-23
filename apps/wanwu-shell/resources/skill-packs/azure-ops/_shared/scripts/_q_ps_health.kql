@@ -1,0 +1,11 @@
+SRSDataEvent
+| where PreciseTimeStamp > datetime(2026-11-21T00:00:00Z)
+| where SubscriptionId == '2f2755bc-f7c0-4e5b-a29a-9a0524bee2c3'
+| where Message contains 'ApplianceHealthHandler'
+| extend ApplianceId = extract(@'"ApplianceId": "([^"]+)"', 1, Message)
+| extend Names = extract_all(@'"FriendlyName": "([^"]+)"', Message)
+| extend HB = extract_all(@'"LastHeartbeatUtc": "([^"]+)"', Message)
+| extend Issues = extract(@'"HealthIssues": (.*?),\s*"ProcessServerDetails"', 1, Message)
+| project PreciseTimeStamp, ApplianceId, Names, HB, Issues
+| order by PreciseTimeStamp desc
+| limit 25

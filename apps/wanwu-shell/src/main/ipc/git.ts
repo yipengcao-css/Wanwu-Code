@@ -5,10 +5,16 @@ import {
   gitCommit,
   gitDiff,
   gitDiscard,
+  gitDiscardAll,
   gitFileLog,
   gitFileSides,
+  gitPull,
+  gitPush,
   gitScmStatus,
   gitStage,
+  gitStageAll,
+  gitStageHunk,
+  gitUnstagedHunks,
 } from "../gitOps.js";
 import { gitStatus } from "../gitStatus.js";
 
@@ -65,5 +71,41 @@ export function registerGitIpc(getRoot: () => string | null): void {
     const root = getRoot();
     if (!root) return { original: "", modified: "", untracked: false };
     return gitFileSides(root, String(rel));
+  });
+
+  ipcMain.handle("git:stageAll", () => {
+    const root = getRoot();
+    if (!root) return { ok: false, text: "未打开工作区" };
+    return gitStageAll(root);
+  });
+
+  ipcMain.handle("git:discardAll", () => {
+    const root = getRoot();
+    if (!root) return { ok: false, text: "未打开工作区" };
+    return gitDiscardAll(root);
+  });
+
+  ipcMain.handle("git:push", () => {
+    const root = getRoot();
+    if (!root) return { ok: false, text: "未打开工作区" };
+    return gitPush(root);
+  });
+
+  ipcMain.handle("git:pull", () => {
+    const root = getRoot();
+    if (!root) return { ok: false, text: "未打开工作区" };
+    return gitPull(root);
+  });
+
+  ipcMain.handle("git:hunks", (_e, rel: string) => {
+    const root = getRoot();
+    if (!root) return { hunks: [], note: "" };
+    return gitUnstagedHunks(root, String(rel));
+  });
+
+  ipcMain.handle("git:stageHunk", (_e, rel: string, index: number) => {
+    const root = getRoot();
+    if (!root) return { ok: false, text: "未打开工作区" };
+    return gitStageHunk(root, String(rel), Number(index));
   });
 }
