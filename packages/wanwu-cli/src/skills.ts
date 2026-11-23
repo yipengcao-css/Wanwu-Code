@@ -1,24 +1,29 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { homedir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { statSync } from "node:fs";
+import { basename, isAbsolute } from "node:path";
+import {
+  discoverSkills,
+  loadFullSkillBody,
+  selectSkills,
+  type SkillFile,
+} from "@wanwu/skills";
 
-export type SkillSource = "workspace" | "agents" | "user" | "file";
-
-export interface SkillFile {
-  /** Stable id: `workspace/review`, `agents/frontend-design`, `user/foo`. */
-  id: string;
-  name: string;
-  path: string;
-  source: SkillSource;
-  /** First ~2000 chars of the skill body for prompt injection. */
-  preview: string;
-  /** One-line summary for pickers. */
-  summary: string;
-}
+export {
+  discoverSkills,
+  loadFullSkillBody,
+  renderSkillCatalog,
+  renderSkillsForPrompt,
+  selectSkills,
+  type SkillFile,
+  type SkillSource,
+} from "@wanwu/skills";
 
 const MAX_PROMPT_SKILLS = 8;
-const MAX_LIST = 48;
 const MAX_PREVIEW = 2000;
+
+function pushSkill(out: SkillFile[], skill: SkillFile): void {
+  if (out.some((s) => s.id === skill.id || s.path === skill.path)) return;
+  out.push(skill);
+}
 
 function firstSummary(body: string): string {
   for (const raw of body.split("\n")) {
@@ -29,103 +34,6 @@ function firstSummary(body: string): string {
     return line.replace(/^#+\s*/, "").replace(/^["']|["']$/g, "").slice(0, 80);
   }
   return "";
-}
-
-function readPreview(path: string): { preview: string; summary: string } | undefined {
-  try {
-    const preview = readFileSync(path, "utf8").slice(0, MAX_PREVIEW);
-    if (!preview.trim()) return undefined;
-    return { preview, summary: firstSummary(preview) };
-  } catch {
-    return undefined;
-  }
-}
-
-function pushSkill(out: SkillFile[], skill: SkillFile): void {
-  if (out.some((s) => s.id === skill.id || s.path === skill.path)) return;
-  out.push(skill);
-}
-
-function scanFlatDir(dir: string, source: SkillSource): SkillFile[] {
-  if (!existsSync(dir)) return [];
-  const out: SkillFile[] = [];
-  for (const name of readdirSync(dir)) {
-    if (!(name.endsWith(".md") || name.endsWith(".toml"))) continue;
-    const path = join(dir, name);
-    const body = readPreview(path);
-    if (!body) continue;
-    const stem = name.replace(/\.(md|toml)$/i, "");
-    out.push({
-      id: `${source}/${stem}`,
-      name: stem,
-      path,
-      source,
-      preview: body.preview,
-      summary: body.summary || stem,
-    });
-  }
-  return out;
-}
-
-function scanAgentSkills(dir: string): SkillFile[] {
-  if (!existsSync(dir)) return [];
-  const out: SkillFile[] = [];
-  for (const name of readdirSync(dir)) {
-    const folder = join(dir, name);
-    try {
-      if (!statSync(folder).isDirectory()) continue;
-    } catch {
-      continue;
-    }
-    const path = join(folder, "SKILL.md");
-    const body = readPreview(path);
-    if (!body) continue;
-    out.push({
-      id: `agents/${name}`,
-      name,
-      path,
-      source: "agents",
-      preview: body.preview,
-      summary: body.summary || name,
-    });
-  }
-  return out;
-}
-
-/**
- * Discover skill markdown from workspace, `.agents/skills`, and `~/.wanwu/skills`.
- * Skills are plain instructions; we do not execute frontmatter.
- */
-export function discoverSkills(
-  cwd: string,
-  opts?: { userHome?: string; limit?: number },
-): SkillFile[] {
-  const home = opts?.userHome ?? homedir();
-  const found = [
-    ...scanFlatDir(join(cwd, ".wanwu", "skills"), "workspace"),
-    ...scanAgentSkills(join(cwd, ".agents", "skills")),
-    ...scanFlatDir(join(home, ".wanwu", "skills"), "user"),
-  ];
-  return found.slice(0, opts?.limit ?? MAX_LIST);
-}
-
-/** Resolve UI/ACP ids to skill files (id, name, or basename). */
-export function selectSkills(all: SkillFile[], ids: string[]): SkillFile[] {
-  if (!ids.length) return [];
-  const wanted = ids.map((id) => id.trim()).filter(Boolean);
-  const picked: SkillFile[] = [];
-  for (const raw of wanted) {
-    const hit = all.find(
-      (s) =>
-        s.id === raw ||
-        s.name === raw ||
-        s.id.endsWith(`/${raw}`) ||
-        basename(s.path) === raw ||
-        basename(s.path) === `${raw}.md`,
-    );
-    if (hit) pushSkill(picked, hit);
-  }
-  return picked.slice(0, MAX_PROMPT_SKILLS);
 }
 
 /** `[SKILLS=a,b]` → explicit list; missing tag → undefined (use workspace default). */
@@ -168,6 +76,7 @@ export function parseSkillImports(prompt: string): SkillFile[] {
       source: "file",
       preview,
       summary: firstSummary(preview) || name,
+      description: firstSummary(preview) || name,
     });
     if (out.length >= 4) break;
   }
@@ -181,16 +90,18 @@ function readExternalSkill(absPath: string): SkillFile | undefined {
   } catch {
     return undefined;
   }
-  const body = readPreview(absPath);
-  if (!body) return undefined;
+  const body = loadFullSkillBody(absPath).slice(0, MAX_PREVIEW);
+  if (!body.trim()) return undefined;
   const stem = basename(absPath).replace(/\.(md|markdown)$/i, "") || "skill";
+  const summary = firstSummary(body) || stem;
   return {
     id: `file/${stem}`,
     name: stem,
     path: absPath,
     source: "file",
-    preview: body.preview,
-    summary: body.summary || stem,
+    preview: body,
+    summary,
+    description: summary,
   };
 }
 
@@ -199,13 +110,6 @@ export function stripSkillTags(text: string): string {
     .replace(/\[SKILL_IMPORT\s+name="[^"]*"\]\n[\s\S]*?\n\[\/SKILL_IMPORT\]\n?/g, "")
     .replace(/\[SKILLFILE=[^\]]*\]\n?/g, "")
     .replace(/\[SKILLS=[^\]]*\]\n?/g, "");
-}
-
-export function renderSkillsForPrompt(skills: SkillFile[]): string {
-  if (!skills.length) return "";
-  return skills
-    .map((s) => `# Skill: ${s.name} (${s.id})\n${s.preview}`)
-    .join("\n\n---\n\n");
 }
 
 export function resolvePromptSkills(cwd: string, prompt: string): SkillFile[] {

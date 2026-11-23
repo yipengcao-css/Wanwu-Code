@@ -20,6 +20,7 @@
     "@monaco-editor/react": "^4.7.0",
     "@wanwu/acp-client": "workspace:*",
     "@wanwu/config": "workspace:*",
+    "@wanwu/skills": "workspace:*",
     "@wanwu/providers": "workspace:*",
     "@wanwu/workflow": "workspace:*",
     "@xterm/addon-fit": "^0.10.0",

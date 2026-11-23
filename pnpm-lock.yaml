@@ -38,6 +38,9 @@ importers:
       '@wanwu/providers':
         specifier: workspace:*
         version: link:../../packages/wanwu-providers
+      '@wanwu/skills':
+        specifier: workspace:*
+        version: link:../../packages/wanwu-skills
       '@wanwu/workflow':
         specifier: workspace:*
         version: link:../../packages/wanwu-workflow
@@ -150,6 +153,9 @@ importers:
       '@wanwu/providers':
         specifier: workspace:*
         version: link:../wanwu-providers
+      '@wanwu/skills':
+        specifier: workspace:*
+        version: link:../wanwu-skills
       '@wanwu/workflow':
         specifier: workspace:*
         version: link:../wanwu-workflow
@@ -197,6 +203,15 @@ importers:
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.11)
+
+  packages/wanwu-skills:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.15.21
+        version: 22.20.1
       vitest:
         specifier: ^3.2.4
         version: 3.2.7(@types/debug@4.1.13)(@types/node@22.20.1)(jiti@2.7.0)(tsx@4.23.11)

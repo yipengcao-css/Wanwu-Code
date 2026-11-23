@@ -129,7 +129,7 @@ export function buildSystem(
     .slice(0, 20)
     .map((r) => `${r.uri}${r.name ? ` (${r.name})` : ""}`);
   const skillFiles = selectedSkills ?? resolvePromptSkills(ctx.workspaceRoot, prompt);
-  const skills = renderSkillsForPrompt(skillFiles);
+  const skills = renderSkillsForPrompt(skillFiles, { full: true });
   const rules = renderRulesForPrompt(discoverRules(ctx.workspaceRoot), [
     ...activeFiles,
     ...editor.openTabs,

@@ -26,7 +26,7 @@ import type { WorkflowState } from "@wanwu/workflow";
 type StudioSkill = {
   id: string;
   name: string;
-  source: "workspace" | "agents" | "user";
+  source: "workspace" | "agents" | "user" | "pack";
   summary: string;
 };
 
@@ -48,6 +48,7 @@ function skillsStorageKey(root: string): string {
 function sourceLabel(source: StudioSkill["source"] | "file"): string {
   if (source === "agents") return "仓库";
   if (source === "user") return "用户";
+  if (source === "pack") return "技能包";
   if (source === "file") return "文件";
   return "工作区";
 }

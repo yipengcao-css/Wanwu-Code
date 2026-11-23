@@ -76,7 +76,7 @@ export type WanwuBridge = {
   };
   skills: {
     list: () => Promise<
-      Array<{ id: string; name: string; source: "workspace" | "agents" | "user"; summary: string }>
+      Array<{ id: string; name: string; source: "workspace" | "agents" | "user" | "pack"; summary: string }>
     >;
     pickMarkdown: () => Promise<{ id: string; name: string; path: string; summary: string } | null>;
     readMarkdown: (absPath: string) => Promise<{ id: string; name: string; path: string; summary: string }>;
